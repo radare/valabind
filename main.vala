@@ -6,25 +6,27 @@ public class SwigCompiler {
 
 	public SwigCompiler () {
 		context = new CodeContext ();
-		init ();
+		CodeContext.push (context);
 	}
 
 	public void parse () {
+		add_package (context, "glib-2.0");
+		add_package (context, "gobject-2.0");
 		var parser = new Parser ();
 		parser.parse (context);
+		init ();
 	}
 
 	public bool init () {
-//		add_package (context, "glib-2.0");
-//		add_package (context, "gobject-2.0");
 
-		/* warning about type_symbol stuff */
-//		var analyzer = new SemanticAnalyzer ();
-//		analyzer.analyze (context);
 
 		/* analysis and checks */
 		var resolver = new SymbolResolver ();
 		resolver.resolve (context);
+
+		/* warning about type_symbol stuff */
+		var analyzer = new SemanticAnalyzer ();
+		analyzer.analyze (context);
 
 		/* the flow */
 		var flow_analyzer = new FlowAnalyzer ();
@@ -36,7 +38,7 @@ public class SwigCompiler {
 	}
 
 	public bool add_source_file (string path) {
-		var source = new SourceFile (context, path);
+		var source = new SourceFile (context, path, true);
 		context.add_source_file (source);
 		source_files += path;
 		return true;
