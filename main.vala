@@ -15,8 +15,8 @@ public class SwigCompiler {
 	}
 
 	public bool init () {
-		add_package (context, "glib-2.0");
-		add_package (context, "gobject-2.0");
+//		add_package (context, "glib-2.0");
+//		add_package (context, "gobject-2.0");
 
 		/* warning about type_symbol stuff */
 //		var analyzer = new SemanticAnalyzer ();
@@ -36,7 +36,7 @@ public class SwigCompiler {
 	}
 
 	public bool add_source_file (string path) {
-		var source = new SourceFile (context, "foo.vapi");
+		var source = new SourceFile (context, path);
 		context.add_source_file (source);
 		source_files += path;
 		return true;
@@ -93,14 +93,14 @@ public class SwigCompiler {
 	}
 }
 
-int main () {
+void main (string[] args) {
 	SwigCompiler sc = new SwigCompiler ();
-	sc.add_source_file ("foo.vapi");
+	if (args.length > 1)
+		sc.add_source_file (args[1]);
+	else sc.add_source_file ("foo.vapi");
 
 	sc.parse ();
 
 	sc.emit_swig ("blah.i");
 	sc.emit_vapi ("blah");
-
-	return 0;
 }

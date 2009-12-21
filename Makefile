@@ -1,2 +1,2 @@
 all:
-	valac main.vala swigwriter.vala --pkg vala-1.0
+	valac -g main.vala swigwriter.vala --pkg vala-1.0

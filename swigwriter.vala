@@ -23,7 +23,7 @@ public class SwigWriter : CodeVisitor {
 	public override void visit_namespace (Namespace ns) {
 		if (ns.name != null)
 			print ("  Namespace: %s\n", ns.name);
-//		ns.accept_children (this);
+		ns.accept_children (this);
 	}
 
 	public override void visit_interface (Interface iface) {
@@ -46,30 +46,43 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public override void visit_class (Class cl) {
-		print ("  Class name: %s\n", cl.get_cname ());
+		print ("  Class name: '%s'\n", cl.get_cname ());
 		cl.accept_children (this);
 	}
 
 	public override void visit_method (Method m) {
-		print ("    %s : %s\n", 
+		print ("    %s: %s\n", 
 			m.is_private_symbol ()? "Private": "Public", 
-			m.get_real_cname ());
+			m.get_cprefix ());
+			//m.get_real_cname ());
+			//m.get_finish_real_cname ()); // nonabstract/nonvirtual method / coroutine
 		print ("      ret: %s\n", m.return_type.to_string ());
 		foreach (var foo in m.get_parameters ()) {
 			print ("    - arg:  %s\n", foo.name);
 			DataType? bar = foo.parameter_type;
-			if (bar != null)
-				print ("      type: %s\n", bar.to_string ());
+			if (bar != null) {
+				if (bar.data_type != null)
+					print ("      type: %s\n", bar.data_type.to_string ());
+				else print ("      type: %s ???\n", bar.to_string ());
+			}
+			//if (bar != null)
+			//	print ("      type: %s\n", bar.to_string ());
 		}
 		m.accept_children (this);
 	}
 
 	public override void visit_member (Member m) {
 		print ("  Member: %s\n", m.name);
+		// TODO do it everywhere
+		foreach (var foo in m.get_cheader_filenames ()) {
+			print ("INC: %s\n", foo);
+		}
+		print ("    type: %s\n", m.get_full_name ());
 	}
 
 	public override void visit_field (Field f) {
-		print ("  Field: %s\n", f.name);
+	// same as visit_member
+	//	print ("  Field: %s\n", f.name);
 	}
 
 	public override void visit_creation_method (CreationMethod m) {
