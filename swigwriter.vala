@@ -38,9 +38,9 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void display_cmethod (Method m) {
-		print ("    %s: %s\n", 
+		print ("    %s: %s (%s)\n", 
 			m.is_private_symbol ()? "Private": "Public", 
-			m.get_cprefix ());
+			m.name, m.get_cname ());
 			//m.get_real_cname ());
 			//m.get_finish_real_cname ()); // nonabstract/nonvirtual method / coroutine
 		print ("       ret: %s\n", m.return_type.to_string ());
@@ -82,7 +82,6 @@ public class SwigWriter : CodeVisitor {
 			}
 			foreach (var m in c.get_methods ()) {
 				display_cmethod (m);
-				print ("  --method: %s\n", m.get_cname ());
 			}
 		}
 
@@ -185,10 +184,10 @@ public class SwigWriter : CodeVisitor {
 		context.accept (this);
 		current_scope = null;
 
-		print ("%{\n");
+		print ("%%{\n");
 		foreach (var inc in includefiles)
 			print ("#include <%s>\n", inc);
-		print ("%}\n");
+		print ("%%}\n");
 
 		print (")\n");
 
