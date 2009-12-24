@@ -1,25 +1,75 @@
+/* Copyleft 2k9 -- pancake // nopcode.org */
+
 using Vala;
 
 public class SwigWriter : CodeVisitor {
-	private Scope current_scope; // to be removed ?
 	private CodeContext context;
 	private FileStream stream;
 	public string[] files;
 	public GLib.List<string> includefiles;
 	public GLib.List<Method> methods;
+	private string classname;
+	private string classcname;
+	private string externs;
+	private string extends;
+	private string enums;
+	private string nspace;
+	private string modulename;
 
-	public SwigWriter () {
-		print ("SwigWriter: initialized\n");
+	public SwigWriter (string name) {
+		classname = "";
+		externs = "";
+		extends = "";
+		enums = "";
+		this.modulename = name;
+	}
+
+	private string get_alias (string name) {
+		switch (name) {
+		case "del":
+			return "_del";
+		}
+		return name;
+	}
+
+	private string get_ctype (string _type) {
+		string type = _type;
+		if (type.has_prefix (nspace)) {
+			type = type.substring (nspace.length) + "*";
+		}
+		if (type.str (".") != null)
+			type = type.replace (".", "");
+		switch (type) {
+		case "bool":
+			return "int"; // ??? 
+		case "string":
+			return "char *"; // ??? 
+		case "gint":
+	 		return "int";
+		case "gint":
+	 		return "int";
+		case "guint64":
+	 		return "unsigned long long";
+		case "guint8*":
+			return "unsigned char*";
+		case "gboolean":
+			return "int"; // XXX bool?
+		}
+		return type;
+	}
+
+	private bool is_target_file (string path) {
+		foreach (var file in files)
+			if (file == path)
+				return true;
+		return false;
 	}
 
 	public override void visit_source_file (SourceFile source) {
 		// long form for if (source.filename in files) { ...
-		foreach (var file in files) {
-			if (file == source.filename) {
-				print ("  Source file: %s\n", source.filename);
-				source.accept_children (this);
-				break;
-			}
+		if (is_target_file (source.filename)) {
+			//stream.printf ("  Source file: %s\n", source.filename);
+			source.accept_children (this);
 		}
 	}
 
@@ -37,159 +87,139 @@ public class SwigWriter : CodeVisitor {
 		}
 	}
 
-	public void display_cmethod (Method m) {
-		print ("    %s: %s (%s)\n", 
-			m.is_private_symbol ()? "Private": "Public", 
-			m.name, m.get_cname ());
-			//m.get_real_cname ());
-			//m.get_finish_real_cname ()); // nonabstract/nonvirtual method / coroutine
-		print ("       ret: %s\n", m.return_type.to_string ());
+	public void walk_class (Class c) {
+		classname = c.name;
+		classcname = c.get_cname ();
+
+		extends += "%%extend %s {\n".printf (classname);
+		foreach (var e in c.get_enums ()) {
+			walk_enum (e);
+		}
+		foreach (var m in c.get_methods ()) {
+			walk_method (m);
+		}
+		extends += "};\n";
+		classname = "";
+	}
+
+	public void walk_enum (Enum e) {
+		return ; // enums not yet supported
+		enums += "//  enum: %s (%s)\n".printf (
+			e.name, e.get_lower_case_cname ());
+		enums += "enum {\n";
+		foreach (var v in e.get_values ())
+			enums += "  %s,\n".printf (v.name);
+		enums += "}\n";
+	}
+
+	public void walk_method (Method m) {
+		bool notbegin = false;
+		string cname = m.get_cname ();
+		string name = m.name;
+		string alias = get_alias (m.name);
+		string ret = get_ctype (m.return_type.to_string ());
+		string def_args = "";
+		string call_args = "";
+		bool void_return = (ret == "void");
+		bool is_constructor = (name == ".new"); // weak way to check it?
+
+		if (m.is_private_symbol ())
+			return;
+
 		foreach (var foo in m.get_parameters ()) {
-			print ("     * arg:  %s\n", foo.name);
+			string arg_name = foo.name;
+			string arg_type = "???";
 			DataType? bar = foo.parameter_type;
-			if (bar != null) {
-				print ("      type: %s\n", bar.get_cname ());
+			if (bar == null)
+				continue;
+			arg_type = get_ctype (bar.get_cname ());
+
+			if (notbegin) {
+				call_args += ", ";
+				def_args += ", ";
+			} else notbegin = true;
+
+			def_args += "%s %s".printf (arg_type, arg_name);
+			call_args += "%s".printf (arg_name);
+		}
+
+
+		/* object oriented shit */
+		if (classname != "") {
+			if (is_constructor) {
+				externs += "extern %s* %s (%s);\n".printf (classname, cname, def_args);
+				extends += "  %s (%s) {\n".printf (classname, def_args);
+				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
+			} else {
+				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
+				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
+				extends += "    %s %s (self%s);\n  }\n".printf (
+					void_return?"":"return", cname,
+					call_args==""?"":", "+call_args);
 			}
-			//if (bar != null)
-			//	print ("      type: %s\n", bar.to_string ());
+		} else {
+			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
 		}
 	}
 
 	public override void visit_namespace (Namespace ns) {
-		if (ns.name != null)
-			print ("  Namespace: %s\n", ns.name);
-		if (ns.name != "Radare")
+		/* skip processing */
+		if (ns.name == null)
 			return;
+
+		SourceReference? sr = ns.source_reference;
+		if (sr != null && !is_target_file (sr.file.filename))
+			return;
+
+		//stream.printf ("  Namespace: %s\n", ns.name);
+		nspace = ns.name;
 		process_includes (ns);
 		// Namespace has methods to walk everything
 		foreach (var e in ns.get_enums ()) {
 			print ("enum: %s\n", e.get_cname ());
-			foreach (var v in e.get_values ()) {
-				print ("   - %s\n", v.name);
-			}
+			foreach (var v in e.get_values ())
+				stream.printf ("   - %s\n", v.name);
 		}
+
 		foreach (var m in ns.get_methods ()) {
 			print ("method: %s\n", m.get_cname ());
-			display_cmethod (m);
+			walk_method (m);
 		}
+
 		foreach (var c in ns.get_classes ()) {
-			print ("class: %s (%s)\n", c.name, c.get_cname ());
-			foreach (var e in c.get_enums ()) {
-				print ("  enum: %s (%s)\n", e.name, e.get_lower_case_cname ());
-				foreach (var v in e.get_values ()) {
-					print ("     - %s\n", v.name);
-				}
-			}
-			foreach (var m in c.get_methods ()) {
-				display_cmethod (m);
-			}
+			walk_class (c);
 		}
 
 		foreach (var c in ns.get_structs ()) {
 			print ("struct: %s\n", c.get_cname ());
 			foreach (var m in c.get_methods ()) {
-				display_cmethod (m);
-				print ("  method: %s\n", m.get_cname ());
+				walk_method (m);
+				//stream.printf ("  method: %s\n", m.get_cname ());
 			}
 		}
+
 		// DO NOT FOLLOW NAMESPACES ONLY SCAN PROVIDED ONES
 		ns.accept_children (this);
 	}
-
-/*
-	public override void visit_interface (Interface iface) {
-		print ("  Interface: %s\n", iface.name);
-//		iface.accept_children (this);
-	}
-
-	public override void visit_enum (Enum enu) {
-		print ("  Enumeration: %s\n", enu.get_cname ());
-		enu.accept_children (this);
-	}
-
-	public override void visit_enum_value (Vala.EnumValue enu) {
-		print ("     - %s\n", enu.get_cname ());
-		enu.accept_children (this);
-	}
-
-	public override void visit_delegate (Delegate del) {
-		print ("  Delegate: %s\n", del.get_cname ());
-	}
-
-	public override void visit_class (Class cl) {
-		var classname = cl.get_cname ();
-		print ("  Class name: '%s'\n", classname);
-		print ("%%extend %s\n", classname);
-		cl.accept_children (this);
-	}
-
-	public override void visit_method (Method m) {
-		print ("    %s: %s\n", 
-			m.is_private_symbol ()? "Private": "Public", 
-			m.get_cprefix ());
-			//m.get_real_cname ());
-			//m.get_finish_real_cname ()); // nonabstract/nonvirtual method / coroutine
-		print ("      ret: %s\n", m.return_type.to_string ());
-		foreach (var foo in m.get_parameters ()) {
-			print ("    - arg:  %s\n", foo.name);
-			DataType? bar = foo.parameter_type;
-			if (bar != null) {
-				if (bar.data_type != null)
-					print ("      type: %s\n", bar.data_type.to_string ());
-				else print ("      type: %s ???\n", bar.to_string ());
-			}
-			//if (bar != null)
-			//	print ("      type: %s\n", bar.to_string ());
-		}
-		m.accept_children (this);
-	}
-
-	public override void visit_member (Member m) {
-		print ("  = %s\n", m.name);
-		// TODO do it everywhere
-		process_includes (m);
-		//print ("    type: %s\n", m.get_full_name ());
-	}
-
-	public override void visit_field (Field f) {
-	// same as visit_member
-	//	print ("  Field: %s\n", f.name);
-	}
-
-	public override void visit_creation_method (CreationMethod m) {
-		print ("    CreationMethod: %s\n", m.get_cname ());
-	}
-
-	public override void visit_constructor (Constructor c) {
-		print ("  Constructor: %s\n", c.name);
-	}
-
-	public override void visit_destructor (Destructor d) {
-		print ("  Destructor: %s\n", d.name);
-	}
-
-	public override void visit_block (Block b) {
-		print ("  Block: %s\n", b.name);
-	}
-*/
 
 	public void write_file (CodeContext context, string filename) {
 		this.stream = FileStream.open (filename, "w");
 		this.context = context;
 		this.includefiles = new GLib.List<string>();
 
-		print ("(\n");
-
-		current_scope = context.root.scope;
 		context.accept (this);
-		current_scope = null;
 
-		print ("%%{\n");
+		stream.printf ("%%module %s\n", modulename);
+		stream.printf ("%%{\n");
 		foreach (var inc in includefiles)
-			print ("#include <%s>\n", inc);
-		print ("%%}\n");
+			stream.printf ("#include <%s>\n", inc);
+		stream.printf ("%%}\n\n");
+		foreach (var inc in includefiles)
+			stream.printf ("%%include <%s>\n", inc);
 
-		print (")\n");
+		stream.printf ("%s\n", enums);
+		stream.printf ("%s\n", externs);
+		stream.printf ("%s\n", extends);
 
 		this.stream = null;
 	}

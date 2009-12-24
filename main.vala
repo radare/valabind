@@ -1,108 +1,52 @@
-using Vala;
+/* Copyleft 2k9 -- pancake // nopcode.org */
 
-public class SwigCompiler {
-	CodeContext context;
-	string[] source_files;
+static string[] files;
+static string modulename;
+static string? output;
 
-	public SwigCompiler () {
-		context = new CodeContext ();
-		CodeContext.push (context);
+private const OptionEntry[] options = {
+	{ "", 0, 0, OptionArg.FILENAME_ARRAY, ref files, "vala/vapi input files", "FILE FILE .." },
+	{ "output", 'o', 0, OptionArg.STRING, ref output, "specify module name", null },
+	{ "module-name", 'm', 0, OptionArg.STRING, ref modulename, "specify module name", null },
+	{ null }
+};
+
+int main (string[] args) {
+	output = null;
+	files = { "" };
+
+	try {
+		var opt_context = new OptionContext ("- ValaSwig");
+		opt_context.set_help_enabled (true);
+		opt_context.add_main_entries (options, null);
+		opt_context.parse (ref args);
+	} catch (OptionError e) {
+		stdout.printf ("%s\n", e.message);
+		stdout.printf ("Run '%s --help' to see a full list of available command line options.", args[0]);
+		return 1;
 	}
 
-	public void parse () {
-		add_package (context, "glib-2.0");
-		add_package (context, "gobject-2.0");
-		var parser = new Parser ();
-		parser.parse (context);
-		init ();
+	if (modulename == null) {
+		stderr.printf ("No modulename specified\n");
+		return 1;
 	}
 
-	public bool init () {
-
-
-		/* analysis and checks */
-		var resolver = new SymbolResolver ();
-		resolver.resolve (context);
-
-		/* warning about type_symbol stuff */
-		var analyzer = new SemanticAnalyzer ();
-		analyzer.analyze (context);
-
-		/* the flow */
-		var flow_analyzer = new FlowAnalyzer ();
-		flow_analyzer.analyze (context);
-
-		if (context.report.get_errors () > 0)
-			return false;
-		return true;
+	if (files.length == 0) {
+	//if (files == null) {
+		stderr.printf ("No files given\n");
+		return 1;
 	}
 
-	public bool add_source_file (string path) {
-		var source = new SourceFile (context, path, true);
-		context.add_source_file (source);
-		source_files += path;
-		return true;
+	SwigCompiler sc = new SwigCompiler (modulename);
+	foreach (var file in files) {
+		//stderr.printf ("FILE = %s\n", file);
+		sc.add_source_file (file);
 	}
-
-	public void emit_vapi (string file) {
-		var swig_writer = new CodeWriter ();
-		swig_writer.write_file (context, file);
-	}
-
-	public void emit_swig (string file) {
-		var swig_writer = new SwigWriter ();
-		swig_writer.files = source_files;
-		swig_writer.write_file (context, file);
-	}
-
-	/* Ripped from Vala Compiler */
-	private bool add_package (CodeContext context, string pkg) {
-		/* XXX harcoded path */
-		string[] vapi_directories = { "/usr/share/vala/vapi" };
-		if (context.has_package (pkg)) {
-			// ignore multiple occurences of the same package
-			return true;
-		}
-	
-		var package_path = context.get_package_path (pkg, vapi_directories);
-		
-		if (package_path == null)
-			return false;
-		
-		context.add_package (pkg);
-		context.add_source_file (new SourceFile (context, package_path, true));
-		
-		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));
-		if (FileUtils.test (deps_filename, FileTest.EXISTS)) {
-			try {
-				string deps_content;
-				size_t deps_len;
-				FileUtils.get_contents (deps_filename, out deps_content, out deps_len);
-				foreach (string dep in deps_content.split ("\n")) {
-					dep = dep.strip ();
-					if (dep != "") {
-						if (!add_package (context, dep)) {
-							Report.error (null, "%s, dependency of %s, not found in specified Vala API directories".printf (dep, pkg));
-						}
-					}
-				}
-			} catch (FileError e) {
-				Report.error (null, "Unable to read dependency file: %s".printf (e.message));
-			}
-		}
-		
-		return true;
-	}
-}
-
-void main (string[] args) {
-	SwigCompiler sc = new SwigCompiler ();
-	if (args.length > 1)
-		sc.add_source_file (args[1]);
-	else sc.add_source_file ("foo.vapi");
-
 	sc.parse ();
+	if (output == null)
+		output = "%s.i".printf (modulename);
+	sc.emit_swig (output);
+//	sc.emit_vapi ("blah");
 
-	sc.emit_swig ("blah.i");
-	sc.emit_vapi ("blah");
+	return 0;
 }

@@ -1,0 +1,47 @@
+#!/bin/sh
+# Copyleft valaswig 2k9 -- pancake // nopcode.org
+#
+LANG=$1
+MOD=$2
+if [ -z "${LANG}" ]; then
+	echo "Usage: valaswig-cc [lang] [module-name] [-flags | files ..]"
+	echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
+	exit 1
+fi
+
+[ -z "${CC}" ] && CC=gcc
+
+case "${LANG}" in
+"python")
+	CFLAGS="${CFLAGS} -I/usr/include/python2.6"
+	;;
+esac
+
+#echo MOD=${MOD}
+#echo LANG=${LANG}
+
+shift
+shift
+while : ; do
+	# XXX ultra ugly
+	if [ "`echo $1 | grep -- '-I'`" ]; then
+		CFLAGS="$1 ${CFLAGS}"
+		SWIGFLAGS="$1 ${SWIGFLAGS}"
+	else
+	if [ "`echo $1 | grep -- '-l'`" ]; then
+		LDFLAGS="$1 ${LDFLAGS}"
+	else
+	if [ "`echo $1 | grep -- '-L'`" ]; then
+		LDFLAGS="$1 ${LDFLAGS}"
+	else
+		FILES="$1 ${FILES}"
+	fi
+	fi
+	fi
+	shift
+	[ -z "$1" ] && break
+done
+
+valaswig -o ${MOD}.i -m ${MOD} ${FILES}
+swig ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}
