@@ -10,8 +10,10 @@ install:
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
+deinstall: uninstall
+
 uninstall:
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}-cc
 
-.PHONY: all install
+.PHONY: all install uninstall deinstall
