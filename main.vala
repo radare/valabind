@@ -2,6 +2,7 @@
 
 static string[] files;
 static bool show_version;
+static bool show_externs;
 static string modulename;
 static string? output;
 
@@ -9,6 +10,7 @@ const string version_string = "valaswig 0.1 - pancake nopcode.org";
 
 private const OptionEntry[] options = {
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY, ref files, "vala/vapi input files", "FILE FILE .." },
+	{ "externs", 'e', 0, OptionArg.NONE, ref show_externs, "render externs", null },
 	{ "version", 'v', 0, OptionArg.NONE, ref show_version, "specify module name", null },
 	{ "output", 'o', 0, OptionArg.STRING, ref output, "specify module name", null },
 	{ "module-name", 'm', 0, OptionArg.STRING, ref modulename, "specify module name", null },
@@ -54,7 +56,7 @@ int main (string[] args) {
 	sc.parse ();
 	if (output == null)
 		output = "%s.i".printf (modulename);
-	sc.emit_swig (output);
+	sc.emit_swig (output, show_externs);
 //	sc.emit_vapi ("blah");
 
 	return 0;

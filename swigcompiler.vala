@@ -52,9 +52,10 @@ public class SwigCompiler {
 		swig_writer.write_file (context, file);
 	}
 
-	public void emit_swig (string file) {
+	public void emit_swig (string file, bool show_externs) {
 		var swig_writer = new SwigWriter (modulename);
 		if (swig_writer != null) {
+			swig_writer.show_externs = show_externs;
 			swig_writer.files = source_files;
 			swig_writer.write_file (context, file);
 		} else warning ("cannot create swig writer");

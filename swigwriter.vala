@@ -5,6 +5,7 @@ using Vala;
 public class SwigWriter : CodeVisitor {
 	private CodeContext context;
 	private FileStream stream;
+	public bool show_externs;
 	public string[] files;
 	public GLib.List<string> includefiles;
 	public GLib.List<Method> methods;
@@ -41,7 +42,7 @@ public class SwigWriter : CodeVisitor {
 			type = type.replace (".", "");
 		switch (type) {
 		case "bool":
-			return "int"; // ??? 
+			return "bool"; // no conversion needed
 		case "string":
 			return "char *"; // ??? 
 		case "gint":
@@ -210,6 +211,9 @@ public class SwigWriter : CodeVisitor {
 		context.accept (this);
 
 		stream.printf ("%%module %s\n", modulename);
+		stream.printf ("%%inline %%{\n");
+		stream.printf (" #define bool int\n");
+		stream.printf ("%%}\n\n");
 		stream.printf ("%%{\n");
 		foreach (var inc in includefiles)
 			stream.printf ("#include <%s>\n", inc);
@@ -218,7 +222,8 @@ public class SwigWriter : CodeVisitor {
 			stream.printf ("%%include <%s>\n", inc);
 
 		stream.printf ("%s\n", enums);
-		stream.printf ("%s\n", externs);
+		if (show_externs)
+			stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", extends);
 
 		this.stream = null;
