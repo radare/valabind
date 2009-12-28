@@ -1,19 +1,30 @@
 /* Copyleft 2k9 -- pancake // nopcode.org */
 
 static string[] files;
+static string includefile;
 static bool show_version;
 static bool show_externs;
+static bool glibmode;
 static string modulename;
 static string? output;
 
 const string version_string = "valaswig 0.1 - pancake nopcode.org";
 
 private const OptionEntry[] options = {
-	{ "", 0, 0, OptionArg.FILENAME_ARRAY, ref files, "vala/vapi input files", "FILE FILE .." },
-	{ "externs", 'e', 0, OptionArg.NONE, ref show_externs, "render externs", null },
-	{ "version", 'v', 0, OptionArg.NONE, ref show_version, "specify module name", null },
-	{ "output", 'o', 0, OptionArg.STRING, ref output, "specify module name", null },
-	{ "module-name", 'm', 0, OptionArg.STRING, ref modulename, "specify module name", null },
+	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
+	  ref files, "vala/vapi input files", "FILE FILE .." },
+	{ "include", 'i', 0, OptionArg.STRING,
+	  ref includefile, "include file", null },
+	{ "externs", 'e', 0, OptionArg.NONE,
+	  ref show_externs, "render externs", null },
+	{ "version", 'v', 0, OptionArg.NONE,
+	  ref show_version, "show version information", null },
+	{ "output", 'o', 0, OptionArg.STRING,
+	  ref output, "specify output file name", null },
+	{ "module-name", 'm', 0, OptionArg.STRING,
+	  ref modulename, "specify module name", null },
+	{ "glib", 'g', 0, OptionArg.NONE,
+	  ref glibmode, "work in glib/gobject mode", null },
 	{ null }
 };
 
@@ -27,8 +38,7 @@ int main (string[] args) {
 		opt_context.add_main_entries (options, null);
 		opt_context.parse (ref args);
 	} catch (OptionError e) {
-		stdout.printf ("%s\n", e.message);
-		stdout.printf ("Run '%s --help' to see a full list of available command line options.", args[0]);
+		stdout.printf ("%s\nTry --help.\n", e.message);
 		return 1;
 	}
 
@@ -43,21 +53,18 @@ int main (string[] args) {
 	}
 
 	if (files.length == 0) {
-	//if (files == null) {
 		stderr.printf ("No files given\n");
 		return 1;
 	}
 
 	SwigCompiler sc = new SwigCompiler (modulename);
 	foreach (var file in files) {
-		//stderr.printf ("FILE = %s\n", file);
 		sc.add_source_file (file);
 	}
 	sc.parse ();
 	if (output == null)
 		output = "%s.i".printf (modulename);
-	sc.emit_swig (output, show_externs);
-//	sc.emit_vapi ("blah");
+	sc.emit_swig (output, show_externs, glibmode, includefile);
 
 	return 0;
 }

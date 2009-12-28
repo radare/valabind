@@ -4,17 +4,17 @@
 LANG=$1
 MOD=$2
 if [ -z "${LANG}" ]; then
-	echo "Usage: valaswig-cc [lang] [module-name] [-flags | files ..]"
-	echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-	exit 1
+  echo "Usage: valaswig-cc [lang] [module-name] [-flags | files ..]"
+  echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
+  exit 1
 fi
 
 [ -z "${CC}" ] && CC=gcc
 
 case "${LANG}" in
 "python")
-	CFLAGS="${CFLAGS} -I/usr/include/python2.6"
-	;;
+  CFLAGS="${CFLAGS} -I/usr/include/python2.6"
+  ;;
 esac
 
 #echo MOD=${MOD}
@@ -23,25 +23,34 @@ esac
 shift
 shift
 while : ; do
-	# XXX ultra ugly
-	if [ "`echo $1 | grep -- '-I'`" ]; then
-		CFLAGS="$1 ${CFLAGS}"
-		SWIGFLAGS="$1 ${SWIGFLAGS}"
-	else
-	if [ "`echo $1 | grep -- '-l'`" ]; then
-		LDFLAGS="$1 ${LDFLAGS}"
-	else
-	if [ "`echo $1 | grep -- '-L'`" ]; then
-		LDFLAGS="$1 ${LDFLAGS}"
-	else
-		FILES="$1 ${FILES}"
-	fi
-	fi
-	fi
-	shift
-	[ -z "$1" ] && break
+  # XXX ultra ugly
+  if [ "`echo $1 | grep -- '-I'`" ]; then
+    CFLAGS="$1 ${CFLAGS}"
+    SWIGFLAGS="$1 ${SWIGFLAGS}"
+  else
+  if [ "`echo $1 | grep -- '-l'`" ]; then
+    LDFLAGS="$1 ${LDFLAGS}"
+  else
+  if [ "`echo $1 | grep -- '--glib'`" ]; then
+    SWIGFLAGS="$1 ${SWIGFLAGS}"
+  else
+  if [ "`echo $1 | grep -- '-L'`" ]; then
+    LDFLAGS="$1 ${LDFLAGS}"
+  else
+    FILES="$1 ${FILES}"
+  fi
+  fi
+  fi
+  fi
+  shift
+  [ -z "$1" ] && break
 done
 
+SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
+
+echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
 valaswig -o ${MOD}.i -m ${MOD} ${FILES}
-swig ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}
 ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}

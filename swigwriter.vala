@@ -6,6 +6,7 @@ public class SwigWriter : CodeVisitor {
 	private CodeContext context;
 	private FileStream stream;
 	public bool show_externs;
+	public bool glib_mode;
 	public string[] files;
 	public GLib.List<string> includefiles;
 	public GLib.List<Method> methods;
@@ -23,6 +24,7 @@ public class SwigWriter : CodeVisitor {
 		extends = "";
 		enums = "";
 		this.modulename = name;
+		this.includefiles = new GLib.List<string>();
 	}
 
 	private string get_alias (string name) {
@@ -91,15 +93,30 @@ public class SwigWriter : CodeVisitor {
 	public void walk_class (Class c) {
 		classname = c.name;
 		classcname = c.get_cname ();
+		process_includes (c);
 
-		extends += "%%extend %s {\n".printf (classname);
+		{
+			var dest = c.destructor;
+			var sdest = c.static_destructor;
+			var cdest = c.class_destructor;
+			print ("DESTRUCTOR: %p %p %p\n", dest, sdest, cdest);
+		}
+		print (" ==>%s, %s<==\n", nspace, classcname);
+
+		if (glib_mode)
+			classname = "%s%s".printf (nspace, classname);
+
+		if (glib_mode) extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
+		else extends += "%%extend %s {\n".printf (classname);
 		foreach (var e in c.get_enums ()) {
 			walk_enum (e);
 		}
 		foreach (var m in c.get_methods ()) {
 			walk_method (m);
 		}
-		extends += "};\n";
+		if (glib_mode) {
+			extends += "};\n} %s;\n".printf (classname);
+		} else extends += "};\n";
 		classname = "";
 	}
 
@@ -144,11 +161,10 @@ public class SwigWriter : CodeVisitor {
 			call_args += "%s".printf (arg_name);
 		}
 
-
 		/* object oriented shit */
 		if (classname != "") {
 			if (is_constructor) {
-				externs += "extern %s* %s (%s);\n".printf (classname, cname, def_args);
+				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				extends += "  %s (%s) {\n".printf (classname, def_args);
 				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
 			} else {
@@ -164,7 +180,6 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public override void visit_namespace (Namespace ns) {
-		/* skip processing */
 		if (ns.name == null)
 			return;
 
@@ -172,10 +187,9 @@ public class SwigWriter : CodeVisitor {
 		if (sr != null && !is_target_file (sr.file.filename))
 			return;
 
-		//stream.printf ("  Namespace: %s\n", ns.name);
 		nspace = ns.name;
 		process_includes (ns);
-		// Namespace has methods to walk everything
+
 		foreach (var e in ns.get_enums ()) {
 			print ("enum: %s\n", e.get_cname ());
 			foreach (var v in e.get_values ())
@@ -193,31 +207,28 @@ public class SwigWriter : CodeVisitor {
 
 		foreach (var c in ns.get_structs ()) {
 			print ("struct: %s\n", c.get_cname ());
-			foreach (var m in c.get_methods ()) {
+			foreach (var m in c.get_methods ())
 				walk_method (m);
-				//stream.printf ("  method: %s\n", m.get_cname ());
-			}
 		}
 
-		// DO NOT FOLLOW NAMESPACES ONLY SCAN PROVIDED ONES
 		ns.accept_children (this);
 	}
 
 	public void write_file (CodeContext context, string filename) {
 		this.stream = FileStream.open (filename, "w");
 		this.context = context;
-		this.includefiles = new GLib.List<string>();
 
 		context.accept (this);
 
 		stream.printf ("%%module %s\n", modulename);
-		stream.printf ("%%inline %%{\n");
-		stream.printf (" #define bool int\n");
-		stream.printf ("%%}\n\n");
+
 		stream.printf ("%%{\n");
-		foreach (var inc in includefiles)
-			stream.printf ("#include <%s>\n", inc);
-		stream.printf ("%%}\n\n");
+		stream.printf ("#define bool int\n");
+		if (includefiles.length () > 0) {
+			foreach (var inc in includefiles)
+				stream.printf ("#include <%s>\n", inc);
+		}
+		stream.printf ("%%}\n");
 		foreach (var inc in includefiles)
 			stream.printf ("%%include <%s>\n", inc);
 

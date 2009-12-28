@@ -52,10 +52,13 @@ public class SwigCompiler {
 		swig_writer.write_file (context, file);
 	}
 
-	public void emit_swig (string file, bool show_externs) {
+	public void emit_swig (string file, bool show_externs, bool glibmode, string? include) {
 		var swig_writer = new SwigWriter (modulename);
 		if (swig_writer != null) {
 			swig_writer.show_externs = show_externs;
+			swig_writer.glib_mode = glibmode;
+			if (include != null)
+				swig_writer.includefiles.append (include);
 			swig_writer.files = source_files;
 			swig_writer.write_file (context, file);
 		} else warning ("cannot create swig writer");
@@ -87,13 +90,13 @@ public class SwigCompiler {
 				foreach (string dep in deps_content.split ("\n")) {
 					dep = dep.strip ();
 					if (dep != "") {
-						if (!add_package (context, dep)) {
+						if (!add_package (context, dep))
 							Report.error (null, "%s, dependency of %s, not found in specified Vala API directories".printf (dep, pkg));
-						}
 					}
 				}
 			} catch (FileError e) {
-				Report.error (null, "Unable to read dependency file: %s".printf (e.message));
+				Report.error (null, "Unable to read dependency file: %s"
+					.printf (e.message));
 			}
 		}
 		
