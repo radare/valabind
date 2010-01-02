@@ -85,7 +85,7 @@ public class SwigWriter : CodeVisitor {
 				}
 			}
 			if (include)
-				includefiles.append (foo);
+				includefiles.prepend (foo);
 		}
 	}
 
@@ -121,7 +121,6 @@ public class SwigWriter : CodeVisitor {
 
 	public void walk_enum (Enum e) {
 		var tmp = "%{\n";
-		//return ; // enums not yet supported
 		enums += "/* enum: %s (%s) */\n".printf (
 			e.name, e.get_cname ());
 		enums += "enum {\n";
@@ -129,8 +128,7 @@ public class SwigWriter : CodeVisitor {
 			enums += "  %s,\n".printf (v.name);
 			tmp += "#define %s %s\n".printf (v.name, v.get_cname ());
 		}
-		enums += "};\n";
-		extends += enums;
+		extends += enums + "};\n";
 		extends += tmp + "%}\n";
 		enums = "";
 	}
