@@ -102,19 +102,17 @@ public class SwigWriter : CodeVisitor {
 			var cdest = c.class_destructor;
 			print ("DESTRUCTOR: %p %p %p\n", dest, sdest, cdest);
 		}
-		print (" ==>%s, %s<==\n", nspace, classcname);
+		//print (" ==>%s, %s<==\n", nspace, classcname);
 
 		if (glib_mode)
 			classname = "%s%s".printf (nspace, classname);
 
 		if (glib_mode) extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
 		else extends += "%%extend %s {\n".printf (classname);
-		foreach (var e in c.get_enums ()) {
+		foreach (var e in c.get_enums ())
 			walk_enum (e);
-		}
-		foreach (var m in c.get_methods ()) {
+		foreach (var m in c.get_methods ())
 			walk_method (m);
-		}
 		if (glib_mode) {
 			extends += "};\n} %s;\n".printf (classname);
 		} else extends += "};\n";
@@ -127,8 +125,8 @@ public class SwigWriter : CodeVisitor {
 			e.name, e.get_cname ());
 		enums += "enum {\n";
 		foreach (var v in e.get_values ()) {
-			enums += "  %s,\n".printf (v.name);
-			tmp += "#define %s %s\n".printf (v.name, v.get_cname ());
+			enums += "  %s_%s,\n".printf (e.name, v.name);
+			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
 		extends += enums + "};\n";
 		extends += tmp + "%}\n";
@@ -198,26 +196,17 @@ public class SwigWriter : CodeVisitor {
 		nspace = ns.name;
 		process_includes (ns);
 
-		foreach (var e in ns.get_enums ()) {
-			print ("enum: %s\n", e.get_cname ());
-			foreach (var v in e.get_values ())
-				stream.printf ("   - %s\n", v.name);
-		}
-
-		foreach (var m in ns.get_methods ()) {
-			print ("method: %s\n", m.get_cname ());
+		foreach (var m in ns.get_methods ())
 			walk_method (m);
-		}
 
-		foreach (var c in ns.get_classes ()) {
+		foreach (var c in ns.get_classes ())
 			walk_class (c);
-		}
 
-		foreach (var e in ns.get_enums ()) {
+		foreach (var e in ns.get_enums ())
 			walk_enum (e);
-		}
 
 		foreach (var c in ns.get_structs ()) {
+			/* TODO: refactor to walk_struct */
 			print ("struct: %s\n", c.get_cname ());
 			foreach (var m in c.get_methods ())
 				walk_method (m);
