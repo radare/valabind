@@ -1,6 +1,12 @@
 using GLib;
 
 public class Food.Element {
+	public enum Counter {
+		START,
+		STOP,
+		RESET
+	}
+
 	public Element () {
 		print ("Element constructed\n");
 	}

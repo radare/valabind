@@ -31,17 +31,19 @@ public class SwigWriter : CodeVisitor {
 		switch (name) {
 		case "del":
 			return "_del";
+		case "continue":
+			return "cont";
 		}
 		return name;
 	}
 
 	private string get_ctype (string _type) {
 		string type = _type;
-		if (type.has_prefix (nspace)) {
+		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
-		}
 		if (type.str (".") != null)
 			type = type.replace (".", "");
+
 		switch (type) {
 		case "bool":
 			return "bool"; // no conversion needed
@@ -49,10 +51,10 @@ public class SwigWriter : CodeVisitor {
 			return "char *"; // ??? 
 		case "gint":
 	 		return "int";
-		case "gint":
-	 		return "int";
 		case "guint64":
 	 		return "unsigned long long";
+		case "guint8":
+			return "unsigned char";
 		case "guint8*":
 			return "unsigned char*";
 		case "gboolean":
@@ -69,11 +71,8 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public override void visit_source_file (SourceFile source) {
-		// long form for if (source.filename in files) { ...
-		if (is_target_file (source.filename)) {
-			//stream.printf ("  Source file: %s\n", source.filename);
+		if (is_target_file (source.filename))
 			source.accept_children (this);
-		}
 	}
 
 	public void process_includes (Symbol s) {
@@ -121,13 +120,19 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void walk_enum (Enum e) {
-		return ; // enums not yet supported
-		enums += "//  enum: %s (%s)\n".printf (
-			e.name, e.get_lower_case_cname ());
+		var tmp = "%{\n";
+		//return ; // enums not yet supported
+		enums += "/* enum: %s (%s) */\n".printf (
+			e.name, e.get_cname ());
 		enums += "enum {\n";
-		foreach (var v in e.get_values ())
+		foreach (var v in e.get_values ()) {
 			enums += "  %s,\n".printf (v.name);
-		enums += "}\n";
+			tmp += "#define %s %s\n".printf (v.name, v.get_cname ());
+		}
+		enums += "};\n";
+		extends += enums;
+		extends += tmp + "%}\n";
+		enums = "";
 	}
 
 	public void walk_method (Method m) {
@@ -203,6 +208,10 @@ public class SwigWriter : CodeVisitor {
 
 		foreach (var c in ns.get_classes ()) {
 			walk_class (c);
+		}
+
+		foreach (var e in ns.get_enums ()) {
+			walk_enum (e);
 		}
 
 		foreach (var c in ns.get_structs ()) {
