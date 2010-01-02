@@ -13,6 +13,7 @@ public class SwigWriter : CodeVisitor {
 	private string classname;
 	private string classcname;
 	private string externs;
+	private string statics;
 	private string extends;
 	private string enums;
 	private string nspace;
@@ -20,6 +21,7 @@ public class SwigWriter : CodeVisitor {
 
 	public SwigWriter (string name) {
 		classname = "";
+		statics = "";
 		externs = "";
 		extends = "";
 		enums = "";
@@ -142,6 +144,7 @@ public class SwigWriter : CodeVisitor {
 		string def_args = "";
 		string call_args = "";
 		bool void_return = (ret == "void");
+		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
 		bool is_constructor = (name == ".new"); // weak way to check it?
 
 		if (m.is_private_symbol ())
@@ -171,11 +174,13 @@ public class SwigWriter : CodeVisitor {
 				extends += "  %s (%s) {\n".printf (classname, def_args);
 				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
 			} else {
+				if (is_static)
+					statics += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
+				else call_args = "self, " + call_args;
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
-				extends += "    %s %s (self%s);\n  }\n".printf (
-					void_return?"":"return", cname,
-					call_args==""?"":", "+call_args);
+				extends += "    %s %s (%s);\n  }\n".printf (
+					void_return?"":"return", cname, call_args);
 			}
 		} else {
 			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
@@ -242,6 +247,7 @@ public class SwigWriter : CodeVisitor {
 		stream.printf ("%s\n", enums);
 		if (show_externs)
 			stream.printf ("%s\n", externs);
+		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
 
 		this.stream = null;
