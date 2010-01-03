@@ -1,4 +1,4 @@
-/* Copyleft 2k9 -- pancake // nopcode.org */
+/* Copyleft 2009-2010 -- pancake // nopcode.org */
 
 using Vala;
 
@@ -55,10 +55,22 @@ public class SwigWriter : CodeVisitor {
 	 		return "int";
 		case "guint64":
 	 		return "unsigned long long";
+		case "uint8":
+			return "unsigned char";
+		case "uint8*":
+			return "unsigned char *";
 		case "guint8":
 			return "unsigned char";
 		case "guint8*":
 			return "unsigned char*";
+		case "guint16":
+			return "unsigned short";
+		case "uint16":
+			return "unsigned short";
+		case "guint32":
+			return "unsigned int";
+		case "uint32":
+			return "unsigned int";
 		case "gboolean":
 			return "int"; // XXX bool?
 		}
@@ -95,7 +107,6 @@ public class SwigWriter : CodeVisitor {
 		classname = c.name;
 		classcname = c.get_cname ();
 		process_includes (c);
-
 		{
 			var dest = c.destructor;
 			var sdest = c.static_destructor;
@@ -173,7 +184,7 @@ public class SwigWriter : CodeVisitor {
 				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
 			} else {
 				if (is_static)
-					statics += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
+					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
 				else call_args = "self, " + call_args;
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
