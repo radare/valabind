@@ -54,7 +54,7 @@ SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
 
 echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
 valaswig -o ${MOD}.i -m ${MOD} ${FILES}
-echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
 swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
-echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS} || exit 1
+echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}
 ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS} || exit 1
