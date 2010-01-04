@@ -31,6 +31,8 @@ public class SwigWriter : CodeVisitor {
 
 	private string get_alias (string name) {
 		switch (name) {
+		case "use":
+			return "_use";
 		case "del":
 			return "_del";
 		case "from":
@@ -47,6 +49,11 @@ public class SwigWriter : CodeVisitor {
 			type = type.substring (nspace.length) + "*";
 		if (type.str (".") != null)
 			type = type.replace (".", "");
+
+		if (_type == "null") {
+			// TODO: make this error more verbose
+			warning ("Cannot resolve type");
+		}
 
 		switch (type) {
 		case "bool":
@@ -111,14 +118,12 @@ public class SwigWriter : CodeVisitor {
 		classname = c.name;
 		classcname = c.get_cname ();
 		process_includes (c);
-		{
+		/* {
 			var dest = c.destructor;
 			var sdest = c.static_destructor;
 			var cdest = c.class_destructor;
 			print ("DESTRUCTOR: %p %p %p\n", dest, sdest, cdest);
-		}
-		//print (" ==>%s, %s<==\n", nspace, classcname);
-
+		} */
 		if (glib_mode)
 			classname = "%s%s".printf (nspace, classname);
 

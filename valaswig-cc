@@ -1,6 +1,6 @@
 #!/bin/sh
-# Copyleft valaswig 2k9 -- pancake // nopcode.org
-#
+# Copyleft valaswig 2009-2010, pancake at nopcode.org
+
 LANG=$1
 MOD=$2
 if [ -z "${LANG}" ]; then
@@ -14,6 +14,10 @@ fi
 case "${LANG}" in
 "python")
   CFLAGS="${CFLAGS} -I/usr/include/python2.6"
+  ;;
+"perl")
+  CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts`"
+  LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts`"
   ;;
 esac
 
@@ -52,5 +56,5 @@ echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
 valaswig -o ${MOD}.i -m ${MOD} ${FILES}
 echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
 swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
-echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}
-${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}
+echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS} || exit 1
+${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS} || exit 1
