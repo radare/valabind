@@ -33,6 +33,8 @@ public class SwigWriter : CodeVisitor {
 		switch (name) {
 		case "del":
 			return "_del";
+		case "from":
+			return "_from";
 		case "continue":
 			return "cont";
 		}
@@ -53,6 +55,8 @@ public class SwigWriter : CodeVisitor {
 			return "char *"; // ??? 
 		case "gint":
 	 		return "int";
+		case "uint64":
+	 		return "unsigned long long";
 		case "guint64":
 	 		return "unsigned long long";
 		case "uint8":
@@ -167,13 +171,13 @@ public class SwigWriter : CodeVisitor {
 				continue;
 			arg_type = get_ctype (bar.get_cname ());
 
+			string pfx = "";
 			if (notbegin) {
-				call_args += ", ";
-				def_args += ", ";
+				pfx = ", ";
 			} else notbegin = true;
 
-			def_args += "%s %s".printf (arg_type, arg_name);
-			call_args += "%s".printf (arg_name);
+			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
+			call_args += "%s%s".printf (pfx, arg_name);
 		}
 
 		/* object oriented shit */
@@ -185,7 +189,11 @@ public class SwigWriter : CodeVisitor {
 			} else {
 				if (is_static)
 					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-				else call_args = "self, " + call_args;
+				else {
+					if (call_args == "")
+						call_args = "self";
+					else call_args = "self, " + call_args;
+				}
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
 				extends += "    %s %s (%s);\n  }\n".printf (
