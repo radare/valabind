@@ -1,4 +1,4 @@
-/* Copyleft 2k9 -- pancake // nopcode.org */
+/* Copyleft 2009-2010 -- pancake // nopcode.org */
 
 static string[] files;
 static string includefile;
