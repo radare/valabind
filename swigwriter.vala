@@ -4,7 +4,7 @@ using Vala;
 
 public class SwigWriter : CodeVisitor {
 	private CodeContext context;
-	private FileStream stream;
+	private FileStream? stream;
 	public bool show_externs;
 	public bool glib_mode;
 	public string[] files;
@@ -241,8 +241,11 @@ public class SwigWriter : CodeVisitor {
 
 	public void write_file (CodeContext context, string filename) {
 		this.stream = FileStream.open (filename, "w");
+		if (this.stream == null) {
+			error ("Cannot open %s for writing".printf (filename));
+			return;
+		}
 		this.context = context;
-
 		context.accept (this);
 
 		stream.printf ("%%module %s\n", modulename);

@@ -1,4 +1,4 @@
-/* Copyleft 2k9 -- pancake // nopcode.org */
+/* Copyleft 2009-2010 -- pancake // nopcode.org */
 
 using Vala;
 
@@ -41,10 +41,13 @@ public class SwigCompiler {
 	}
 
 	public bool add_source_file (string path) {
-		var source = new SourceFile (context, path, true);
-		context.add_source_file (source);
-		source_files += path;
-		return true;
+		bool ret = FileUtils.test (path, FileTest.IS_REGULAR);
+		if (ret) {
+			var source = new SourceFile (context, path, true);
+			context.add_source_file (source);
+			source_files += path;
+		} else error ("Cannot open '%s'.\n", path);
+		return ret;
 	}
 
 	public void emit_vapi (string? output, string file) {
