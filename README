@@ -1,6 +1,5 @@
-
-  ValaSwig
-  ========
+ValaSwig
+========
 
 ValaSwig is a tool to parse vala[1] or vapi files to transform
 them into swig[2] interface files.
