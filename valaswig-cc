@@ -3,6 +3,7 @@
 
 LANG=$1
 MOD=$2
+OMOD=${MOD}
 if [ -z "${LANG}" ]; then
   echo "Usage: valaswig-cc [lang] [module-name] [-flags | files ..]"
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
@@ -14,10 +15,19 @@ fi
 case "${LANG}" in
 "python")
   CFLAGS="${CFLAGS} -I/usr/include/python2.6"
+  OMOD="_${MOD}"
+  ;;
+"ruby")
+  CFLAGS="${CFLAGS} -I/usr/include/ruby-1.9.1 -I/usr/include/ruby-1.9.1/i686-linux/"
   ;;
 "perl")
   CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts`"
   LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts`"
+  ;;
+"java")
+  CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
+  ;;
+"csharp")
   ;;
 esac
 
@@ -56,5 +66,5 @@ echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
 valaswig -o ${MOD}.i -m ${MOD} ${FILES}
 echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
 swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
-echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS}
-${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o _${MOD}.so ${LDFLAGS} || exit 1
+echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
+${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1

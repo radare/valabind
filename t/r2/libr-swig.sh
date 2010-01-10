@@ -1,7 +1,8 @@
 #!/bin/sh
-MOD=$1
+LANG=$1
+MOD=$2
 if [ -z "${MOD}" ]; then
-	echo "Usage: libr-swig.sh [r_foo]"
+	echo "Usage: libr-swig.sh [python|perl|ruby] [r_foo]"
 	exit 1
 fi
 if [ -z "${R2PATH}" ]; then
@@ -9,4 +10,4 @@ if [ -z "${R2PATH}" ]; then
 	exit 1
 fi
 
-valaswig-cc python ${MOD} -I${R2PATH}/libr/include ${R2PATH}/libr/vapi/${MOD}.vapi -l${MOD}
+valaswig-cc ${LANG} ${MOD} -I${R2PATH}/libr/include ${R2PATH}/libr/vapi/${MOD}.vapi -l${MOD}
