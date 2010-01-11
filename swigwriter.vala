@@ -178,6 +178,10 @@ public class SwigWriter : CodeVisitor {
 				continue;
 			arg_type = get_ctype (bar.get_cname ());
 
+			/* TODO: handle REF parameter as output too? */
+			if (foo.direction == ParameterDirection.OUT)
+				arg_name = "OUTPUT";
+
 			string pfx = "";
 			if (notbegin) {
 				pfx = ", ";
