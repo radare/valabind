@@ -31,8 +31,10 @@ public class SwigWriter : CodeVisitor {
 
 	private string get_alias (string name) {
 		switch (name) {
+/*
 		case "use":
 			return "_use";
+*/
 		case "del":
 			return "_del";
 		case "from":

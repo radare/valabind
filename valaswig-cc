@@ -30,6 +30,8 @@ case "${LANG}" in
   CFLAGS="${CFLAGS} -I/usr/include/ruby-1.9.1 -I/usr/include/ruby-1.9.1/i686-linux/"
   ;;
 "perl")
+  LC_ALL=C # fix anoying perl warning
+  export LC_ALL
   CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts`"
   LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts`"
   ;;

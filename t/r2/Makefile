@@ -9,7 +9,9 @@ ruby:
 	R2PATH=${R2PATH} sh libr-swig.sh ruby r_bp
 
 python:
+	rm -f r_bp.so
 	R2PATH=${R2PATH} sh libr-swig.sh python r_bp
 
 csharp:
+	R2PATH=${R2PATH} sh libr-swig.sh csharp r_bp
 	mcs -main:test *.cs
