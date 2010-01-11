@@ -2,7 +2,6 @@ Generic TODO
 ============
 
 Add support for destructors (class.get_destructor () ..
-Add --version // -v // -V flag to valaswig and valaswig-cc
 
 Vala-specific TODO:
 ===================

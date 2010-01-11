@@ -10,11 +10,13 @@ function show_help {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
   echo "  lang: python, ruby, perl, java, csharp, ..."
-  echo "  -C        : do not compile, just let the .c and .i files"
+  echo "  --help,-h : show this help message"
+  echo "  --version : show version of valaswig"
+  echo "  --glib    : assume vapi source is glib/gobject based"
   echo "  -I[path]  : add includepath for SWIGFLAGS and CFLAGS"
   echo "  -L[path]  : append library path to LDFLAGS"
   echo "  -l[lib]   : append to LDFLAGS to link a library"
-  echo "  --glib    : assume vapi source is glib/gobject based"
+  echo "  -C        : do not compile, just let the .c and .i files"
   exit 0
 }
 
@@ -27,7 +29,12 @@ case "${LANG}" in
   OMOD="_${MOD}"
   ;;
 "ruby")
-  CFLAGS="${CFLAGS} -I/usr/include/ruby-1.9.1 -I/usr/include/ruby-1.9.1/i686-linux/"
+  if [ -z "`ruby --version | grep 1.9.0`" ]; then
+    echo "You need ruby 1.9. Help is welcome to support ruby 1.8 and so"
+    exit 1
+  fi
+  RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
+  CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   ;;
 "perl")
   LC_ALL=C # fix anoying perl warning
@@ -45,13 +52,22 @@ esac
 #echo MOD=${MOD}
 #echo LANG=${LANG}
 
+case "$1" in
+"--version"|"-V")
+  valaswig --version
+  swig -version | grep SWIG
+  ${CC} --version | grep ${CC}
+  exit 0
+  ;;
+"--help"|"-h")
+  show_help
+  ;;
+esac
+
 shift
 shift
 while : ; do
   # XXX ultra ugly
-  if [ "`echo $1 | grep -- '-h'`" ]; then
-    show_help
-  else
   if [ "`echo $1 | grep -- '-I'`" ]; then
     CFLAGS="$1 ${CFLAGS}"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
@@ -74,7 +90,6 @@ while : ; do
   fi
   fi
   fi
-  fi
   shift
   [ -z "$1" ] && break
 done
@@ -87,5 +102,5 @@ echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
 swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
 if [ -n "${COMPILE}" ]; then
   echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
-  ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+  ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
 fi
