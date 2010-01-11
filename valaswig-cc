@@ -4,12 +4,21 @@
 LANG=$1
 MOD=$2
 OMOD=${MOD}
-if [ -z "${LANG}" ]; then
-  echo "Usage: valaswig-cc [lang] [module-name] [-flags | files ..]"
-  echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-  exit 1
-fi
+COMPILE=Yes
 
+function show_help {
+  echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
+  echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
+  echo "  lang: python, ruby, perl, java, csharp, ..."
+  echo "  -C        : do not compile, just let the .c and .i files"
+  echo "  -I[path]  : add includepath for SWIGFLAGS and CFLAGS"
+  echo "  -L[path]  : append library path to LDFLAGS"
+  echo "  -l[lib]   : append to LDFLAGS to link a library"
+  echo "  --glib    : assume vapi source is glib/gobject based"
+  exit 0
+}
+
+[ -z "${LANG}" ] && show_help
 [ -z "${CC}" ] && CC=gcc
 
 case "${LANG}" in
@@ -38,6 +47,9 @@ shift
 shift
 while : ; do
   # XXX ultra ugly
+  if [ "`echo $1 | grep -- '-h'`" ]; then
+    show_help
+  else
   if [ "`echo $1 | grep -- '-I'`" ]; then
     CFLAGS="$1 ${CFLAGS}"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
@@ -51,7 +63,12 @@ while : ; do
   if [ "`echo $1 | grep -- '-L'`" ]; then
     LDFLAGS="$1 ${LDFLAGS}"
   else
+  if [ "`echo $1 | grep -- '-C'`" ]; then
+    COMPILE=""
+  else
     FILES="$1 ${FILES}"
+  fi
+  fi
   fi
   fi
   fi
@@ -63,8 +80,10 @@ done
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
 
 echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
-valaswig -o ${MOD}.i -m ${MOD} ${FILES}
+valaswig -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
 echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
 swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
-echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
-${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+if [ -n "${COMPILE}" ]; then
+  echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
+  ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+fi

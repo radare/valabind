@@ -8,7 +8,7 @@ static bool glibmode;
 static string modulename;
 static string? output;
 
-const string version_string = "valaswig 0.1 - pancake nopcode.org";
+const string version_string = "valaswig 0.1 - pancake @ nopcode.org";
 
 private const OptionEntry[] options = {
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,

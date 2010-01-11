@@ -139,7 +139,7 @@ public class SwigWriter : CodeVisitor {
 		classname = "";
 	}
 
-	public void walk_enum (Enum e) {
+	public void walk_enum (Vala.Enum e) {
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
 			e.name, e.get_cname ());
