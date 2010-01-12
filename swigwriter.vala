@@ -15,6 +15,7 @@ public class SwigWriter : CodeVisitor {
 	private string externs;
 	private string statics;
 	private string extends;
+	private string applys;
 	private string enums;
 	private string nspace;
 	private string modulename;
@@ -24,6 +25,7 @@ public class SwigWriter : CodeVisitor {
 		statics = "";
 		externs = "";
 		extends = "";
+		applys = "";
 		enums = "";
 		this.modulename = name;
 		this.includefiles = new GLib.List<string>();
@@ -35,6 +37,8 @@ public class SwigWriter : CodeVisitor {
 		case "use":
 			return "_use";
 */
+		case "cmd":
+			return "_cmd";
 		case "del":
 			return "_del";
 		case "from":
@@ -178,17 +182,21 @@ public class SwigWriter : CodeVisitor {
 				continue;
 			arg_type = get_ctype (bar.get_cname ());
 
-			/* TODO: handle REF parameter as output too? */
-			if (foo.direction == ParameterDirection.OUT)
-				arg_name = "OUTPUT";
 
 			string pfx = "";
 			if (notbegin) {
 				pfx = ", ";
 			} else notbegin = true;
 
-			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
+			/* TODO: handle REF parameter as output too? */
+			if (foo.direction == ParameterDirection.OUT) {
+				if (arg_type.str ("*") == null)
+					arg_type += "*";
+				applys += "%%apply %s %s { %s %s };\n".printf (
+					arg_type, "OUTPUT", arg_type, arg_name);
+			}
 			call_args += "%s%s".printf (pfx, arg_name);
+			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
 		}
 
 		/* object oriented shit */
@@ -270,6 +278,7 @@ public class SwigWriter : CodeVisitor {
 		if (show_externs)
 			stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", statics);
+		stream.printf ("%s\n", applys);
 		stream.printf ("%s\n", extends);
 
 		this.stream = null;
