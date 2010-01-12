@@ -29,7 +29,7 @@ case "${LANG}" in
   OMOD="_${MOD}"
   ;;
 "ruby")
-  if [ -z "`ruby --version | grep 1.9.0`" ]; then
+  if [ -z "`ruby --version | grep 1.9`" ]; then
     echo "You need ruby 1.9. Help is welcome to support ruby 1.8 and so"
     exit 1
   fi

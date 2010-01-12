@@ -39,6 +39,8 @@ public class SwigWriter : CodeVisitor {
 */
 		case "cmd":
 			return "_cmd";
+		case "print":
+			return "_print";
 		case "del":
 			return "_del";
 		case "from":
@@ -46,20 +48,21 @@ public class SwigWriter : CodeVisitor {
 		case "continue":
 			return "cont";
 		}
+		// TODO: display warning when changing a method/variable name
 		return name;
 	}
 
 	private string get_ctype (string _type) {
 		string type = _type;
+		if (_type == "null") {
+			// TODO: make this error more verbose .. simplify _type, type.. ?
+			warning ("Cannot resolve type");
+		}
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		if (type.str (".") != null)
 			type = type.replace (".", "");
-
-		if (_type == "null") {
-			// TODO: make this error more verbose
-			warning ("Cannot resolve type");
-		}
+		type = type.replace ("?","");
 
 		switch (type) {
 		case "bool":
@@ -68,6 +71,8 @@ public class SwigWriter : CodeVisitor {
 			return "char *"; // ??? 
 		case "gint":
 	 		return "int";
+		case "glong":
+	 		return "long";
 		case "uint64":
 	 		return "unsigned long long";
 		case "guint64":
@@ -146,6 +151,7 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void walk_enum (Vala.Enum e) {
+// TODO: register all enums and resolve them as 'int' for parameters (avoid cname="int")
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
 			e.name, e.get_cname ());
@@ -176,12 +182,10 @@ public class SwigWriter : CodeVisitor {
 
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = foo.name;
-			string arg_type = "???";
 			DataType? bar = foo.parameter_type;
 			if (bar == null)
 				continue;
-			arg_type = get_ctype (bar.get_cname ());
-
+			string arg_type = get_ctype (bar.get_cname ());
 
 			string pfx = "";
 			if (notbegin) {
@@ -189,6 +193,7 @@ public class SwigWriter : CodeVisitor {
 			} else notbegin = true;
 
 			/* TODO: handle REF parameter as output too? */
+			/* TODO: move into get_ctype */
 			if (foo.direction == ParameterDirection.OUT) {
 				if (arg_type.str ("*") == null)
 					arg_type += "*";
