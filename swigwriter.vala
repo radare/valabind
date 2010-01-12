@@ -144,9 +144,8 @@ public class SwigWriter : CodeVisitor {
 			walk_enum (e);
 		foreach (var m in c.get_methods ())
 			walk_method (m);
-		if (glib_mode) {
-			extends += "};\n} %s;\n".printf (classname);
-		} else extends += "};\n";
+		if (glib_mode) extends += "};\n} %s;\n".printf (classname);
+		else extends += "};\n";
 		classname = "";
 	}
 
@@ -209,6 +208,8 @@ public class SwigWriter : CodeVisitor {
 			if (is_constructor) {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				extends += "  %s (%s) {\n".printf (classname, def_args);
+				if (glib_mode)
+					extends += "    g_type_init ();\n";
 				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
 			} else {
 				if (is_static)
@@ -239,21 +240,18 @@ public class SwigWriter : CodeVisitor {
 		nspace = ns.name;
 		process_includes (ns);
 
-		foreach (var m in ns.get_methods ())
-			walk_method (m);
-
-		foreach (var c in ns.get_classes ())
-			walk_class (c);
-
 		foreach (var e in ns.get_enums ())
 			walk_enum (e);
-
 		foreach (var c in ns.get_structs ()) {
 			/* TODO: refactor to walk_struct */
 			print ("struct: %s\n", c.get_cname ());
 			foreach (var m in c.get_methods ())
 				walk_method (m);
 		}
+		foreach (var m in ns.get_methods ())
+			walk_method (m);
+		foreach (var c in ns.get_classes ())
+			walk_class (c);
 
 		ns.accept_children (this);
 	}

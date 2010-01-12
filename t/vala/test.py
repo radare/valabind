@@ -1,5 +1,12 @@
-import gtk
 import vstest
-a=vstest.FoodElement ()
+#import gobject
+
+a = vstest.FoodElement ()
 a.say ("world")
-exit (0)
+print "--"
+a.say ("cruel world")
+print "--"
+
+# Creating a 2nd element make it segfault
+#b=vstest.FoodElement ()
+#b.say ("salsa")
