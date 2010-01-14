@@ -65,6 +65,12 @@ public class SwigWriter : CodeVisitor {
 		type = type.replace ("?","");
 
 		switch (type) {
+		case "ut8":
+			return "unsigned char";
+		case "ut32":
+			return "unsigned int";
+		case "ut64":
+			return "unsigned long long";
 		case "bool":
 			return "bool"; // no conversion needed
 		case "string":
@@ -79,12 +85,13 @@ public class SwigWriter : CodeVisitor {
 	 		return "unsigned long long";
 		case "uint8":
 			return "unsigned char";
-		case "uint8*":
-			return "unsigned char *";
 		case "guint8":
 			return "unsigned char";
+		/* XXX swig does not support unsigned char* */
+		case "uint8*":
+			return "char*"; //"unsigned char*";
 		case "guint8*":
-			return "unsigned char*";
+			return "char*"; //"unsigned char*";
 		case "guint16":
 			return "unsigned short";
 		case "uint16":
@@ -94,7 +101,7 @@ public class SwigWriter : CodeVisitor {
 		case "uint32":
 			return "unsigned int";
 		case "gboolean":
-			return "int"; // XXX bool?
+			return "bool"; // XXX bool?
 		}
 		return type;
 	}
@@ -165,7 +172,7 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void walk_method (Method m) {
-		bool notbegin = false;
+		bool first = true;
 		string cname = m.get_cname ();
 		string name = m.name;
 		string alias = get_alias (m.name);
@@ -179,6 +186,7 @@ public class SwigWriter : CodeVisitor {
 		if (m.is_private_symbol ())
 			return;
 
+		string pfx;
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = foo.name;
 			DataType? bar = foo.parameter_type;
@@ -186,18 +194,24 @@ public class SwigWriter : CodeVisitor {
 				continue;
 			string arg_type = get_ctype (bar.get_cname ());
 
-			string pfx = "";
-			if (notbegin) {
-				pfx = ", ";
-			} else notbegin = true;
+			if (first) {
+				pfx = "";
+				first = false;
+			} else pfx = ", ";
 
-			/* TODO: handle REF parameter as output too? */
-			/* TODO: move into get_ctype */
-			if (foo.direction == ParameterDirection.OUT) {
+			/* TODO: move to get_ctype */
+			if (foo.direction != ParameterDirection.IN) {
+				var var_name = "";
+				if (foo.direction == ParameterDirection.OUT)
+					var_name = "OUTPUT";
+				else
+				if (foo.direction == ParameterDirection.REF)
+					var_name = "INOUT";
+
 				if (arg_type.str ("*") == null)
 					arg_type += "*";
 				applys += "%%apply %s %s { %s %s };\n".printf (
-					arg_type, "OUTPUT", arg_type, arg_name);
+					arg_type, var_name, arg_type, arg_name);
 			}
 			call_args += "%s%s".printf (pfx, arg_name);
 			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
@@ -269,6 +283,8 @@ public class SwigWriter : CodeVisitor {
 
 		stream.printf ("%%{\n");
 		stream.printf ("#define bool int\n");
+		stream.printf ("#define true 1\n");
+		stream.printf ("#define false 0\n");
 		if (includefiles.length () > 0) {
 			foreach (var inc in includefiles)
 				stream.printf ("#include <%s>\n", inc);
