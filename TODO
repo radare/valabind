@@ -29,3 +29,8 @@ Add support for exceptions
 Add support for properties
 
 Add support for %namespace foo { ... }
+
+
+Java support
+============
+enums are not generated correctly -> needs swig fix

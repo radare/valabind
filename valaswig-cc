@@ -6,7 +6,7 @@ MOD=$2
 OMOD=${MOD}
 COMPILE=Yes
 
-function show_help {
+show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
   echo "  lang: python, ruby, perl, java, csharp, ..."
