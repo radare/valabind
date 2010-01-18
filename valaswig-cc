@@ -10,15 +10,33 @@ show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
   echo "  lang: python, ruby, perl, java, csharp, ..."
-  echo "  --help,-h : show this help message"
-  echo "  --version : show version of valaswig"
-  echo "  --glib    : assume vapi source is glib/gobject based"
-  echo "  -I[path]  : add includepath for SWIGFLAGS and CFLAGS"
-  echo "  -L[path]  : append library path to LDFLAGS"
-  echo "  -l[lib]   : append to LDFLAGS to link a library"
-  echo "  -C        : do not compile, just let the .c and .i files"
+  echo "  --help,-h      show this help message"
+  echo "  --version      show version of valaswig"
+  echo "  --glib         assume vapi source is glib/gobject based"
+  echo "  --test [lang]  test if it is possible to build"
+  echo "  -I[path]       add includepath for SWIGFLAGS and CFLAGS"
+  echo "  -L[path]       append library path to LDFLAGS"
+  echo "  -l[lib]        append to LDFLAGS to link a library"
+  echo "  -C             do not compile, just let the .c and .i files"
   exit 0
 }
+
+TEST=0
+case "$1" in
+"--test")
+  TEST=1
+  LANG=$2
+  ;;
+"--version"|"-V")
+  valaswig --version
+  swig -version | grep SWIG
+  ${CC} --version | grep ${CC}
+  exit 0
+  ;;
+"--help"|"-h")
+  show_help
+  ;;
+esac
 
 [ -z "${LANG}" ] && show_help
 [ -z "${CC}" ] && CC=gcc
@@ -52,22 +70,11 @@ esac
 #echo MOD=${MOD}
 #echo LANG=${LANG}
 
-case "$1" in
-"--version"|"-V")
-  valaswig --version
-  swig -version | grep SWIG
-  ${CC} --version | grep ${CC}
-  exit 0
-  ;;
-"--help"|"-h")
-  show_help
-  ;;
-esac
 
 shift
 shift
 while : ; do
-  # XXX ultra ugly
+  # XXX ultra ugly switch case
   if [ "`echo $1 | grep -- '-I'`" ]; then
     CFLAGS="$1 ${CFLAGS}"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
@@ -85,22 +92,34 @@ while : ; do
     COMPILE=""
   else
     FILES="$1 ${FILES}"
-  fi
-  fi
-  fi
-  fi
-  fi
+  fi ; fi ; fi ; fi ; fi
   shift
   [ -z "$1" ] && break
 done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
 
-echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
-valaswig -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
-echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
-swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
-if [ -n "${COMPILE}" ]; then
-  echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
-  ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+if [ $TEST = 1 ]
+then
+  DIR=`mktemp -d`
+  if [ ! $? = 0 ]; then
+    echo "Cannot create temporary directory"
+    exit 1
+  fi
+  cd ${DIR}
+  echo "%module ${MOD}" > ${MOD}.i
+  swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
+  if [ ! $? = 0 ]; then exit 1 ; fi
+  ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} >/dev/null 2>&1
+  if [ ! $? = 0 ]; then exit 1 ; fi
+  rm -rf ${DIR}
+else
+  echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
+  valaswig -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+  echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
+  swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+  if [ -n "${COMPILE}" ]; then
+    echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
+    ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+  fi
 fi
