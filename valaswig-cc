@@ -43,7 +43,13 @@ esac
 
 case "${LANG}" in
 "python")
-  CFLAGS="${CFLAGS} -I/usr/include/python2.6"
+  if [ -d /usr/include/python2.6 ]; then
+    CFLAGS="${CFLAGS} -I/usr/include/python2.6"
+    LDFLAGS="${CFLAGS} -lpython2.6"
+  else
+    CFLAGS="${CFLAGS} -I/usr/include/python2.5"
+    LDFLAGS="${CFLAGS} -lpython2.5"
+  fi
   OMOD="_${MOD}"
   ;;
 "ruby")
@@ -67,12 +73,9 @@ case "${LANG}" in
   ;;
 esac
 
-#echo MOD=${MOD}
-#echo LANG=${LANG}
-
-
 shift
 shift
+
 while : ; do
   # XXX ultra ugly switch case
   if [ "`echo $1 | grep -- '-I'`" ]; then
