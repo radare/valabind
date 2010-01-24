@@ -3,13 +3,15 @@
 using Vala;
 
 public class SwigWriter : CodeVisitor {
-	private CodeContext context;
-	private FileStream? stream;
+	public bool pkgmode;
+	public string pkgname;
 	public bool show_externs;
 	public bool glib_mode;
 	public string[] files;
 	public GLib.List<string> includefiles;
 	public GLib.List<Method> methods;
+	private CodeContext context;
+	private FileStream? stream;
 	private string classname;
 	private string classcname;
 	private string externs;
@@ -65,41 +67,35 @@ public class SwigWriter : CodeVisitor {
 		type = type.replace ("?","");
 
 		switch (type) {
+		case "G": /* generic type :: TODO: review */
+		case "gpointer":
+	 		return "void*";
 		case "ut8":
+		case "uint8":
+		case "guint8":
 			return "unsigned char";
-		case "ut32":
-			return "unsigned int";
-		case "ut64":
-			return "unsigned long long";
-		case "bool":
-			return "bool"; // no conversion needed
 		case "string":
 			return "char *"; // ??? 
 		case "gint":
 	 		return "int";
 		case "glong":
 	 		return "long";
+		case "ut64":
 		case "uint64":
-	 		return "unsigned long long";
 		case "guint64":
-	 		return "unsigned long long";
-		case "uint8":
-			return "unsigned char";
-		case "guint8":
-			return "unsigned char";
+			return "unsigned long long";
 		/* XXX swig does not support unsigned char* */
 		case "uint8*":
-			return "char*"; //"unsigned char*";
 		case "guint8*":
 			return "char*"; //"unsigned char*";
 		case "guint16":
-			return "unsigned short";
 		case "uint16":
 			return "unsigned short";
+		case "ut32":
+		case "uint32":
 		case "guint32":
 			return "unsigned int";
-		case "uint32":
-			return "unsigned int";
+		case "bool": // no conversion needed
 		case "gboolean":
 			return "bool"; // XXX bool?
 		}
@@ -135,6 +131,7 @@ public class SwigWriter : CodeVisitor {
 	public void walk_class (Class c) {
 		classname = c.name;
 		classcname = c.get_cname ();
+
 		process_includes (c);
 		/* {
 			var dest = c.destructor;
@@ -157,10 +154,11 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void walk_enum (Vala.Enum e) {
-// TODO: register all enums and resolve them as 'int' for parameters (avoid cname="int")
+		var enumname = classname + e.name;
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
 			e.name, e.get_cname ());
+		enums += "#define %s int\n".printf (enumname);
 		enums += "enum {\n";
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
@@ -254,11 +252,13 @@ public class SwigWriter : CodeVisitor {
 		nspace = ns.name;
 		process_includes (ns);
 
+		if (pkgmode && sr.file.filename.str (pkgname) == null)
+			return;
+
 		foreach (var e in ns.get_enums ())
 			walk_enum (e);
 		foreach (var c in ns.get_structs ()) {
 			/* TODO: refactor to walk_struct */
-			print ("struct: %s\n", c.get_cname ());
 			foreach (var m in c.get_methods ())
 				walk_method (m);
 		}
@@ -267,7 +267,7 @@ public class SwigWriter : CodeVisitor {
 		foreach (var c in ns.get_classes ())
 			walk_class (c);
 
-		ns.accept_children (this);
+		//ns.accept_children (this);
 	}
 
 	public void write_file (CodeContext context, string filename) {

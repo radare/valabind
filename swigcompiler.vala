@@ -1,21 +1,26 @@
 /* Copyleft 2009-2010 -- pancake // nopcode.org */
+
 using Vala;
 
 public class SwigCompiler {
+	public bool pkgmode;
+	public string pkgname;
 	string modulename;
+	string vapidir;
 	CodeContext context;
 	string[] source_files;
 
-	public SwigCompiler (string modulename) {
+	public SwigCompiler (string modulename, string vapidir) {
 		context = new CodeContext ();
 		CodeContext.push (context);
 		this.modulename = modulename;
+		this.vapidir = vapidir;
 		source_files = null;
+		add_package (context, "glib-2.0");
+		add_package (context, "gobject-2.0");
 	}
 
 	public void parse () {
-		add_package (context, "glib-2.0");
-		add_package (context, "gobject-2.0");
 		var parser = new Parser ();
 		parser.parse (context);
 		init ();
@@ -34,18 +39,25 @@ public class SwigCompiler {
 		var flow_analyzer = new FlowAnalyzer ();
 		flow_analyzer.analyze (context);
 
-		if (context.report.get_errors () > 0)
-			return false;
-		return true;
+		return (context.report.get_errors () == 0);
 	}
 
 	public bool add_source_file (string path) {
+		foreach (var f in source_files) {
+			if (path == f)
+				return false;
+		}
+
 		bool ret = FileUtils.test (path, FileTest.IS_REGULAR);
 		if (ret) {
-			var source = new SourceFile (context, path, true);
-			context.add_source_file (source);
+			if (!pkgmode)
+				context.add_source_file (new SourceFile (context, path, true));
 			source_files += path;
-		} else error ("Cannot open '%s'.\n", path);
+		} else {
+			/* check in path */
+			if (!add_package (context, path))
+				error ("Cannot find '%s'.\n", path);
+		}
 		return ret;
 	}
 
@@ -57,8 +69,11 @@ public class SwigCompiler {
 	public void emit_swig (string file, bool show_externs, bool glibmode, string? include) {
 		var swig_writer = new SwigWriter (modulename);
 		if (swig_writer != null) {
+			/* TODO: why not just pass a SwigCompiler reference to it? */
 			swig_writer.show_externs = show_externs;
 			swig_writer.glib_mode = glibmode;
+			swig_writer.pkgmode = pkgmode;
+			swig_writer.pkgname = pkgname;
 			if (include != null)
 				swig_writer.includefiles.append (include);
 			swig_writer.files = source_files;
@@ -68,26 +83,40 @@ public class SwigCompiler {
 
 	/* Ripped from Vala Compiler */
 	private bool add_package (CodeContext context, string pkg) {
-		/* XXX harcoded path */
-		string[] vapi_directories = { "/usr/share/vala/vapi" };
-		if (context.has_package (pkg)) {
-			// ignore multiple occurences of the same package
+		print ("Adding dependency package %s\n", pkg);
+
+		// ignore multiple occurences of the same package
+		if (context.has_package (pkg))
 			return true;
-		}
+
+		// TODO: Move the construction of this array somewhere else :)
+		string[] vapi_directories = {
+			vapidir,
+			"/usr/share/vala/vapi" /* XXX harcoded path */
+		};
 	
 		var package_path = context.get_package_path (pkg, vapi_directories);
-		
-		if (package_path == null)
+		if (package_path == null) {
+			stderr.printf ("Cannot find package path '%s'", pkg);
 			return false;
-		
-		context.add_package (pkg);
+		}
+
+		// XXX find better way to do this
+		//if (package_path[0] == '.') {
+		if (pkgmode) {
+			print ("==> %s\n", package_path);
+			add_source_file (package_path);
+		}
+
 		context.add_source_file (new SourceFile (context, package_path, true));
+		context.add_package (pkg);
 		
 		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));
 		if (FileUtils.test (deps_filename, FileTest.EXISTS)) {
 			try {
 				string deps_content;
 				size_t deps_len;
+
 				FileUtils.get_contents (deps_filename, out deps_content, out deps_len);
 				foreach (string dep in deps_content.split ("\n")) {
 					dep = dep.strip ();
@@ -101,7 +130,6 @@ public class SwigCompiler {
 					.printf (e.message));
 			}
 		}
-		
 		return true;
 	}
 }

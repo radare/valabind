@@ -2,6 +2,7 @@
 
 static string[] files;
 static string includefile;
+static string vapidir;
 static bool show_version;
 static bool show_externs;
 static bool glibmode;
@@ -13,6 +14,8 @@ const string version_string = "valaswig 0.1 - pancake @ nopcode.org";
 private const OptionEntry[] options = {
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
 	  ref files, "vala/vapi input files", "FILE FILE .." },
+	{ "vapidir", 'V', 0, OptionArg.STRING,
+	  ref vapidir, "define alternative vapi directory", null },
 	{ "include", 'i', 0, OptionArg.STRING,
 	  ref includefile, "include file", null },
 	{ "externs", 'e', 0, OptionArg.NONE,
@@ -30,6 +33,7 @@ private const OptionEntry[] options = {
 
 int main (string[] args) {
 	output = null;
+	vapidir = ".";
 	files = { "" };
 
 	try {
@@ -38,7 +42,7 @@ int main (string[] args) {
 		opt_context.add_main_entries (options, null);
 		opt_context.parse (ref args);
 	} catch (OptionError e) {
-		stdout.printf ("%s\nTry --help.\n", e.message);
+		stderr.printf ("%s\nTry --help.\n", e.message);
 		return 1;
 	}
 
@@ -57,10 +61,15 @@ int main (string[] args) {
 		return 1;
 	}
 
-	SwigCompiler sc = new SwigCompiler (modulename);
+	SwigCompiler sc = new SwigCompiler (modulename, vapidir);
 	foreach (var file in files) {
+		if (file.str (".vapi") == null) {
+			sc.pkgmode = true;
+			sc.pkgname = file;
+		}
 		sc.add_source_file (file);
 	}
+
 	sc.parse ();
 	if (output == null)
 		output = "%s.i".printf (modulename);
