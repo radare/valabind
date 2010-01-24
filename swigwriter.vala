@@ -75,6 +75,9 @@ public class SwigWriter : CodeVisitor {
 		case "uint8":
 		case "guint8":
 			return "unsigned char";
+		case "gchar":
+			return "char";
+		case "gchar*":
 		case "string":
 			return "char *"; // ??? 
 		case "gint":
