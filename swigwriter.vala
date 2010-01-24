@@ -1,6 +1,7 @@
 /* Copyleft 2009-2010 -- pancake // nopcode.org */
 
 using Vala;
+using Posix.exit;
 
 public class SwigWriter : CodeVisitor {
 	public bool pkgmode;
@@ -56,9 +57,9 @@ public class SwigWriter : CodeVisitor {
 
 	private string get_ctype (string _type) {
 		string type = _type;
-		if (_type == "null") {
-			// TODO: make this error more verbose .. simplify _type, type.. ?
-			warning ("Cannot resolve type");
+		if (type == "null") {
+			stderr.printf ("Cannot resolve type\n");
+			Posix.exit (1);
 		}
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
