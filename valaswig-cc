@@ -5,6 +5,7 @@ LANG=$1
 MOD=$2
 OMOD=${MOD}
 COMPILE=Yes
+ARG_VAPIDIR=""
 
 show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
@@ -12,6 +13,7 @@ show_help () {
   echo "  lang: python, ruby, perl, java, csharp, ..."
   echo "  --help,-h      show this help message"
   echo "  --version      show version of valaswig"
+  echo "  --vapidir=dir  show version of valaswig"
   echo "  --glib         assume vapi source is glib/gobject based"
   echo "  --test [lang]  test if it is possible to build"
   echo "  -I[path]       add includepath for SWIGFLAGS and CFLAGS"
@@ -82,6 +84,9 @@ while : ; do
     CFLAGS="$1 ${CFLAGS}"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
   else
+  if [ "`echo $1 | grep -- '--vapidir'`" ]; then
+    ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
+  else
   if [ "`echo $1 | grep -- '-l'`" ]; then
     LDFLAGS="$1 ${LDFLAGS}"
   else
@@ -95,7 +100,7 @@ while : ; do
     COMPILE=""
   else
     FILES="$1 ${FILES}"
-  fi ; fi ; fi ; fi ; fi
+  fi ; fi ; fi ; fi ; fi ; fi
   shift
   [ -z "$1" ] && break
 done
@@ -117,8 +122,8 @@ then
   if [ ! $? = 0 ]; then exit 1 ; fi
   rm -rf ${DIR}
 else
-  echo valaswig -o ${MOD}.i -m ${MOD} ${FILES}
-  valaswig -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+  echo valaswig ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+  valaswig ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
   echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
   swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
   if [ -n "${COMPILE}" ]; then
