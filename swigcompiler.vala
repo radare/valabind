@@ -104,7 +104,7 @@ public class SwigCompiler {
 		// XXX find better way to do this
 		//if (package_path[0] == '.') {
 		if (pkgmode) {
-			print ("==> %s\n", package_path);
+			//print ("==> %s\n", package_path);
 			add_source_file (package_path);
 		}
 

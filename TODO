@@ -1,6 +1,9 @@
 Generic TODO
 ============
 
+Add support for public variables in classes or structs ..huh!
+ Check RCore.file.fd
+
 Add support for destructors (class.get_destructor () ..
 
 Vala-specific TODO:

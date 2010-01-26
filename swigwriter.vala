@@ -35,23 +35,34 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	private string get_alias (string name) {
+		string oname = name;
 		switch (name) {
 /*
 		case "use":
 			return "_use";
 */
 		case "cmd":
-			return "_cmd";
+			name = "_cmd";
+			break;
+		case "def":
+			name = "_def";
+			break;
 		case "print":
-			return "_print";
+			name = "_print";
+			break;
 		case "del":
-			return "_del";
+			name = "_del";
+			break;
 		case "from":
-			return "_from";
+			name = "_from";
+			break;
 		case "continue":
-			return "cont";
+			name = "cont";
+			break;
 		}
-		// TODO: display warning when changing a method/variable name
+		if (name != oname)
+			stderr.printf ("\x1b[33mWARNING:\x1b[0m %s.%s method renamed to %s.%s\n",
+				classname, oname, classname, name);
 		return name;
 	}
 
