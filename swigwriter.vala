@@ -18,7 +18,6 @@ public class SwigWriter : CodeVisitor {
 	private string externs;
 	private string statics;
 	private string extends;
-	private string applys;
 	private string enums;
 	private string nspace;
 	private string modulename;
@@ -28,7 +27,6 @@ public class SwigWriter : CodeVisitor {
 		statics = "";
 		externs = "";
 		extends = "";
-		applys = "";
 		enums = "";
 		this.modulename = name;
 		this.includefiles = new GLib.List<string>();
@@ -199,6 +197,7 @@ public class SwigWriter : CodeVisitor {
 		if (m.is_private_symbol ())
 			return;
 
+		string applys = "";
 		string pfx;
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = foo.name;
@@ -234,6 +233,7 @@ public class SwigWriter : CodeVisitor {
 		if (classname != "") {
 			if (is_constructor) {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
+				extends += applys;
 				extends += "  %s (%s) {\n".printf (classname, def_args);
 				if (glib_mode)
 					extends += "    g_type_init ();\n";
@@ -247,6 +247,7 @@ public class SwigWriter : CodeVisitor {
 					else call_args = "self, " + call_args;
 				}
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
+				extends += applys;
 				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
 				extends += "    %s %s (%s);\n  }\n".printf (
 					void_return?"":"return", cname, call_args);
@@ -312,7 +313,6 @@ public class SwigWriter : CodeVisitor {
 		if (show_externs)
 			stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", statics);
-		stream.printf ("%s\n", applys);
 		stream.printf ("%s\n", extends);
 
 		this.stream = null;
