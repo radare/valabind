@@ -141,24 +141,30 @@ public class SwigWriter : CodeVisitor {
 		}
 	}
 
+	public void walk_field (Field f) {
+		print ("---> field %s --> %s\n", f.get_cname(), f.get_ctype());
+		//if (f.access == Accessibility.PRIVATE)
+		//	print ("---> field is private XXX\n");
+		if (f.no_array_length) {
+			print ("---> array without length\n");
+		}
+	}
+
 	public void walk_class (Class c) {
 		classname = c.name;
 		classcname = c.get_cname ();
-
 		process_includes (c);
-		/* {
-			var dest = c.destructor;
-			var sdest = c.static_destructor;
-			var cdest = c.class_destructor;
-			print ("DESTRUCTOR: %p %p %p\n", dest, sdest, cdest);
-		} */
-		if (glib_mode)
+		if (glib_mode) {
 			classname = "%s%s".printf (nspace, classname);
-
-		if (glib_mode) extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
-		else extends += "%%extend %s {\n".printf (classname);
+			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
+		} else extends += "%%extend %s {\n".printf (classname);
 		foreach (var e in c.get_enums ())
 			walk_enum (e);
+		foreach (var f in c.get_fields ())
+			walk_field (f);
+		string? freefun = c.get_free_function ();
+		if (freefun != null)
+			extends += "  ~%s() {\n    %s (self);\n  }\n".printf (classname, freefun);
 		foreach (var m in c.get_methods ())
 			walk_method (m);
 		if (glib_mode) extends += "};\n} %s;\n".printf (classname);
@@ -222,7 +228,7 @@ public class SwigWriter : CodeVisitor {
 
 				if (arg_type.str ("*") == null)
 					arg_type += "*";
-				applys += "%%apply %s %s { %s %s };\n".printf (
+				applys += "  %%apply %s %s { %s %s };\n".printf (
 					arg_type, var_name, arg_type, arg_name);
 			}
 			call_args += "%s%s".printf (pfx, arg_name);
@@ -271,12 +277,16 @@ public class SwigWriter : CodeVisitor {
 		if (pkgmode && sr.file.filename.str (pkgname) == null)
 			return;
 
+		foreach (var f in ns.get_fields ())
+			walk_field (f);
 		foreach (var e in ns.get_enums ())
 			walk_enum (e);
 		foreach (var c in ns.get_structs ()) {
 			/* TODO: refactor to walk_struct */
 			foreach (var m in c.get_methods ())
 				walk_method (m);
+			foreach (var f in c.get_fields ())
+				walk_field (f);
 		}
 		foreach (var m in ns.get_methods ())
 			walk_method (m);
@@ -296,7 +306,6 @@ public class SwigWriter : CodeVisitor {
 		context.accept (this);
 
 		stream.printf ("%%module %s\n", modulename);
-
 		stream.printf ("%%{\n");
 		stream.printf ("#define bool int\n");
 		stream.printf ("#define true 1\n");
