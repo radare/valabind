@@ -206,7 +206,7 @@ public class SwigWriter : CodeVisitor {
 		string cname = m.get_cname ();
 		string name = m.name;
 		string alias = get_alias (m.name);
-		string ret = get_ctype (m.return_type.to_string ());
+		string ret = get_ctype (m.return_type.get_cname ()); //to_string ());
 		string def_args = "";
 		string call_args = "";
 		bool void_return = (ret == "void");
