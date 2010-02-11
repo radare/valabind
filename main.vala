@@ -6,6 +6,7 @@ static string vapidir;
 static bool show_version;
 static bool show_externs;
 static bool glibmode;
+static bool cxxmode;
 static string modulename;
 static string? output;
 
@@ -28,6 +29,8 @@ private const OptionEntry[] options = {
 	  ref modulename, "specify module name", null },
 	{ "glib", 'g', 0, OptionArg.NONE,
 	  ref glibmode, "work in glib/gobject mode", null },
+	{ "cxx", 'x', 0, OptionArg.NONE,
+	  ref cxxmode, "generate c++ swig code", null },
 	{ null }
 };
 
@@ -73,7 +76,7 @@ int main (string[] args) {
 	sc.parse ();
 	if (output == null)
 		output = "%s.i".printf (modulename);
-	sc.emit_swig (output, show_externs, glibmode, includefile);
+	sc.emit_swig (output, show_externs, glibmode, cxxmode, includefile);
 
 	return 0;
 }

@@ -8,6 +8,7 @@ public class SwigWriter : CodeVisitor {
 	public string pkgname;
 	public bool show_externs;
 	public bool glib_mode;
+	public bool cxx_mode;
 	public string[] files;
 	public GLib.List<string> includefiles;
 	public GLib.List<Method> methods;
@@ -19,6 +20,7 @@ public class SwigWriter : CodeVisitor {
 	private string statics;
 	private string extends;
 	private string enums;
+	private string vectors;
 	private string nspace;
 	private string modulename;
 
@@ -28,6 +30,7 @@ public class SwigWriter : CodeVisitor {
 		externs = "";
 		extends = "";
 		enums = "";
+		vectors = "";
 		this.modulename = name;
 		this.includefiles = new GLib.List<string>();
 	}
@@ -66,6 +69,7 @@ public class SwigWriter : CodeVisitor {
 
 	private string get_ctype (string _type) {
 		string type = _type;
+		string? iter_type = null;
 		if (type == "null") {
 			stderr.printf ("Cannot resolve type\n");
 			Posix.exit (1);
@@ -74,6 +78,13 @@ public class SwigWriter : CodeVisitor {
 			type = type.substring (nspace.length) + "*";
 		if (type.str (".") != null)
 			type = type.replace (".", "");
+		if (cxx_mode && type.str ("<") != null && type.str (">") != null) {
+			iter_type = type.str ("<");
+			iter_type = iter_type.replace ("<", "");
+			iter_type = iter_type.replace (">", "");
+			iter_type = iter_type.replace (nspace, "");
+			type = type.split ("<", 2)[0];
+		}
 		type = type.replace ("?","");
 
 		switch (type) {
@@ -100,7 +111,7 @@ public class SwigWriter : CodeVisitor {
 		/* XXX swig does not support unsigned char* */
 		case "uint8*":
 		case "guint8*":
-			return "char*"; //"unsigned char*";
+			return "unsigned char*";
 		case "guint16":
 		case "uint16":
 			return "unsigned short";
@@ -111,6 +122,10 @@ public class SwigWriter : CodeVisitor {
 		case "bool": // no conversion needed
 		case "gboolean":
 			return "bool"; // XXX bool?
+		case "RArray":
+			if (iter_type != null)
+				return "std::vector<"+iter_type+">";
+			return "void**";
 		}
 		return type;
 	}
@@ -177,15 +192,13 @@ public class SwigWriter : CodeVisitor {
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
 			e.name, e.get_cname ());
-		enums += "#define %s int\n".printf (enumname);
-		enums += "enum {\n";
+		enums += "enum %s {\n".printf (enumname);
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
 			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
-		extends += enums + "};\n";
-		extends += tmp + "%}\n";
-		enums = "";
+		enums += "};\n";
+		enums += tmp + "%}\n";
 	}
 
 	public void walk_method (Method m) {
@@ -210,7 +223,7 @@ public class SwigWriter : CodeVisitor {
 			DataType? bar = foo.parameter_type;
 			if (bar == null)
 				continue;
-			string arg_type = get_ctype (bar.get_cname ());
+			string? arg_type = get_ctype (bar.get_cname ());
 
 			if (first) {
 				pfx = "";
@@ -255,8 +268,25 @@ public class SwigWriter : CodeVisitor {
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += applys;
 				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
-				extends += "    %s %s (%s);\n  }\n".printf (
-					void_return?"":"return", cname, call_args);
+				if (cxx_mode && ret.str ("std::vector") != null) {
+					string iter_type;
+					iter_type = ret.str ("<");
+					iter_type = iter_type.replace ("<", "");
+					iter_type = iter_type.replace (">", "");
+					extends += "    %s ret;\n".printf (ret);
+					extends += "    void** array;\n";
+					extends += "    %s *item;\n".printf (iter_type);
+					extends += "    array = %s (%s);\n".printf (cname, call_args);
+					extends += "    r_array_rewind (array);\n";
+					extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
+					extends += "        ret.push_back(*item);\n";
+					extends += "    return ret;\n";
+					extends += "  }\n";
+					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (iter_type, iter_type);
+				} else {
+					extends += "    %s %s (%s);\n  }\n".printf (
+							void_return?"":"return", cname, call_args);
+				}
 			}
 		} else {
 			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
@@ -307,16 +337,33 @@ public class SwigWriter : CodeVisitor {
 
 		stream.printf ("%%module %s\n", modulename);
 		stream.printf ("%%{\n");
-		stream.printf ("#define bool int\n");
-		stream.printf ("#define true 1\n");
-		stream.printf ("#define false 0\n");
+		if (!cxx_mode) {
+			stream.printf ("#define bool int\n");
+			stream.printf ("#define true 1\n");
+			stream.printf ("#define false 0\n");
+		}
 		if (includefiles.length () > 0) {
-			foreach (var inc in includefiles)
+			if (cxx_mode)
+				stream.printf ("extern \"C\" {\n");
+			foreach (var inc in includefiles) {
 				stream.printf ("#include <%s>\n", inc);
+			}
+			if (cxx_mode) {
+				stream.printf ("}\n");
+				stream.printf ("#include <vector>\n");
+			}
 		}
 		stream.printf ("%%}\n");
 		foreach (var inc in includefiles)
 			stream.printf ("%%include <%s>\n", inc);
+		if (cxx_mode) {
+			stream.printf ("%%include \"std_vector.i\"\n\n");
+			if (vectors != "") {
+				stream.printf ("namespace std {\n");
+				stream.printf ("%s", vectors);
+				stream.printf ("}\n");
+			}
+		}
 
 		stream.printf ("%s\n", enums);
 		if (show_externs)

@@ -66,12 +66,13 @@ public class SwigCompiler {
 		swig_writer.write_file (context, file);
 	}
 
-	public void emit_swig (string file, bool show_externs, bool glibmode, string? include) {
+	public void emit_swig (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var swig_writer = new SwigWriter (modulename);
 		if (swig_writer != null) {
 			/* TODO: why not just pass a SwigCompiler reference to it? */
 			swig_writer.show_externs = show_externs;
 			swig_writer.glib_mode = glibmode;
+			swig_writer.cxx_mode = cxxmode;
 			swig_writer.pkgmode = pkgmode;
 			swig_writer.pkgname = pkgname;
 			if (include != null)

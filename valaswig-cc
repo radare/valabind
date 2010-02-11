@@ -6,6 +6,7 @@ MOD=$2
 OMOD=${MOD}
 COMPILE=Yes
 ARG_VAPIDIR=""
+EXT="c"
 
 show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
@@ -55,11 +56,11 @@ case "${LANG}" in
   OMOD="_${MOD}"
   ;;
 "ruby")
-  if [ -z "`ruby --version | grep 1.9`" ]; then
+  if [ -z "`ruby1.9 --version | grep 1.9`" ]; then
     echo "You need ruby 1.9. Help is welcome to support ruby 1.8 and so"
     exit 1
   fi
-  RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
+  RB_CFLAGS=`ruby1.9 -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
   CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   ;;
 "perl")
@@ -87,6 +88,12 @@ while : ; do
   if [ "`echo $1 | grep -- '--vapidir'`" ]; then
     ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
   else
+  if [ "`echo $1 | grep -- '-x'`" ]; then
+    CC="g++"
+    EXT="cxx"
+    SWIGFLAGS="-c++ ${SWIGFLAGS}"
+    VALASWIGFLAGS="-x ${VALASWIGFLAGS}"
+  else
   if [ "`echo $1 | grep -- '-l'`" ]; then
     LDFLAGS="$1 ${LDFLAGS}"
   else
@@ -100,7 +107,7 @@ while : ; do
     COMPILE=""
   else
     FILES="$1 ${FILES}"
-  fi ; fi ; fi ; fi ; fi ; fi
+  fi ; fi ; fi ; fi ; fi ; fi ; fi
   shift
   [ -z "$1" ] && break
 done
@@ -122,12 +129,12 @@ then
   if [ ! $? = 0 ]; then exit 1 ; fi
   rm -rf ${DIR}
 else
-  echo valaswig ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
-  valaswig ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+  echo valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+  valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
   echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
   swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
   if [ -n "${COMPILE}" ]; then
-    echo ${CC} $@ -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
-    ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
+    ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
   fi
 fi
