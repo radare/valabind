@@ -78,7 +78,7 @@ public class SwigWriter : CodeVisitor {
 			type = type.substring (nspace.length) + "*";
 		if (type.str (".") != null)
 			type = type.replace (".", "");
-		if (cxx_mode && type.str ("<") != null && type.str (">") != null) {
+		if (is_generic (type)) {
 			iter_type = type.str ("<");
 			iter_type = iter_type.replace ("<", "");
 			iter_type = iter_type.replace (">", "");
@@ -201,17 +201,26 @@ public class SwigWriter : CodeVisitor {
 		enums += tmp + "%}\n";
 	}
 
+	private inline bool is_generic(string type) {
+		return (cxx_mode && type.str ("<") != null && type.str (">") != null);
+	}
+
 	public void walk_method (Method m) {
 		bool first = true;
 		string cname = m.get_cname ();
-		string name = m.name;
 		string alias = get_alias (m.name);
-		string ret = get_ctype (m.return_type.get_cname ()); //to_string ());
+		string ret;
 		string def_args = "";
 		string call_args = "";
-		bool void_return = (ret == "void");
+		bool void_return;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
-		bool is_constructor = (name == ".new"); // weak way to check it?
+		bool is_constructor = (m.name == ".new"); // weak way to check it?
+
+		ret = m.return_type.to_string ();
+		if (is_generic (ret))
+			ret = get_ctype (ret);
+		else ret = get_ctype (m.return_type.get_cname ());
+		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
 			return;

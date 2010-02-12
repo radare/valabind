@@ -8,13 +8,6 @@ COMPILE=Yes
 ARG_VAPIDIR=""
 EXT="c"
 
-ruby1.9 -v >/dev/null 2>&1
-if [ $? = 0 ]; then
-  RUBY=ruby1.9
-else
-  RUBY=ruby
-fi
-
 show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
@@ -63,12 +56,14 @@ case "${LANG}" in
   OMOD="_${MOD}"
   ;;
 "ruby")
-  if [ -z "`${RUBY} --version | grep 1.9`" ]; then
-    echo "You need ruby 1.9. Help is welcome to support ruby 1.8 and so"
-    exit 1
-  fi
-  RB_CFLAGS=`${RUBY} -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
-  CFLAGS="${CFLAGS} ${RB_CFLAGS}"
+  if [ "`ruby --version | grep 1.8`" ]; then
+    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];'`
+    CFLAGS="${CFLAGS} ${RB_CFLAGS}"
+  else
+  if [ "`ruby --version | grep 1.9`" ]; then
+    RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
+    CFLAGS="${CFLAGS} ${RB_CFLAGS}"
+  fi ; fi
   ;;
 "perl")
   LC_ALL=C # fix anoying perl warning
