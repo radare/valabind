@@ -58,12 +58,11 @@ case "${LANG}" in
 "ruby")
   if [ "`ruby --version | grep 1.8`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];'`
-    CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   else
   if [ "`ruby --version | grep 1.9`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
-    CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   fi ; fi
+  CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   ;;
 "perl")
   LC_ALL=C # fix anoying perl warning

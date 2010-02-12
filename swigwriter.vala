@@ -122,7 +122,7 @@ public class SwigWriter : CodeVisitor {
 		case "bool": // no conversion needed
 		case "gboolean":
 			return "bool"; // XXX bool?
-		case "RArray":
+		case "RFList":
 			if (iter_type != null)
 				return "std::vector<"+iter_type+">";
 			return "void**";
@@ -286,7 +286,7 @@ public class SwigWriter : CodeVisitor {
 					extends += "    void** array;\n";
 					extends += "    %s *item;\n".printf (iter_type);
 					extends += "    array = %s (%s);\n".printf (cname, call_args);
-					extends += "    r_array_rewind (array);\n";
+					extends += "    r_flist_rewind (array);\n";
 					extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
 					extends += "        ret.push_back(*item);\n";
 					extends += "    return ret;\n";
