@@ -89,6 +89,7 @@ public class SwigWriter : CodeVisitor {
 
 		switch (type) {
 		case "G": /* generic type :: TODO: review */
+		case "gconstpointer":
 		case "gpointer":
 	 		return "void*";
 		case "ut8":
