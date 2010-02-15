@@ -1,7 +1,6 @@
 /* Copyleft 2009-2010 -- pancake // nopcode.org */
 
 using Vala;
-using Posix.exit;
 
 public class SwigWriter : CodeVisitor {
 	public bool pkgmode;
@@ -285,10 +284,12 @@ public class SwigWriter : CodeVisitor {
 					iter_type = ret.str ("<");
 					iter_type = iter_type.replace ("<", "");
 					iter_type = iter_type.replace (">", "");
-					if (iter_type == "G*") { /* No generic */
-						stderr.printf ("Fuck, no <G> type support.\n");
-						Posix.exit (0);
-					}
+					// TODO: Check if iter type exists before failing
+					//       instead of hardcoding the most common type '<G>'
+					// TODO: Do not construct a generic class if not supported
+					//       instead of failing.
+					if (iter_type == "G*") /* No generic */
+						SwigCompiler.error ("Fuck, no <G> type support.\n");
 					extends += "    %s ret;\n".printf (ret);
 					extends += "    void** array;\n";
 					extends += "    %s *item;\n".printf (iter_type);
