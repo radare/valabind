@@ -56,7 +56,7 @@ public class SwigCompiler {
 		} else {
 			/* check in path */
 			if (!add_package (context, path))
-				error ("Cannot find '%s'.\n", path);
+				SwigCompiler.error ("Cannot find '%s'.\n".printf (path));
 		}
 		return ret;
 	}
@@ -132,5 +132,14 @@ public class SwigCompiler {
 			}
 		}
 		return true;
+	}
+
+	public static void error (string msg) {
+		stderr.printf ("\x1b[31mERROR:\x1b[0m %s\n", msg);
+		Posix.exit (1);
+	}
+
+	public static void warning (string msg) {
+		stderr.printf ("\x1b[33mWARNING:\x1b[0m %s\n", msg);
 	}
 }

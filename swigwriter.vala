@@ -62,18 +62,16 @@ public class SwigWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			stderr.printf ("\x1b[33mWARNING:\x1b[0m %s.%s method renamed to %s.%s\n",
-				classname, oname, classname, name);
+			SwigCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+				classname, oname, classname, name));
 		return name;
 	}
 
 	private string get_ctype (string _type) {
 		string type = _type;
 		string? iter_type = null;
-		if (type == "null") {
-			stderr.printf ("Cannot resolve type\n");
-			Posix.exit (1);
-		}
+		if (type == "null")
+			SwigCompiler.error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		if (type.str (".") != null)
@@ -158,7 +156,9 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void walk_field (Field f) {
-		print ("---> field %s --> %s\n", f.get_cname(), f.get_ctype());
+		if (f.get_ctype () == null)
+			SwigCompiler.warning (
+				"Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
 		if (f.no_array_length) {
@@ -277,12 +277,18 @@ public class SwigWriter : CodeVisitor {
 				}
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += applys;
-				extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
+				if (is_static)
+					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
+				else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
 				if (cxx_mode && ret.str ("std::vector") != null) {
 					string iter_type;
 					iter_type = ret.str ("<");
 					iter_type = iter_type.replace ("<", "");
 					iter_type = iter_type.replace (">", "");
+					if (iter_type == "G*") { /* No generic */
+						stderr.printf ("Fuck, no <G> type support.\n");
+						Posix.exit (0);
+					}
 					extends += "    %s ret;\n".printf (ret);
 					extends += "    void** array;\n";
 					extends += "    %s *item;\n".printf (iter_type);
@@ -292,7 +298,8 @@ public class SwigWriter : CodeVisitor {
 					extends += "        ret.push_back(*item);\n";
 					extends += "    return ret;\n";
 					extends += "  }\n";
-					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (iter_type, iter_type);
+					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (
+						iter_type, iter_type);
 				} else {
 					extends += "    %s %s (%s);\n  }\n".printf (
 							void_return?"":"return", cname, call_args);
@@ -316,7 +323,6 @@ public class SwigWriter : CodeVisitor {
 
 		if (pkgmode && sr.file.filename.str (pkgname) == null)
 			return;
-
 		foreach (var f in ns.get_fields ())
 			walk_field (f);
 		foreach (var e in ns.get_enums ())
@@ -332,7 +338,6 @@ public class SwigWriter : CodeVisitor {
 			walk_method (m);
 		foreach (var c in ns.get_classes ())
 			walk_class (c);
-
 		//ns.accept_children (this);
 	}
 
