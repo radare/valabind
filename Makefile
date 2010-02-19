@@ -7,6 +7,7 @@ all:
 	valac -g --pkg posix --pkg vala-1.0 ${FILES} -o ${BIN}
 
 install:
+	mkdir -p ${DESTDIR}${PREFIX}/bin
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
