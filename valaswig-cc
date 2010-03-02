@@ -57,7 +57,7 @@ case "${LANG}" in
   ;;
 "ruby")
   if [ "`ruby --version | grep 1.8`" ]; then
-    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];'`
+    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];' 2>/dev/null`
   else
   if [ "`ruby --version | grep 1.9`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
@@ -81,6 +81,7 @@ shift
 shift
 
 while : ; do
+  [ -z "$1" ] && break
   # XXX ultra ugly switch case
   if [ "`echo $1 | grep -- '-I'`" ]; then
     CFLAGS="$1 ${CFLAGS}"
@@ -110,7 +111,6 @@ while : ; do
     FILES="$1 ${FILES}"
   fi ; fi ; fi ; fi ; fi ; fi ; fi
   shift
-  [ -z "$1" ] && break
 done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
