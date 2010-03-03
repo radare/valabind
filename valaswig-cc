@@ -11,7 +11,7 @@ EXT="c"
 show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-  echo "  lang: python, ruby, perl, java, csharp, ..."
+  echo "  lang: python, ruby, perl, lua, java, csharp, ..."
   echo "  --help,-h      show this help message"
   echo "  --version      show version of valaswig"
   echo "  --vapidir=dir  show version of valaswig"
@@ -57,7 +57,7 @@ case "${LANG}" in
   ;;
 "ruby")
   if [ "`ruby --version | grep 1.8`" ]; then
-    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];'`
+    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];' 2>/dev/null`
   else
   if [ "`ruby --version | grep 1.9`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
@@ -73,6 +73,8 @@ case "${LANG}" in
 "java")
   CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
   ;;
+"lua")
+  ;;
 "csharp")
   ;;
 esac
@@ -81,6 +83,7 @@ shift
 shift
 
 while : ; do
+  [ -z "$1" ] && break
   # XXX ultra ugly switch case
   if [ "`echo $1 | grep -- '-I'`" ]; then
     CFLAGS="$1 ${CFLAGS}"
@@ -110,7 +113,6 @@ while : ; do
     FILES="$1 ${FILES}"
   fi ; fi ; fi ; fi ; fi ; fi ; fi
   shift
-  [ -z "$1" ] && break
 done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
