@@ -214,12 +214,17 @@ public class SwigWriter : CodeVisitor {
 		string call_args = "";
 		bool void_return;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
-		bool is_constructor = (m.name == ".new"); // weak way to check it?
+		bool is_constructor = (m is CreationMethod);
+
+		// TODO: Implement contractual support
+		// m.get_preconditions ();
+		// m.get_postconditions ();
 
 		ret = m.return_type.to_string ();
-		if (is_generic (ret))
-			ret = get_ctype (ret);
+		if (is_generic (ret)) ret = get_ctype (ret);
 		else ret = get_ctype (m.return_type.get_cname ());
+		if (ret == null)
+			SwigCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
@@ -258,7 +263,9 @@ public class SwigWriter : CodeVisitor {
 		}
 
 		/* object oriented shit */
-		if (classname != "") {
+		if (classname == "") {
+			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
+		} else {
 			if (is_constructor) {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				extends += applys;
@@ -306,8 +313,6 @@ public class SwigWriter : CodeVisitor {
 							void_return?"":"return", cname, call_args);
 				}
 			}
-		} else {
-			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
 		}
 	}
 
