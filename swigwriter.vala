@@ -217,9 +217,10 @@ public class SwigWriter : CodeVisitor {
 		bool is_constructor = (m.name == ".new"); // weak way to check it?
 
 		ret = m.return_type.to_string ();
-		if (is_generic (ret))
-			ret = get_ctype (ret);
+		if (is_generic (ret)) ret = get_ctype (ret);
 		else ret = get_ctype (m.return_type.get_cname ());
+		if (ret == null)
+			SwigCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
