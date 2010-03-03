@@ -92,8 +92,8 @@ public class SwigCompiler {
 
 		// TODO: Move the construction of this array somewhere else :)
 		string[] vapi_directories = {
-			vapidir,
-			"/usr/share/vala/vapi" /* XXX harcoded path */
+			vapidir//,
+			//"/usr/share/vala/vapi" /* XXX harcoded path */
 		};
 	
 		var package_path = context.get_package_path (pkg, vapi_directories);
