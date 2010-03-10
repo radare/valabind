@@ -74,6 +74,10 @@ case "${LANG}" in
   CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
   ;;
 "lua")
+  if [ -f /usr/include/lua5.1/lua.h ]; then
+    CFLAGS="${CFLAGS} -I/usr/include/lua5.1"
+    LDFLAGS="${CFLAGS} -llua5.1"
+  fi
   ;;
 "csharp")
   ;;
