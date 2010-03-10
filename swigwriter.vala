@@ -123,7 +123,11 @@ public class SwigWriter : CodeVisitor {
 		case "RFList":
 			if (iter_type != null)
 				return "std::vector<"+iter_type+">";
-			return "void**";
+			break;
+		case "RList":
+			if (iter_type != null)
+				return "std::vector<"+iter_type+">";
+			break;
 		}
 		return type;
 	}
@@ -297,17 +301,30 @@ public class SwigWriter : CodeVisitor {
 					//       instead of failing.
 					if (iter_type == "G*") /* No generic */
 						SwigCompiler.error ("Fuck, no <G> type support.\n");
-					extends += "    %s ret;\n".printf (ret);
-					extends += "    void** array;\n";
-					extends += "    %s *item;\n".printf (iter_type);
-					extends += "    array = %s (%s);\n".printf (cname, call_args);
-					extends += "    r_flist_rewind (array);\n";
-					extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
-					extends += "        ret.push_back(*item);\n";
-					extends += "    return ret;\n";
-					extends += "  }\n";
+					// TODO: Do not recheck the return_type
+					if (m.return_type.to_string ().str ("RFList") != null) {
+						extends += "    %s ret;\n".printf (ret);
+						extends += "    void** array;\n";
+						extends += "    %s *item;\n".printf (iter_type);
+						extends += "    array = %s (%s);\n".printf (cname, call_args);
+						extends += "    r_flist_rewind (array);\n";
+						extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
+						extends += "        ret.push_back(*item);\n";
+						extends += "    return ret;\n";
+						extends += "  }\n";
+					} else if (m.return_type.to_string ().str ("RList") != null) {
+						extends += "    %s ret;\n".printf (ret);
+						extends += "    RList *list;\n";
+						extends += "    RListIter *iter;\n";
+						extends += "    %s *item;\n".printf (iter_type);
+						extends += "    list = %s (%s);\n".printf (cname, call_args);
+						extends += "    for (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
+						extends += "        ret.push_back(*item);\n";
+						extends += "    return ret;\n";
+						extends += "  }\n";
+					}
 					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (
-						iter_type, iter_type);
+							iter_type, iter_type);
 				} else {
 					extends += "    %s %s (%s);\n  }\n".printf (
 							void_return?"":"return", cname, call_args);
