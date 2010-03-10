@@ -8,6 +8,7 @@ all:
 
 install:
 	mkdir -p ${DESTDIR}${PREFIX}/bin
+	cp ${BIN}.1 ${DESTDIR}${PREFIX}/man/man1
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
