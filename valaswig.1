@@ -3,7 +3,7 @@
 .SH NAME
 .B valaswig 
 \- Vala to swig interface conversor
-.PP
+.Pp
 .Sh SYNOPSIS
 .Nm valaswig
 .Op Fl e
@@ -20,23 +20,31 @@ ValaSwig is a program written in Vala that aims to generate SWIG interfaces (.i)
 .Pp
 This way it is possible to create bindings for many programming languages (like python, perl, ruby, lua, ..) interfacing with C or Vala code.
 .Pp
-Note that list of supported languages in valaswig is not the same of swig. This is because not all swig backends are working in the same way. In other words, there are some languages that doesnt generate correct C code in some unhandled situations and depending on the vapi can break.
+Note that list of supported languages in valaswig is not the same of swig.
+.Pp
+This is because not all swig backends are working in the same way. In other words, there are some languages that doesnt generate correct C code in some unhandled situations and depending on the vapi can break.
 .Pp
 Valaswig can be an interesting tool for unit-testing swig and be able to find problems easily.
+.
 .Sh ENVIRONMENT
-.Ar XDG_DATA_DIRS
+.Bl -tag -width Fl
+.It XDG_DATA_DIRS
 Standard freedesktop environment variable to point to the share prefix directory where vala looks for vapi files.
-.Sh HYPER-REFERENCES
-.BL -tag -width Fl
-.It
-Vala : http://live.gnome.org/Vala
-.It
-SWIG : http://www.swig.org
 .El
+.
+.Sh HYPER-REFERENCES
+.Bl -tag -width Fl
+.It Vala 
+http://live.gnome.org/Vala
+.It SWIG
+http://www.swig.org
+.El
+.
 .Sh SEE ALSO
 .Pp
 .Xr valaswig-cc(1)
 .Pp
+.
 .Sh AUTHORS
 .Pp
 pancake <@nopcode.org>

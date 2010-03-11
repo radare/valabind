@@ -10,6 +10,7 @@ install:
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	mkdir -p ${DESTDIR}${PREFIX}/share/man/man1
 	cp ${BIN}.1 ${DESTDIR}${PREFIX}/share/man/man1
+	cp ${BIN}-cc.1 ${DESTDIR}${PREFIX}/share/man/man1
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 

@@ -1,9 +1,11 @@
-.Dd Mar 9, 2010
-.Dt VALASWIG-CC 1
-.Os
-.Sh NAME
-.Nm valaswig-cc
-.Nd Vala to swig interface compiler
+.TH "valaswig-cc" "1" "2010/03/11" "valaswig-cc" "ValaSwig compiler frontend"
+.
+.SH NAME
+.
+.Dd
+.B valaswig-cc
+\- Vala to swig interface compiler
+.Pp
 .Sh SYNOPSIS
 .Nm valaswig-cc
 .Ar language
@@ -17,30 +19,23 @@
 .Op Fl l Ar libname
 .Op Fl C
 .Ar vapifile
-
 .Sh DESCRIPTION
 valaswig-cc is a frontend for valaswig, swig and the C compiler (gcc by default).
-
+.Pp
 It aims to simplify the use of all the wrapped tools and compile usable bindings for many programming languages.
-
+.Pp
 .Sh EXAMPLE
 valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi
-
+.Pp
 .Sh ENVIRONMENT
+.Bl -tag -width Fl
 .Ar XDG_DATA_DIRS
 Standard freedesktop environment variable to point to the share prefix directory where vala looks for vapi files.
-
-.Sh HYPER-REFERENCES
-.Pp 
-Vala : http://live.gnome.org/Vala
-.Pp 
-SWIG : http://www.swig.org
-
+.El
 .Sh SEE ALSO
 .Pp
 .Xr valaswig(1)
 .Pp
-
 .Sh AUTHORS
 .Pp
 pancake <@nopcode.org>
