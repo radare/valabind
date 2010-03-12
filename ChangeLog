@@ -1,0 +1,635 @@
+== RELEASE 0.1
+
+changeset:   66:71c40891633b
+tag:         tip
+user:        pancake
+date:        Fri Mar 12 01:11:32 2010 +0100
+files:       Makefile valaswig-cc valaswig-cc.1
+description:
+* Apply Nibble patch Adding '-x' in help and manpage
+
+
+changeset:   65:0620c8ed8597
+user:        pancake
+date:        Fri Mar 12 00:48:21 2010 +0100
+files:       valaswig-cc.1
+description:
+* Fix warning. Thanks Sebastian Reichel for all this support :)
+
+
+changeset:   64:ace6ca6af266
+user:        pancake
+date:        Fri Mar 12 00:33:16 2010 +0100
+files:       valaswig-cc.1 valaswig.1
+description:
+* More fixes in manpages
+
+
+changeset:   63:9777b2810bff
+user:        pancake
+date:        Thu Mar 11 23:51:31 2010 +0100
+files:       Makefile valaswig-cc.1 valaswig.1
+description:
+* More fixups in -cc manpage
+
+
+changeset:   62:c517c819bb29
+user:        pancake
+date:        Thu Mar 11 23:38:07 2010 +0100
+files:       valaswig.1
+description:
+* More fixes in the manpage
+
+
+changeset:   61:770aa9573f9e
+user:        pancake
+date:        Thu Mar 11 23:21:36 2010 +0100
+files:       LICENSE
+description:
+* Added GPLv3 license
+  - Copyleft compatible
+
+
+changeset:   60:7fff3eae086e
+user:        pancake
+date:        Thu Mar 11 23:03:05 2010 +0100
+files:       Makefile
+description:
+* Fix manpage installation
+
+
+changeset:   59:4f3390a21c97
+user:        pancake
+date:        Thu Mar 11 00:48:35 2010 +0100
+files:       swigwriter.vala
+description:
+* Apply Nibble patch fixing RList and RFList in r2 bindings
+  - This is a very specific patch for r2
+  - Needs to be rewritten to be portable for normal vala code
+  - Its ok for now :)
+
+
+changeset:   58:323d1c30c28e
+parent:      56:22028f338127
+parent:      57:2b90e1772436
+user:        pancake
+date:        Wed Mar 10 01:30:47 2010 +0100
+description:
+* Oops merge
+
+
+changeset:   57:2b90e1772436
+parent:      55:890f69d33655
+user:        pancake@flubox2
+date:        Thu Mar 04 10:18:48 2010 +0100
+files:       valaswig-cc
+description:
+* Fix lua support in debian systems (nibble)
+
+
+changeset:   56:22028f338127
+user:        pancake
+date:        Wed Mar 10 01:28:47 2010 +0100
+files:       Makefile valaswig-cc.1 valaswig.1
+description:
+* Added manpages for valaswig and valaswig-cc
+
+
+changeset:   55:890f69d33655
+parent:      51:9ff0782024c9
+parent:      54:7f8017032930
+user:        pancake
+date:        Wed Mar 03 23:21:53 2010 +0100
+description:
+* merge
+
+
+changeset:   54:7f8017032930
+user:        pancake@flubox2
+date:        Wed Mar 03 12:33:07 2010 +0100
+files:       swigwriter.vala
+description:
+* Add support for alternative construction methods
+  - Fix creation method detection
+
+
+changeset:   53:d4fdeecd96f8
+parent:      52:af50e2744814
+parent:      50:76f9bb4112a2
+user:        pancake@flubox2
+date:        Wed Mar 03 12:02:38 2010 +0100
+description:
+* merge
+
+
+changeset:   52:af50e2744814
+parent:      48:c68743b92c05
+user:        pancake@flubox2
+date:        Wed Mar 03 12:02:10 2010 +0100
+files:       swigwriter.vala
+description:
+* Fix segfault when not resolving return type
+
+
+changeset:   51:9ff0782024c9
+user:        pancake
+date:        Wed Mar 03 23:21:29 2010 +0100
+files:       swigcompiler.vala
+description:
+* Remove hardcoded path
+  - Needs testing.. do this fixes the non system-wide installation?
+
+
+changeset:   50:76f9bb4112a2
+user:        pancake
+date:        Wed Mar 03 00:10:54 2010 +0100
+files:       valaswig-cc
+description:
+* Add support for lua bindings
+
+
+changeset:   49:50b783b0a254
+user:        pancake@localhost
+date:        Tue Mar 02 12:03:17 2010 +0100
+files:       valaswig-cc
+description:
+* Fix 'too many shift' issue
+
+
+changeset:   48:c68743b92c05
+user:        pancake@flubox2
+date:        Thu Feb 25 11:06:55 2010 +0100
+files:       valaswig-cc
+description:
+* Apply patch from Nibble fixing python bindings detection
+  in Debian systems.
+
+
+changeset:   47:21813c9aa5a5
+user:        pancake@localhost
+date:        Fri Feb 19 12:30:55 2010 +0100
+files:       Makefile
+description:
+* Fix make install
+
+
+changeset:   46:802c4ad1fb80
+user:        pancake
+date:        Mon Feb 15 21:04:37 2010 +0100
+files:       swigwriter.vala
+description:
+* Add TODO tip for <G> fails
+
+
+changeset:   45:45a4128d53df
+user:        pancake
+date:        Mon Feb 15 20:58:56 2010 +0100
+files:       swigcompiler.vala swigwriter.vala
+description:
+* Added warning() and error() static methods to
+  the SwigCompiler class.
+  - Use it everywhere
+* Warn when no ctype found in Fields
+  - This must be reviewed
+* Fixed support for static methods
+* Do not construct generics for G* type
+  - TODO: Must check if type exists, not only <G>
+
+
+changeset:   44:bcba54234ae3
+user:        pancake
+date:        Sat Feb 13 20:02:22 2010 +0100
+files:       swigwriter.vala
+description:
+* Add support for gconstpointer
+
+
+changeset:   43:3f0d264dfbd3
+user:        pancake@flubox2
+date:        Fri Feb 12 11:55:02 2010 +0100
+files:       swigwriter.vala valaswig-cc
+description:
+* Rename RArray into RFList
+
+
+changeset:   42:80e9ff421d4c
+user:        pancake@flubox2
+date:        Fri Feb 12 11:40:13 2010 +0100
+files:       swigwriter.vala valaswig-cc
+description:
+* Add ruby1.8 support
+  - ruby1.8 is used by default
+* Fix iterator parsing
+
+
+changeset:   41:29379a0984f9
+user:        pancake
+date:        Fri Feb 12 00:39:32 2010 +0100
+files:       swigwriter.vala valaswig-cc
+description:
+* Check for 'ruby' binary before 'ruby1.9'
+* Fix 'const char *' type resolution
+
+
+changeset:   40:ad88bfac0d7a
+user:        pancake@flubox2
+date:        Thu Feb 11 14:51:43 2010 +0100
+files:       main.vala swigcompiler.vala swigwriter.vala valaswig-cc
+description:
+* Apply patch from Nibble
+  - Added -x,--cxx flag to generate C++ code
+  - Add support for generics and iterators
+  - Those features are sadly only available in swig-c++
+
+
+changeset:   39:50a92f19e79e
+user:        pancake
+date:        Wed Jan 27 01:47:34 2010 +0100
+files:       swigwriter.vala
+description:
+* Add support for class destructors
+  - Fixes some memory leaks and segfaults in some bindings
+* Walk fields in classes and structures
+
+
+changeset:   38:8616e4eb3a84
+user:        pancake
+date:        Tue Jan 26 22:36:18 2010 +0100
+files:       swigwriter.vala
+description:
+* Fix 'out' and 'ref' modifiers for swig
+  - %apply directive only works close to the function
+
+
+changeset:   37:ea61c5b95ac5
+user:        pancake
+date:        Tue Jan 26 11:11:48 2010 +0100
+files:       TODO swigcompiler.vala swigwriter.vala
+description:
+* Warning when renaming function names
+* Remove a debug printf
+
+
+changeset:   36:6ba84498535e
+user:        pancake
+date:        Mon Jan 25 23:51:49 2010 +0100
+files:       valaswig-cc
+description:
+* Add --vapidir=dir flag to valaswig-cc
+  - Required to build radare2 bindings without installing
+
+
+changeset:   35:4b9f4cd16681
+user:        pancake
+date:        Sun Jan 24 23:44:41 2010 +0100
+files:       swigwriter.vala
+description:
+* Handle basic types 'gchar' and 'gchar*'
+
+
+changeset:   34:8bd6830d79c7
+user:        pancake
+date:        Sun Jan 24 23:08:22 2010 +0100
+files:       Makefile swigwriter.vala
+description:
+* Type resolution fail is no longer a warning
+
+
+changeset:   33:3a31208bb1ee
+user:        pancake
+date:        Sun Jan 24 21:44:15 2010 +0100
+files:       main.vala swigcompiler.vala swigwriter.vala
+description:
+* Added --vapidir flag ('.' by default)
+* Added support for .deps package compilation
+* Minor refactoring of basic type sustitution
+* Fix support for enums as function arguments
+
+
+changeset:   32:b980ac3747ae
+user:        pancake
+date:        Thu Jan 21 23:02:37 2010 +0100
+files:       valaswig-cc
+description:
+* Add support for python 2.5
+
+
+changeset:   31:a57cdc6941d2
+user:        pancake@flubox
+date:        Mon Jan 18 18:24:17 2010 +0100
+files:       valaswig-cc
+description:
+* Added --test flag to valaswig-cc
+  - performs a build test for python, ruby or perl
+    just returns 0 or 1 to the shell.
+  - useful for configure stages
+
+
+changeset:   30:d4b2cee64ff4
+user:        pancake
+date:        Thu Jan 14 23:05:02 2010 +0100
+files:       swigwriter.vala
+description:
+* Handle ut8, ut32 and ut64 types (from radare)
+  - This is just a temporary hack..shouldnt be necessary
+* Handle 'unsigned char*' as 'char*'
+  - Swig does not support 'unsigned char*' :(((
+* Define true and false with bool type
+  - Fixes boolean variables support
+* Add support for 'ref' parameters
+* Simplify parameter separator string generation
+
+
+changeset:   29:bb44a1d67c4a
+user:        pancake
+date:        Thu Jan 14 18:39:17 2010 +0100
+files:       TODO t/r2/test.java valaswig-cc
+description:
+* Drop bashism in valaswig-cc
+
+
+changeset:   28:477f169b9cb8
+user:        pancake
+date:        Tue Jan 12 18:47:26 2010 +0100
+files:       swigwriter.vala t/vala/Makefile t/vala/test.py
+description:
+* Call g_type_init() before any instantiation for --glib code
+  - Avoids the need to import gobject from python
+  - extend python test program
+* Sort ast tree type order
+
+
+changeset:   27:2d0d390bdd37
+user:        pancake
+date:        Tue Jan 12 02:04:57 2010 +0100
+files:       swigwriter.vala valaswig-cc
+description:
+* Support ruby 1.9.x (not only 1.9.0)
+* Blacklist 'print' as keyword
+* Handle glong as long
+* Add some comments with TODO and ideas to enhace
+
+
+changeset:   26:963f42c5ea3e
+user:        pancake
+date:        Tue Jan 12 01:36:39 2010 +0100
+files:       swigwriter.vala
+description:
+* Add 'cmd' to the keyword blacklist
+* Fix support for OUT parameters
+  - Use %apply swig directive to define them
+
+
+changeset:   25:970c9fd43037
+user:        pancake@flubox
+date:        Mon Jan 11 19:33:46 2010 +0100
+files:       swigwriter.vala
+description:
+* Add untested support for OUT parameters
+
+
+changeset:   24:baaa0599b5d1
+user:        pancake@flubox
+date:        Mon Jan 11 14:06:48 2010 +0100
+files:       TODO valaswig-cc
+description:
+* Add --version and --help to valaswig-cc
+  - Fix parsing of single flags
+* Fix build of ruby-1.9 using mkmf ruby oneliner
+* Pass -fPIC (Fix build on 64bits and selinux)
+
+
+changeset:   23:65e7c7489093
+user:        pancake
+date:        Mon Jan 11 12:16:43 2010 +0100
+files:       swigwriter.vala t/r2/Makefile t/r2/test.cs t/r2/test.java t/r2/test.pl t/r2/test.py t/r2/test.rb valaswig-cc
+description:
+* Do not handle 'use' as a keyword
+  - Sync all examples
+* Add python test program for r_bp
+* Build csharp bindings (add missing call to libr-swig.sh)
+* Workaround to avoid perl LC_ALL warnings
+
+
+changeset:   22:795d6c61625c
+user:        pancake
+date:        Mon Jan 11 10:24:11 2010 +0100
+files:       TODO main.vala swigwriter.vala valaswig-cc
+description:
+* Add -h and -C flags to valaswig-cc
+  - The -C does not compile, just generates C code
+  - Better help message
+* Fix build for vala 0.7.10
+
+
+changeset:   21:151f4327a5cd
+user:        pancake
+date:        Mon Jan 11 00:21:20 2010 +0100
+files:       t/r2/Makefile t/r2/libr-swig.sh t/r2/test.cs t/r2/test.java t/r2/test.pl t/r2/test.rb valaswig-cc
+description:
+* Add support and test programs for r_bp
+  - perl, ruby, python working fine
+  - java and csharp not yet usable
+
+
+changeset:   20:4cc43e9d0334
+parent:      18:5436ade200ea
+parent:      19:1df8c741d5c4
+user:        pancake
+date:        Thu Jan 07 22:23:49 2010 +0100
+files:       swigcompiler.vala
+description:
+* Merge heads
+
+
+changeset:   19:1df8c741d5c4
+parent:      17:8408d246b773
+user:        pancake@flubox
+date:        Mon Jan 04 13:22:30 2010 +0100
+files:       README main.vala swigcompiler.vala
+description:
+* Update license headers for 2010
+
+
+changeset:   18:5436ade200ea
+user:        pancake
+date:        Thu Jan 07 22:21:25 2010 +0100
+files:       main.vala swigcompiler.vala swigwriter.vala
+description:
+* Check if file exists before crashing
+
+
+changeset:   17:8408d246b773
+user:        pancake
+date:        Mon Jan 04 10:36:18 2010 +0100
+files:       valaswig-cc
+description:
+* Remove exit 1 from echo messages
+
+
+changeset:   16:5e41ff1e348a
+user:        pancake
+date:        Mon Jan 04 10:35:35 2010 +0100
+files:       swigwriter.vala valaswig-cc
+description:
+* Add alias for 'use'
+* Warn when cannot resolve symbols at vala level
+* Add 'perl' target language in valaswig-cc
+
+
+changeset:   15:8ef9a89dcfbb
+user:        pancake
+date:        Mon Jan 04 01:15:35 2010 +0100
+files:       swigwriter.vala
+description:
+* Add 'from' in the keyword filter list
+* Add uint64 as well as supported simple type
+* Fix method signatures with no arguments
+
+
+changeset:   14:eee3d25230b1
+user:        pancake
+date:        Mon Jan 04 00:50:24 2010 +0100
+files:       swigwriter.vala
+description:
+* Add support for uint[8,16,32]*
+* Fix extern signature for static methods
+
+
+changeset:   13:73c1c3fd6a25
+user:        pancake
+date:        Sat Jan 02 18:36:13 2010 +0100
+files:       swigwriter.vala
+description:
+* Prefix enums with the name of it
+* Minor code cleanup
+
+
+changeset:   12:7a0be6c42995
+user:        pancake
+date:        Sat Jan 02 18:16:26 2010 +0100
+files:       swigwriter.vala
+description:
+* Added support for static methods
+
+
+changeset:   11:c98746187d93
+user:        pancake
+date:        Sat Jan 02 13:34:10 2010 +0100
+files:       swigwriter.vala
+description:
+* Prepend include files fixing sort order
+
+
+changeset:   10:1a3e15f256bb
+user:        pancake
+date:        Sat Jan 02 13:32:11 2010 +0100
+files:       swigwriter.vala t/vala/vstest.vala
+description:
+* Added initial support for enums
+
+
+changeset:   9:960992c5e3e4
+user:        pancake
+date:        Mon Dec 28 01:20:45 2009 +0100
+files:       TODO main.vala swigcompiler.vala swigwriter.vala t/r2/libr-swig.sh t/vala/Makefile t/vala/test.py t/vala/vstest.vala valaswig-cc
+description:
+* Added glib mode to support basic vala examples
+  - Class definition differs from normal C one,
+    it is actually a workaround for a bug in swig
+  - Add t/vala to demonstrate the functionality
+* Some random code cleanup
+* Added t/r2 to build radare2 swig modules
+* valaswig-cc is now more verbose
+  - Forces the definition of G_[BEGIN|END]_DECLS
+* Added TODO file
+
+
+changeset:   8:d57da7e2503a
+user:        pancake
+date:        Sat Dec 26 12:02:43 2009 +0100
+files:       README
+description:
+* Add missing README file
+
+
+changeset:   7:404174577cce
+user:        pancake
+date:        Thu Dec 24 21:26:36 2009 +0100
+files:       main.vala swigcompiler.vala swigwriter.vala
+description:
+* Add -e/--externs flag to render externs in final swig file
+* Add support for boolean types
+
+
+changeset:   6:0dff65fb0e63
+user:        pancake
+date:        Thu Dec 24 03:26:52 2009 +0100
+files:       Makefile main.vala
+description:
+* Added 'deinstall' target for 'uninstall'
+* Add '-v' flag to display version information
+
+
+changeset:   5:7880cdd97609
+user:        pancake
+date:        Thu Dec 24 03:10:48 2009 +0100
+files:       Makefile main.vala swigcompiler.vala swigwriter.vala valaswig-cc
+description:
+* Spit correct and usable swig interface output (!!!)
+  - Works for simple vapi files with basic classes and structs
+* Add install and uninstall targets
+* New program 'valaswig-cc' to simplify the build of bindings
+* Split SwigCompiler into a new class
+* valaswig program is now accepting option flags
+* Major code cleanup
+
+
+changeset:   4:a93f85a204a4
+user:        pancake@flubox
+date:        Tue Dec 22 14:45:54 2009 +0100
+files:       swigwriter.vala
+description:
+* Minor fix for output
+
+
+changeset:   3:e2193a3f5c03
+user:        pancake
+date:        Tue Dec 22 13:22:44 2009 +0100
+files:       swigwriter.vala
+description:
+* Process include files
+* Only walk thru the Radare namespace
+* Use the imperative paradigm to walk the nodes
+
+
+changeset:   2:2686cb60c7e1
+user:        pancake
+date:        Tue Dec 22 00:16:19 2009 +0100
+files:       main.vala
+description:
+* Apply fix from Vlad
+  - Parsing and CCode is now working
+
+
+changeset:   1:117380e6ce09
+user:        pancake
+date:        Mon Dec 21 22:50:05 2009 +0100
+files:       Makefile main.vala swigwriter.vala
+description:
+* Compile with -g
+* Accept one argument to specify a vapi file
+* Follow childrens of namespaces
+  - Fixes the node walk for more than one file
+* Better output for swig debug output
+* Display fields properly (struct variables)
+
+
+changeset:   0:263765e3c7e1
+user:        pancake@flubox
+date:        Mon Dec 21 19:26:06 2009 +0100
+files:       Makefile foo.vapi main.vala swigwriter.vala
+description:
+* Initial import of valaswig into mercurial
+
+
