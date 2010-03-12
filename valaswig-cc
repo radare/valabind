@@ -17,6 +17,7 @@ show_help () {
   echo "  --vapidir=dir  show version of valaswig"
   echo "  --glib         assume vapi source is glib/gobject based"
   echo "  --test [lang]  test if it is possible to build"
+  echo "  -x             generate c++ swig code"
   echo "  -I[path]       add includepath for SWIGFLAGS and CFLAGS"
   echo "  -L[path]       append library path to LDFLAGS"
   echo "  -l[lib]        append to LDFLAGS to link a library"

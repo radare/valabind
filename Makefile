@@ -1,3 +1,4 @@
+VERSION=0.1
 DESTDIR?=
 PREFIX?=/usr
 BIN=valaswig
@@ -14,10 +15,16 @@ install:
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
+dist:
+	rm -rf valaswig-${VERSION}
+	hg clone . valaswig-${VERSION}
+	rm -rf .valaswig-${VERSION}/.hg*
+	tar czvf valaswig-${VERSION}.tar.gz valaswig-${VERSION}
+
 deinstall: uninstall
 
 uninstall:
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}-cc
 
-.PHONY: all install uninstall deinstall
+.PHONY: all dist install uninstall deinstall
