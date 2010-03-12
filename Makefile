@@ -1,4 +1,4 @@
-VERSION=0.1
+VERSION=0.2
 DESTDIR?=
 PREFIX?=/usr
 BIN=valaswig
@@ -21,10 +21,13 @@ dist:
 	rm -rf .valaswig-${VERSION}/.hg*
 	tar czvf valaswig-${VERSION}.tar.gz valaswig-${VERSION}
 
+clean:
+	rm -f valaswig
+
 deinstall: uninstall
 
 uninstall:
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}-cc
 
-.PHONY: all dist install uninstall deinstall
+.PHONY: all clean dist install uninstall deinstall
