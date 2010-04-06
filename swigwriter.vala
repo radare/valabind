@@ -169,8 +169,10 @@ public class SwigWriter : CodeVisitor {
 		}
 	}
 
-	public void walk_class (Class c) {
-		classname = c.name;
+	public void walk_class (string pfx, Class c) {
+		foreach (var k in c.get_classes ())
+			walk_class (c.name, k);
+		classname = pfx+c.name;
 		classcname = c.get_cname ();
 		process_includes (c);
 		if (glib_mode) {
@@ -360,7 +362,7 @@ public class SwigWriter : CodeVisitor {
 		foreach (var m in ns.get_methods ())
 			walk_method (m);
 		foreach (var c in ns.get_classes ())
-			walk_class (c);
+			walk_class ("", c);
 		//ns.accept_children (this);
 	}
 
