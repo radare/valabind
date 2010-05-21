@@ -1,0 +1,67 @@
+NOTES
+=====
+
+Random notes taken from random .i files out there in the internets:
+
+
+https://svn.apache.org/repos/asf/subversion/trunk/subversion/bindings/swig/
+
+
+/* -----------------------------------------------------------------------
+   The following struct members have to be read-only because otherwise
+   strings assigned to then would never be freed, resulting in memory
+   leaks. This prevents the swig warning "Warning(451): Setting const
+   char * member may leak memory."
+*/
+%immutable svn_log_changed_path_t::copyfrom_path;
+%immutable svn_dirent_t::last_author;
+%immutable svn_error_t::message;
+%immutable svn_error_t::file;
+
+/* ### need to use freearg or somesuch to ensure the string is freed.
+   ### watch out for 'return' anywhere in the binding code. */
+
+#ifdef SWIGPYTHON
+%typemap(argout) (char *buffer, apr_size_t *len) {
+  %append_output(PyString_FromStringAndSize($1, *$2));
+  free($1);
+}
+#endif
+#ifdef SWIGPERL
+%typemap(argout) (char *buffer, apr_size_t *len) {
+  %append_output(sv_2mortal(newSVpvn($1, *$2)));
+  free($1);
+}
+#endif
+#ifdef SWIGRUBY
+%typemap(argout) (char *buffer, apr_size_t *len) {
+  %append_output(*$2 == 0 ? Qnil : rb_str_new($1, *$2));
+  free($1);
+}
+#endif
+
+%extend svn_commit_info_t
+{
+  svn_commit_info_t(apr_pool_t *pool) {
+    return svn_create_commit_info(pool);
+  };
+
+  ~svn_commit_info_t() {
+  };
+
+  svn_commit_info_t *dup(apr_pool_t *pool) {
+    return svn_commit_info_dup(self, pool);
+  };
+}
+
+%init %{
+#if defined(SVN_AVOID_CIRCULAR_LINKAGE_AT_ALL_COSTS_HACK)
+  svn_swig_pl_bind_current_pool_fns (&svn_swig_pl_get_current_pool,
+                                     &svn_swig_pl_set_current_pool);
+#endif
+%}
+
+%apply const char *NOT_NULL {
+  const char *path
+};
+

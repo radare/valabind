@@ -164,9 +164,8 @@ public class SwigWriter : CodeVisitor {
 				"Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
-		if (f.no_array_length) {
+		if (f.no_array_length)
 			print ("---> array without length\n");
-		}
 	}
 
 	public void walk_class (string pfx, Class c) {
