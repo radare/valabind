@@ -236,6 +236,7 @@ public class SwigWriter : CodeVisitor {
 			return;
 
 		string applys = "";
+		string clears = "";
 		string pfx;
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = foo.name;
@@ -262,6 +263,7 @@ public class SwigWriter : CodeVisitor {
 					arg_type += "*";
 				applys += "  %%apply %s %s { %s %s };\n".printf (
 					arg_type, var_name, arg_type, arg_name);
+				clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
 			}
 			call_args += "%s%s".printf (pfx, arg_name);
 			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
@@ -278,6 +280,7 @@ public class SwigWriter : CodeVisitor {
 				if (glib_mode)
 					extends += "    g_type_init ();\n";
 				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
+				extends += clears;
 			} else {
 				if (is_static)
 					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
@@ -330,6 +333,7 @@ public class SwigWriter : CodeVisitor {
 					extends += "    %s %s (%s);\n  }\n".printf (
 							void_return?"":"return", cname, call_args);
 				}
+				extends += clears;
 			}
 		}
 	}
