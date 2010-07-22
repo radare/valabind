@@ -72,7 +72,12 @@ case "${LANG}" in
   LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts`"
   ;;
 "java")
+  if [ -f /opt/java/include/jni.h ]; then
   CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
+  else
+  if [ "$JAVA_HOME" ]; then
+  CFLAGS="${CFLAGS} -I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
+  fi ; fi
   ;;
 "lua")
   if [ -f /usr/include/lua5.1/lua.h ]; then
