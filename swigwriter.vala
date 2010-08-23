@@ -240,7 +240,8 @@ public class SwigWriter : CodeVisitor {
 		string pfx;
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = foo.name;
-			DataType? bar = foo.parameter_type;
+			//DataType? bar = foo.parameter_type;
+			DataType? bar = foo.variable_type;
 			if (bar == null)
 				continue;
 			string? arg_type = get_ctype (bar.get_cname ());
@@ -373,7 +374,6 @@ public class SwigWriter : CodeVisitor {
 		this.stream = FileStream.open (filename, "w");
 		if (this.stream == null) {
 			error ("Cannot open %s for writing".printf (filename));
-			return;
 		}
 		this.context = context;
 		context.accept (this);
