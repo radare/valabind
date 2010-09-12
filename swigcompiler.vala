@@ -51,7 +51,7 @@ public class SwigCompiler {
 		bool ret = FileUtils.test (path, FileTest.IS_REGULAR);
 		if (ret) {
 			if (!pkgmode)
-				context.add_source_file (new SourceFile (context, path, true));
+				context.add_source_file (new SourceFile (context, SourceFileType.SOURCE, path));
 			source_files += path;
 		} else {
 			/* check in path */
@@ -109,7 +109,7 @@ public class SwigCompiler {
 			add_source_file (package_path);
 		}
 
-		context.add_source_file (new SourceFile (context, package_path, true));
+		context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, package_path));
 		context.add_package (pkg);
 		
 		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));

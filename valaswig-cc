@@ -49,10 +49,10 @@ case "${LANG}" in
 "python")
   if [ -f /usr/include/python2.6/Python.h ]; then
     CFLAGS="${CFLAGS} -I/usr/include/python2.6"
-    LDFLAGS="${CFLAGS} -lpython2.6"
+    LDFLAGS="${LDFLAGS} -lpython2.6"
   else
     CFLAGS="${CFLAGS} -I/usr/include/python2.5"
-    LDFLAGS="${CFLAGS} -lpython2.5"
+    LDFLAGS="${LDFLAGS} -lpython2.5"
   fi
   OMOD="_${MOD}"
   ;;
@@ -82,8 +82,10 @@ case "${LANG}" in
 "lua")
   if [ -f /usr/include/lua5.1/lua.h ]; then
     CFLAGS="${CFLAGS} -I/usr/include/lua5.1"
-    LDFLAGS="${CFLAGS} -llua5.1"
+    LDFLAGS="${LDFLAGS} -llua5.1"
   fi
+  ;;
+"go")
   ;;
 "csharp")
   ;;

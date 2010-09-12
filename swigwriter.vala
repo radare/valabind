@@ -198,6 +198,7 @@ public class SwigWriter : CodeVisitor {
 		enums += "/* enum: %s (%s) */\n".printf (
 			e.name, e.get_cname ());
 		enums += "enum %s {\n".printf (enumname);
+		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
 			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
