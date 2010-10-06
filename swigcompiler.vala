@@ -90,13 +90,7 @@ public class SwigCompiler {
 		if (context.has_package (pkg))
 			return true;
 
-		// TODO: Move the construction of this array somewhere else :)
-		string[] vapi_directories = {
-			vapidir//,
-			//"/usr/share/vala/vapi" /* XXX harcoded path */
-		};
-	
-		var package_path = context.get_package_path (pkg, vapi_directories);
+		var package_path = context.get_vapi_path (pkg);
 		if (package_path == null) {
 			stderr.printf ("Cannot find package path '%s'", pkg);
 			return false;
