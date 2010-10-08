@@ -15,6 +15,7 @@ public class SwigCompiler {
 		CodeContext.push (context);
 		this.modulename = modulename;
 		this.vapidir = vapidir;
+		context.vapi_directories = { vapidir };
 		source_files = null;
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
