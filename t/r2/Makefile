@@ -1,4 +1,4 @@
-R2PATH=/home/pancake/prg/radare2
+R2PATH=/home/pancake/prg/radare2/
 
 all: perl ruby python csharp
 

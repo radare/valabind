@@ -10,4 +10,4 @@ if [ -z "${R2PATH}" ]; then
 	exit 1
 fi
 
-valaswig-cc ${LANG} ${MOD} -I${R2PATH}/libr/include ${R2PATH}/libr/vapi/${MOD}.vapi -l${MOD}
+valaswig-cc ${LANG} ${MOD} -I${R2PATH}/libr/include ${R2PATH}/swig/vapi/${MOD}.vapi -l${MOD}

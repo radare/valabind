@@ -7,6 +7,11 @@ OMOD=${MOD}
 COMPILE=Yes
 ARG_VAPIDIR=""
 EXT="c"
+if [ -n "`echo ${CC} | grep mingw`" ]; then
+SOEXT="dll"
+else
+SOEXT="so"
+fi
 
 show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
@@ -44,10 +49,14 @@ esac
 
 [ -z "${LANG}" ] && show_help
 [ -z "${CC}" ] && CC=gcc
+[ -z "${CXX}" ] && CC=g++
 
 case "${LANG}" in
 "python")
-  if [ -f /usr/include/python2.6/Python.h ]; then
+  if [ -n "`echo ${CXX} | grep mingw`" ]; then
+    CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
+    LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
+  elif [ -f /usr/include/python2.6/Python.h ]; then
     CFLAGS="${CFLAGS} -I/usr/include/python2.6"
     LDFLAGS="${LDFLAGS} -lpython2.6"
   else
@@ -96,34 +105,29 @@ shift
 
 while : ; do
   [ -z "$1" ] && break
-  # XXX ultra ugly switch case
   if [ "`echo $1 | grep -- '-I'`" ]; then
-    CFLAGS="$1 ${CFLAGS}"
+    CFLAGS="${CFLAGS} $1"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
-  else
-  if [ "`echo $1 | grep -- '--vapidir'`" ]; then
+  elif [ "`echo $1 | grep -- '--vapidir'`" ]; then
     ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
-  else
-  if [ "`echo $1 | grep -- '-x'`" ]; then
-    CC="g++"
+  elif [ "`echo $1 | grep -- '-x'`" ]; then
+    CC=${CXX}
     EXT="cxx"
     SWIGFLAGS="-c++ ${SWIGFLAGS}"
     VALASWIGFLAGS="-x ${VALASWIGFLAGS}"
-  else
-  if [ "`echo $1 | grep -- '-l'`" ]; then
+  elif [ "`echo $1 | grep -- '-l'`" ]; then
     LDFLAGS="$1 ${LDFLAGS}"
-  else
-  if [ "`echo $1 | grep -- '--glib'`" ]; then
+  elif [ "`echo $1 | grep -- '--glib'`" ]; then
     SWIGFLAGS="$1 ${SWIGFLAGS}"
-  else
-  if [ "`echo $1 | grep -- '-L'`" ]; then
+  elif [ "`echo $1 | grep -- '-L'`" ]; then
     LDFLAGS="$1 ${LDFLAGS}"
-  else
-  if [ "`echo $1 | grep -- '-C'`" ]; then
+  elif [ "`echo $1 | grep -- '-C'`" ]; then
     COMPILE=""
+  elif [ "`echo $1 | grep -- '-pthread'`" ]; then
+    echo ignored $1
   else
     FILES="$1 ${FILES}"
-  fi ; fi ; fi ; fi ; fi ; fi ; fi
+  fi
   shift
 done
 
@@ -140,7 +144,7 @@ then
   echo "%module ${MOD}" > ${MOD}.i
   swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
   if [ ! $? = 0 ]; then exit 1 ; fi
-  ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} >/dev/null 2>&1
+  ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
   if [ ! $? = 0 ]; then exit 1 ; fi
   rm -rf ${DIR}
 else
@@ -149,7 +153,7 @@ else
   echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
   swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
   if [ -n "${COMPILE}" ]; then
-    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.so ${LDFLAGS}
-    ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.so ${LDFLAGS} || exit 1
+    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
+    ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
   fi
 fi
