@@ -49,7 +49,7 @@ esac
 
 [ -z "${LANG}" ] && show_help
 [ -z "${CC}" ] && CC=gcc
-[ -z "${CXX}" ] && CC=g++
+[ -z "${CXX}" ] && CXX=g++
 
 case "${LANG}" in
 "python")
@@ -111,7 +111,7 @@ while : ; do
   elif [ "`echo $1 | grep -- '--vapidir'`" ]; then
     ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
   elif [ "`echo $1 | grep -- '-x'`" ]; then
-    CC=${CXX}
+    CC="${CXX}"
     EXT="cxx"
     SWIGFLAGS="-c++ ${SWIGFLAGS}"
     VALASWIGFLAGS="-x ${VALASWIGFLAGS}"
