@@ -3,7 +3,7 @@ DESTDIR?=
 PREFIX?=/usr
 BIN=valaswig
 FILES=main.vala swigcompiler.vala swigwriter.vala 
-VALAPKG=`pkg-config --list-all|grep vala-|head -n 1|awk '{print $$1}'`
+VALAPKG=`pkg-config --list-all|grep vala-|tail -n 1|awk '{print $$1}'`
 
 all:
 	valac -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}

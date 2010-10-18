@@ -133,8 +133,7 @@ done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
 
-if [ $TEST = 1 ]
-then
+if [ "$TEST" = 1 ]; then
   DIR=`mktemp -d`
   if [ ! $? = 0 ]; then
     echo "Cannot create temporary directory"
@@ -143,9 +142,10 @@ then
   cd ${DIR}
   echo "%module ${MOD}" > ${MOD}.i
   swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
-  if [ ! $? = 0 ]; then exit 1 ; fi
+  if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
+  echo ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
   ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
-  if [ ! $? = 0 ]; then exit 1 ; fi
+  if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   rm -rf ${DIR}
 else
   echo valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
