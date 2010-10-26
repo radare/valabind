@@ -91,6 +91,8 @@ public class SwigWriter : CodeVisitor {
 		case "gconstpointer":
 		case "gpointer":
 	 		return "void*";
+		case "gdouble":
+			return "double";
 		case "ut8":
 		case "uint8":
 		case "guint8":
