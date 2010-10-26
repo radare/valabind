@@ -85,6 +85,8 @@ public class SwigWriter : CodeVisitor {
 		type = type.replace ("?","");
 
 		switch (type) {
+		case "const gchar*":
+			return "const char*";
 		case "G": /* generic type :: TODO: review */
 		case "gconstpointer":
 		case "gpointer":

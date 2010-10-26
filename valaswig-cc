@@ -57,8 +57,8 @@ case "${LANG}" in
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
   else
-    CFLAGS=`python-config --cflags`
-    LDFLAGS=`python-config --ldflags`
+    CFLAGS="${CFLAGS} `python-config --cflags`"
+    LDFLAGS="${LDFLAGS} `python-config --ldflags`"
   fi
   OMOD="_${MOD}"
   ;;
