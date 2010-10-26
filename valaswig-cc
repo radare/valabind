@@ -56,12 +56,9 @@ case "${LANG}" in
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
-  elif [ -f /usr/include/python2.6/Python.h ]; then
-    CFLAGS="${CFLAGS} -I/usr/include/python2.6"
-    LDFLAGS="${LDFLAGS} -lpython2.6"
   else
-    CFLAGS="${CFLAGS} -I/usr/include/python2.5"
-    LDFLAGS="${LDFLAGS} -lpython2.5"
+    CFLAGS=`python-config --cflags`
+    LDFLAGS=`python-config --ldflags`
   fi
   OMOD="_${MOD}"
   ;;
