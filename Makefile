@@ -1,4 +1,4 @@
-VERSION=0.2
+VERSION=0.3
 DESTDIR?=
 PREFIX?=/usr
 VALAC?=valac
@@ -22,7 +22,7 @@ install:
 dist:
 	rm -rf valaswig-${VERSION}
 	hg clone . valaswig-${VERSION}
-	rm -rf .valaswig-${VERSION}/.hg*
+	rm -rf valaswig-${VERSION}/.hg
 	tar czvf valaswig-${VERSION}.tar.gz valaswig-${VERSION}
 
 clean:
