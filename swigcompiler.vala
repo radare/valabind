@@ -15,7 +15,9 @@ public class SwigCompiler {
 		CodeContext.push (context);
 		this.modulename = modulename;
 		this.vapidir = vapidir;
+	#if !VALA010
 		context.vapi_directories = { vapidir };
+	#endif
 		source_files = null;
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
@@ -51,8 +53,13 @@ public class SwigCompiler {
 
 		bool ret = FileUtils.test (path, FileTest.IS_REGULAR);
 		if (ret) {
-			if (!pkgmode)
+			if (!pkgmode) {
+			#if VALA010
+				context.add_source_file (new SourceFile (context, path, true));
+			#else
 				context.add_source_file (new SourceFile (context, SourceFileType.SOURCE, path));
+			#endif
+			}
 			source_files += path;
 		} else {
 			/* check in path */
@@ -91,7 +98,12 @@ public class SwigCompiler {
 		if (context.has_package (pkg))
 			return true;
 
+	#if VALA010
+		string[] vapi_directories = { vapidir };
+		var package_path = context.get_package_path (pkg, vapi_directories);
+	#else
 		var package_path = context.get_vapi_path (pkg);
+	#endif
 		if (package_path == null) {
 			stderr.printf ("Cannot find package path '%s'", pkg);
 			return false;
@@ -104,7 +116,11 @@ public class SwigCompiler {
 			add_source_file (package_path);
 		}
 
+	#if VALA010
+		context.add_source_file (new SourceFile (context, package_path, true));
+	#else
 		context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, package_path));
+	#endif
 		context.add_package (pkg);
 		
 		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));
