@@ -8,7 +8,7 @@ VALAPKG=`if ${VALAC} --version|grep 0.10>/dev/null; then echo vala-0.10; else ec
 
 all:
 	@echo VALAPKG=$(VALAPKG)
-	@echo ${VALAC} ${VALAFLAGS} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
+	@echo ${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 	@${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 
 install:

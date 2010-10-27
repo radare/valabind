@@ -93,6 +93,8 @@ public class SwigWriter : CodeVisitor {
 	 		return "void*";
 		case "gdouble":
 			return "double";
+		case "gfloat":
+			return "float";
 		case "ut8":
 		case "uint8":
 		case "guint8":
