@@ -24,12 +24,12 @@ public class SwigWriter : CodeVisitor {
 	private string modulename;
 
 	public SwigWriter (string name) {
-		classname = "";
+		enums = "";
 		statics = "";
 		externs = "";
 		extends = "";
-		enums = "";
 		vectors = "";
+		classname = "";
 		this.modulename = name;
 		this.includefiles = new GLib.List<string>();
 	}
@@ -377,40 +377,32 @@ public class SwigWriter : CodeVisitor {
 
 	public void write_file (CodeContext context, string filename) {
 		this.stream = FileStream.open (filename, "w");
-		if (this.stream == null) {
+		if (this.stream == null)
 			error ("Cannot open %s for writing".printf (filename));
-		}
 		this.context = context;
 		context.accept (this);
-
-		stream.printf ("%%module %s\n", modulename);
-		stream.printf ("%%{\n");
+		stream.printf ("%%module %s\n%%{\n", modulename);
 		if (!cxx_mode) {
-			stream.printf ("#define bool int\n");
-			stream.printf ("#define true 1\n");
-			stream.printf ("#define false 0\n");
+			stream.printf (
+				"#define bool int\n"+
+				"#define true 1\n"+
+				"#define false 0\n");
 		}
 		if (includefiles.length () > 0) {
 			if (cxx_mode)
 				stream.printf ("extern \"C\" {\n");
-			foreach (var inc in includefiles) {
+			foreach (var inc in includefiles)
 				stream.printf ("#include <%s>\n", inc);
-			}
-			if (cxx_mode) {
-				stream.printf ("}\n");
-				stream.printf ("#include <vector>\n");
-			}
+			if (cxx_mode)
+				stream.printf ("}\n#include <vector>\n");
 		}
 		stream.printf ("%%}\n");
 		foreach (var inc in includefiles)
 			stream.printf ("%%include <%s>\n", inc);
 		if (cxx_mode) {
 			stream.printf ("%%include \"std_vector.i\"\n\n");
-			if (vectors != "") {
-				stream.printf ("namespace std {\n");
-				stream.printf ("%s", vectors);
-				stream.printf ("}\n");
-			}
+			if (vectors != "")
+				stream.printf ("namespace std {\n%s}\n", vectors);
 		}
 
 		stream.printf ("%s\n", enums);

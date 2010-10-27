@@ -3,11 +3,11 @@
 using Vala;
 
 public class SwigCompiler {
+	string vapidir;
+	string modulename;
+	CodeContext context;
 	public bool pkgmode;
 	public string pkgname;
-	string modulename;
-	string vapidir;
-	CodeContext context;
 	string[] source_files;
 
 	public SwigCompiler (string modulename, string vapidir) {
@@ -30,15 +30,12 @@ public class SwigCompiler {
 	}
 
 	public bool init () {
-		/* analysis and checks */
 		var resolver = new SymbolResolver ();
 		resolver.resolve (context);
 
-		/* warning about type_symbol stuff */
 		var analyzer = new SemanticAnalyzer ();
 		analyzer.analyze (context);
 
-		/* the flow */
 		var flow_analyzer = new FlowAnalyzer ();
 		flow_analyzer.analyze (context);
 
@@ -61,11 +58,9 @@ public class SwigCompiler {
 			#endif
 			}
 			source_files += path;
-		} else {
-			/* check in path */
-			if (!add_package (context, path))
-				SwigCompiler.error ("Cannot find '%s'.\n".printf (path));
-		}
+		} else
+		if (!add_package (context, path))
+			SwigCompiler.error ("Cannot find '%s'.\n".printf (path));
 		return ret;
 	}
 
@@ -109,13 +104,8 @@ public class SwigCompiler {
 			return false;
 		}
 
-		// XXX find better way to do this
-		//if (package_path[0] == '.') {
-		if (pkgmode) {
-			//print ("==> %s\n", package_path);
+		if (pkgmode)
 			add_source_file (package_path);
-		}
-
 	#if VALA_0_12
 		context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, package_path));
 	#else
@@ -145,12 +135,12 @@ public class SwigCompiler {
 		return true;
 	}
 
-	public static void error (string msg) {
+	public inline static void error (string msg) {
 		stderr.printf ("\x1b[31mERROR:\x1b[0m %s\n", msg);
 		Posix.exit (1);
 	}
 
-	public static void warning (string msg) {
+	public inline static void warning (string msg) {
 		stderr.printf ("\x1b[33mWARNING:\x1b[0m %s\n", msg);
 	}
 }
