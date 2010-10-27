@@ -5,13 +5,11 @@ VALAC?=valac
 BIN=valaswig
 FILES=main.vala swigcompiler.vala swigwriter.vala 
 VALAPKG=`if ${VALAC} --version|grep 0.10>/dev/null; then echo vala-0.10; else echo libvala-0.12; fi`
-VALAFLAGS=`if ${VALAC} --version|grep 0.10>/dev/null; then echo '-D VALA010' ; fi`
 
 all:
 	@echo VALAPKG=$(VALAPKG)
-	@echo VALAFLAGS=$(VALAFLAGS)
 	@echo ${VALAC} ${VALAFLAGS} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
-	@${VALAC} ${VALAFLAGS} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
+	@${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 
 install:
 	mkdir -p ${DESTDIR}${PREFIX}/bin
