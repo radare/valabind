@@ -110,6 +110,10 @@ public class SwigWriter : CodeVisitor {
 	 		return "int";
 		case "glong":
 	 		return "long";
+		case "st64":
+		case "int64":
+		case "gint64":
+			return "long long";
 		case "ut64":
 		case "uint64":
 		case "guint64":
