@@ -171,9 +171,10 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void walk_field (Field f) {
-		if (f.get_ctype () == null)
-			SwigCompiler.warning (
-				"Cannot resolve type for field '%s'".printf (f.get_cname ()));
+		if (f.get_ctype () == null) {
+			//SwigCompiler.warning (
+			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
+		} else SwigCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
 		if (f.no_array_length)
