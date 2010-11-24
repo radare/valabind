@@ -59,7 +59,7 @@ case "${LANG}" in
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
   else
-    CFLAGS="${CFLAGS} `python-config --cflags`"
+    CFLAGS="${CFLAGS} `python-config --cflags | sed -e 's,-arch .*,,g'`"
     LDFLAGS="${LDFLAGS} `python-config --ldflags`"
   fi
   OMOD="_${MOD}"
