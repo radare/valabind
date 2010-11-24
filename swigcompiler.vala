@@ -31,6 +31,9 @@ public class SwigCompiler {
 	}
 
 	public bool init () {
+	#if VALA_0_12
+		context.check ();
+	#else
 		var resolver = new SymbolResolver ();
 		resolver.resolve (context);
 
@@ -39,7 +42,7 @@ public class SwigCompiler {
 
 		var flow_analyzer = new FlowAnalyzer ();
 		flow_analyzer.analyze (context);
-
+	#endif
 		return (context.report.get_errors () == 0);
 	}
 
