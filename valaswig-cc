@@ -7,7 +7,9 @@ OMOD=${MOD}
 COMPILE=Yes
 ARG_VAPIDIR=""
 EXT="c"
-if [ -n "`echo ${CC} | grep mingw`" ]; then
+if [ -n "`uname -a | grep -i darwin`" ]; then
+SOEXT="dylib"
+elif [ -n "`echo ${CC} | grep mingw`" ]; then
 SOEXT="dll"
 else
 SOEXT="so"

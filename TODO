@@ -1,8 +1,6 @@
 Generic TODO
 ============
 
-* Add support for OSX and iOS
-
 Add support for public variables in classes or structs ..huh!
  Check RCore.file.fd ... imho this is solved by the inner
   radare2 refactoring...so...not much to do here :)
