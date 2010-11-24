@@ -26,7 +26,8 @@ public class SwigCompiler {
 	public void parse () {
 		var parser = new Parser ();
 		parser.parse (context);
-		init ();
+		if (!init ())
+			warning ("valaswig initialization failed");
 	}
 
 	public bool init () {

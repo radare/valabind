@@ -131,7 +131,7 @@ done
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
 
 if [ "$TEST" = 1 ]; then
-  DIR=`mktemp -d`
+  DIR=`mktemp -d /tmp/tmp.XXXXXX`
   if [ ! $? = 0 ]; then
     echo "Cannot create temporary directory"
     exit 1
