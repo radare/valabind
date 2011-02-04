@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyleft valaswig 2009-2010, pancake at nopcode.org
+# Copyleft valaswig 2009-2011, pancake at nopcode.org
 
 LANG=$1
 MOD=$2
@@ -29,6 +29,8 @@ show_help () {
   echo "  -L[path]       append library path to LDFLAGS"
   echo "  -l[lib]        append to LDFLAGS to link a library"
   echo "  -C             do not compile, just let the .c and .i files"
+  echo " Environment:"
+  echo "  PYTHON_CONFIG  path to python-config program (select py2 or py3)"
   exit 0
 }
 
@@ -59,8 +61,20 @@ case "${LANG}" in
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
   else
-    CFLAGS="${CFLAGS} `python-config --cflags | sed -e 's,-arch .*,,g'`"
-    LDFLAGS="${LDFLAGS} `python-config --ldflags`"
+    PYCFG=""
+    for a in ${PYTHON_CONFIG} python-config python2-config python3-config ; do
+      $a >/dev/null 2>&1
+      if [ $? = 0 ]; then
+        PYCFG=$a
+        break;
+      fi
+    done
+    if [ -z "$PYCFG" ]; then
+      printf "No python-config found"
+      exit 1
+    fi
+    CFLAGS="${CFLAGS} `$(PYCFG) --cflags | sed -e 's,-arch .*,,g'`"
+    LDFLAGS="${LDFLAGS} `$(PYCFG) --ldflags`"
   fi
   OMOD="_${MOD}"
   ;;
