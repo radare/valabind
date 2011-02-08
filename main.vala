@@ -79,7 +79,9 @@ int main (string[] args) {
 	sc.parse ();
 	if (output == null)
 		output = "%s.i".printf (modulename);
-	sc.emit_swig (output, show_externs, glibmode, cxxmode, includefile);
+	if (cxxoutput)
+		sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
+	else sc.emit_swig (output, show_externs, glibmode, cxxmode, includefile);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 
 using Vala;
 
-public class SwigWriter : CodeVisitor {
+public class CxxWriter : CodeVisitor {
 	public bool pkgmode;
 	public string pkgname;
 	public bool show_externs;
@@ -23,7 +23,7 @@ public class SwigWriter : CodeVisitor {
 	private string nspace;
 	private string modulename;
 
-	public SwigWriter (string name) {
+	public CxxWriter (string name) {
 		enums = "";
 		statics = "";
 		externs = "";

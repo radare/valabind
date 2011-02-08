@@ -3,7 +3,7 @@ DESTDIR?=
 PREFIX?=/usr
 VALAC?=valac
 BIN=valaswig
-FILES=main.vala swigcompiler.vala swigwriter.vala 
+FILES=main.vala swigcompiler.vala swigwriter.vala cxxwriter.vala
 VALAPKG=`if ${VALAC} --version|grep 0.10>/dev/null; then echo vala-0.10; else echo libvala-0.12; fi`
 
 all:

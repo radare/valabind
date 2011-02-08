@@ -1,4 +1,4 @@
-/* Copyleft 2009-2010 -- pancake // nopcode.org */
+/* Copyleft 2009-2011 -- pancake // nopcode.org */
 
 using Vala;
 
@@ -71,6 +71,22 @@ public class SwigCompiler {
 	public void emit_vapi (string? output, string file) {
 		var swig_writer = new CodeWriter ();
 		swig_writer.write_file (context, file);
+	}
+
+	public void emit_cxx (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
+		var swig_writer = new CxxWriter (modulename);
+		if (swig_writer != null) {
+			/* TODO: why not just pass a SwigCompiler reference to it? */
+			swig_writer.show_externs = show_externs;
+			swig_writer.glib_mode = glibmode;
+			swig_writer.cxx_mode = cxxmode;
+			swig_writer.pkgmode = pkgmode;
+			swig_writer.pkgname = pkgname;
+			if (include != null)
+				swig_writer.includefiles.append (include);
+			swig_writer.files = source_files;
+			swig_writer.write_file (context, file);
+		} else warning ("cannot create swig writer");
 	}
 
 	public void emit_swig (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
