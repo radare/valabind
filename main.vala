@@ -7,6 +7,7 @@ static bool show_version;
 static bool show_externs;
 static bool glibmode;
 static bool cxxmode;
+static bool cxxoutput;
 static string modulename;
 static string? output;
 
@@ -31,6 +32,8 @@ private const OptionEntry[] options = {
 	  ref glibmode, "work in glib/gobject mode", null },
 	{ "cxx", 'x', 0, OptionArg.NONE,
 	  ref cxxmode, "generate c++ swig code", null },
+	{ "cxx-output", 'x', 0, OptionArg.NONE,
+	  ref cxxoutput, "output C++ code instead of SWIG interface", null },
 	{ null }
 };
 
@@ -66,7 +69,7 @@ int main (string[] args) {
 
 	SwigCompiler sc = new SwigCompiler (modulename, vapidir);
 	foreach (var file in files) {
-		if (file.str (".vapi") == null) {
+		if (file.index_of (".vapi") == -1) {
 			sc.pkgmode = true;
 			sc.pkgname = file;
 		}

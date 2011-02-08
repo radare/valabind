@@ -73,10 +73,10 @@ public class SwigWriter : CodeVisitor {
 			SwigCompiler.error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
-		if (type.str (".") != null)
-			type = type.replace (".", "");
+		type = type.replace (".", "");
 		if (is_generic (type)) {
-			iter_type = type.str ("<");
+			int ptr = type.index_of ("<");
+			iter_type = (ptr==-1)?type:type[ptr:type.length];
 			iter_type = iter_type.replace ("<", "");
 			iter_type = iter_type.replace (">", "");
 			iter_type = iter_type.replace (nspace, "");
@@ -221,7 +221,7 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	private inline bool is_generic(string type) {
-		return (cxx_mode && type.str ("<") != null && type.str (">") != null);
+		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
 	public void walk_method (Method m) {
@@ -274,7 +274,7 @@ public class SwigWriter : CodeVisitor {
 				if (foo.direction == ParameterDirection.REF)
 					var_name = "INOUT";
 
-				if (arg_type.str ("*") == null)
+				if (arg_type.index_of ("*") == -1)
 					arg_type += "*";
 				applys += "  %%apply %s %s { %s %s };\n".printf (
 					arg_type, var_name, arg_type, arg_name);
@@ -309,9 +309,9 @@ public class SwigWriter : CodeVisitor {
 				if (is_static)
 					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
 				else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
-				if (cxx_mode && ret.str ("std::vector") != null) {
-					string iter_type;
-					iter_type = ret.str ("<");
+				if (cxx_mode && ret.index_of ("std::vector") != -1) {
+					int ptr = ret.index_of ("<");
+					string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
 					iter_type = iter_type.replace ("<", "");
 					iter_type = iter_type.replace (">", "");
 					// TODO: Check if iter type exists before failing
@@ -321,7 +321,7 @@ public class SwigWriter : CodeVisitor {
 					if (iter_type == "G*") /* No generic */
 						SwigCompiler.error ("Fuck, no <G> type support.\n");
 					// TODO: Do not recheck the return_type
-					if (m.return_type.to_string ().str ("RFList") != null) {
+					if (m.return_type.to_string ().index_of ("RFList") != -1) {
 						extends += "    %s ret;\n".printf (ret);
 						extends += "    void** array;\n";
 						extends += "    %s *item;\n".printf (iter_type);
@@ -331,7 +331,7 @@ public class SwigWriter : CodeVisitor {
 						extends += "        ret.push_back(*item);\n";
 						extends += "    return ret;\n";
 						extends += "  }\n";
-					} else if (m.return_type.to_string ().str ("RList") != null) {
+					} else if (m.return_type.to_string ().index_of ("RList") != -1) {
 						extends += "    %s ret;\n".printf (ret);
 						extends += "    RList *list;\n";
 						extends += "    RListIter *iter;\n";
@@ -364,7 +364,7 @@ public class SwigWriter : CodeVisitor {
 		nspace = ns.name;
 		process_includes (ns);
 
-		if (pkgmode && sr.file.filename.str (pkgname) == null)
+		if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
 			return;
 		foreach (var f in ns.get_fields ())
 			walk_field (f);

@@ -63,18 +63,18 @@ case "${LANG}" in
   else
     PYCFG=""
     for a in ${PYTHON_CONFIG} python-config python2-config python3-config ; do
-      $a >/dev/null 2>&1
+      $a --help >/dev/null 2>&1
       if [ $? = 0 ]; then
         PYCFG=$a
-        break;
+        break
       fi
     done
     if [ -z "$PYCFG" ]; then
       printf "No python-config found"
       exit 1
     fi
-    CFLAGS="${CFLAGS} `$(PYCFG) --cflags | sed -e 's,-arch .*,,g'`"
-    LDFLAGS="${LDFLAGS} `$(PYCFG) --ldflags`"
+    CFLAGS="${CFLAGS} `$PYCFG --cflags | sed -e 's,-arch .*,,g'`"
+    LDFLAGS="${LDFLAGS} `$PYCFG --ldflags`"
   fi
   OMOD="_${MOD}"
   ;;
@@ -144,7 +144,7 @@ while : ; do
   shift
 done
 
-SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS"
+SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
 
 if [ "$TEST" = 1 ]; then
   DIR=`mktemp -d /tmp/tmp.XXXXXX`

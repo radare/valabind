@@ -11,6 +11,9 @@ all:
 	@echo ${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 	@${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 
+c:
+	${VALAC} -C -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
+
 install:
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	mkdir -p ${DESTDIR}${PREFIX}/share/man/man1
