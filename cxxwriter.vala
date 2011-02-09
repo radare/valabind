@@ -61,7 +61,7 @@ public class CxxWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			SwigCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+			ValaswigCompiler.warning ("%s.%s method renamed to %s.%s".printf (
 				classname, oname, classname, name));
 		return name;
 	}
@@ -70,7 +70,7 @@ public class CxxWriter : CodeVisitor {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
-			SwigCompiler.error ("Cannot resolve type");
+			ValaswigCompiler.error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
@@ -172,9 +172,9 @@ public class CxxWriter : CodeVisitor {
 
 	public void walk_field (Field f) {
 		if (f.get_ctype () == null) {
-			//SwigCompiler.warning (
+			//ValaswigCompiler.warning (
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
-		} else SwigCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
+		} else ValaswigCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
 		if (f.no_array_length)
@@ -189,23 +189,31 @@ public class CxxWriter : CodeVisitor {
 		process_includes (c);
 		if (glib_mode) {
 			classname = "%s%s".printf (nspace, classname);
-			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
-		} else extends += "%%extend %s {\n".printf (classname);
+			extends += "class %s%s {\n".printf (modulename, classcname);
+		} else extends += "class %s%s {\n".printf (modulename, classname);
+		extends += " %s *self;\n".printf (classname);
+		extends += " public:\n";
 		foreach (var e in c.get_enums ())
 			walk_enum (e);
 		foreach (var f in c.get_fields ())
 			walk_field (f);
-		string? freefun = c.get_free_function ();
-		if (freefun != null)
-			extends += "  ~%s() {\n    %s (self);\n  }\n".printf (classname, freefun);
+		if (c.is_reference_counting ()) {
+			string? freefun = c.get_unref_function ();
+			if (freefun != null)
+				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+		} else {
+			string? freefun = c.get_free_function ();
+			if (freefun != null)
+				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+		}
 		foreach (var m in c.get_methods ())
 			walk_method (m);
-		if (glib_mode) extends += "};\n} %s;\n".printf (classname);
-		else extends += "};\n";
+		extends += "};\n";
 		classname = "";
 	}
 
 	public void walk_enum (Vala.Enum e) {
+#if not_required
 		var enumname = classname + e.name;
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
@@ -218,6 +226,7 @@ public class CxxWriter : CodeVisitor {
 		}
 		enums += "};\n";
 		enums += tmp + "%}\n";
+#endif
 	}
 
 	private inline bool is_generic(string type) {
@@ -243,7 +252,7 @@ public class CxxWriter : CodeVisitor {
 		if (is_generic (ret)) ret = get_ctype (ret);
 		else ret = get_ctype (m.return_type.get_cname ());
 		if (ret == null)
-			SwigCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
+			ValaswigCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
@@ -291,19 +300,15 @@ public class CxxWriter : CodeVisitor {
 			if (is_constructor) {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				extends += applys;
-				extends += "  %s (%s) {\n".printf (classname, def_args);
+				extends += "  %s%s (%s) {\n".printf (modulename, classname, def_args);
 				if (glib_mode)
 					extends += "    g_type_init ();\n";
-				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
+				extends += "    self = %s (%s);\n  }\n".printf (cname, call_args);
 				extends += clears;
 			} else {
 				if (is_static)
 					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-				else {
-					if (call_args == "")
-						call_args = "self";
-					else call_args = "self, " + call_args;
-				}
+				else call_args = (call_args == "")? "self": "self, " + call_args;
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += applys;
 				if (is_static)
@@ -319,7 +324,7 @@ public class CxxWriter : CodeVisitor {
 					// TODO: Do not construct a generic class if not supported
 					//       instead of failing.
 					if (iter_type == "G*") /* No generic */
-						SwigCompiler.error ("Fuck, no <G> type support.\n");
+						ValaswigCompiler.error ("Fuck, no <G> type support.\n");
 					// TODO: Do not recheck the return_type
 					if (m.return_type.to_string ().index_of ("RFList") != -1) {
 						extends += "    %s ret;\n".printf (ret);
@@ -390,30 +395,20 @@ public class CxxWriter : CodeVisitor {
 			error ("Cannot open %s for writing".printf (filename));
 		this.context = context;
 		context.accept (this);
-		stream.printf ("%%module %s\n%%{\n", modulename);
-		if (!cxx_mode) {
-			stream.printf (
-				"#define bool int\n"+
-				"#define true 1\n"+
-				"#define false 0\n");
-		}
 		if (includefiles.length () > 0) {
-			if (cxx_mode)
-				stream.printf ("extern \"C\" {\n");
+			stream.printf ("extern \"C\" {\n");
 			foreach (var inc in includefiles)
 				stream.printf ("#include <%s>\n", inc);
-			if (cxx_mode)
-				stream.printf ("}\n#include <vector>\n");
+			stream.printf ("}\n#include <vector>\n");
 		}
-		stream.printf ("%%}\n");
 		foreach (var inc in includefiles)
-			stream.printf ("%%include <%s>\n", inc);
+			stream.printf ("#include <%s>\n", inc);
+/*
 		if (cxx_mode) {
-			stream.printf ("%%include \"std_vector.i\"\n\n");
 			if (vectors != "")
 				stream.printf ("namespace std {\n%s}\n", vectors);
 		}
-
+*/
 		stream.printf ("%s\n", enums);
 		if (show_externs)
 			stream.printf ("%s\n", externs);

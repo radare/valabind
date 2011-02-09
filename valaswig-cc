@@ -7,6 +7,7 @@ OMOD=${MOD}
 COMPILE=Yes
 ARG_VAPIDIR=""
 EXT="c"
+CXXOUT=0
 if [ -n "`uname -a | grep -i darwin`" ]; then
 SOEXT="dylib"
 elif [ -n "`echo ${CC} | grep mingw`" ]; then
@@ -128,6 +129,9 @@ while : ; do
     EXT="cxx"
     SWIGFLAGS="-c++ ${SWIGFLAGS}"
     VALASWIGFLAGS="-x ${VALASWIGFLAGS}"
+  elif [ "`echo $1 | grep -- '-X'`" ]; then
+    EXT="cxx"
+    CXXOUT=1
   elif [ "`echo $1 | grep -- '-l'`" ]; then
     LDFLAGS="$1 ${LDFLAGS}"
   elif [ "`echo $1 | grep -- '--glib'`" ]; then
@@ -146,7 +150,12 @@ done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
 
-if [ "$TEST" = 1 ]; then
+if [ "$CXXOUT" = 1 ]; then
+  echo valaswig -X ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+  valaswig -X ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.cxx -m ${MOD} ${FILES} || exit 1
+#  echo ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
+#  ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} > /dev/null 2>&1
+elif [ "$TEST" = 1 ]; then
   DIR=`mktemp -d /tmp/tmp.XXXXXX`
   if [ ! $? = 0 ]; then
     echo "Cannot create temporary directory"

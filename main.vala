@@ -32,7 +32,7 @@ private const OptionEntry[] options = {
 	  ref glibmode, "work in glib/gobject mode", null },
 	{ "cxx", 'x', 0, OptionArg.NONE,
 	  ref cxxmode, "generate c++ swig code", null },
-	{ "cxx-output", 'x', 0, OptionArg.NONE,
+	{ "cxx-output", 'X', 0, OptionArg.NONE,
 	  ref cxxoutput, "output C++ code instead of SWIG interface", null },
 	{ null }
 };
@@ -67,7 +67,7 @@ int main (string[] args) {
 		return 1;
 	}
 
-	SwigCompiler sc = new SwigCompiler (modulename, vapidir);
+	var sc = new ValaswigCompiler (modulename, vapidir);
 	foreach (var file in files) {
 		if (file.index_of (".vapi") == -1) {
 			sc.pkgmode = true;
@@ -75,13 +75,16 @@ int main (string[] args) {
 		}
 		sc.add_source_file (file);
 	}
-
 	sc.parse ();
-	if (output == null)
-		output = "%s.i".printf (modulename);
-	if (cxxoutput)
+	if (cxxoutput) {
+		if (output == null)
+			output = "%s.i".printf (modulename);
 		sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
-	else sc.emit_swig (output, show_externs, glibmode, cxxmode, includefile);
+	} else {
+		if (output == null)
+			output = "%s.cxx".printf (modulename);
+		sc.emit_swig (output, show_externs, glibmode, true, includefile);
+	}
 
 	return 0;
 }
