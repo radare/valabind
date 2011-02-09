@@ -195,9 +195,15 @@ public class SwigWriter : CodeVisitor {
 			walk_enum (e);
 		foreach (var f in c.get_fields ())
 			walk_field (f);
-		string? freefun = c.get_free_function ();
-		if (freefun != null)
-			extends += "  ~%s() {\n    %s (self);\n  }\n".printf (classname, freefun);
+		if (c.is_reference_counting ()) {
+			string? freefun = c.get_unref_function ();
+			if (freefun != null)
+				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+		} else {
+			string? freefun = c.get_free_function ();
+			if (freefun != null)
+				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+		}
 		foreach (var m in c.get_methods ())
 			walk_method (m);
 		if (glib_mode) extends += "};\n} %s;\n".printf (classname);

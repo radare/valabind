@@ -4,7 +4,7 @@ SWIGCFLAGS=-I. `pkg-config --cflags --libs gobject-2.0` -I/usr/include -g
 all:
 	valac -H vstest.h -C --vapi=${VAPI} --library=libvstest vstest.vala
 	${CC} -fPIC -shared vstest.c -o libvstest.so `pkg-config --cflags --libs gobject-2.0`
-	LDFLAGS="-L. -lvstest" valaswig-cc python vstest ${VAPI} ${SWIGCFLAGS}
+	LDFLAGS="-L. -lvstest" valaswig-cc python vstest ${VAPI} ${SWIGCFLAGS} -x
 
 cxx:
 	valac -H vstest.h -C --vapi=${VAPI} --library=libvstest vstest.vala

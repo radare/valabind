@@ -3,9 +3,9 @@ import vstest
 
 a = vstest.FoodElement ()
 a.say ("world")
-print "--"
+print ("--")
 a.say ("cruel world")
-print "--"
+print ("--")
 
 # Creating a 2nd element make it segfault
 #b=vstest.FoodElement ()

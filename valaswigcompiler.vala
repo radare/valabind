@@ -56,7 +56,7 @@ public class ValaswigCompiler {
 		if (ret) {
 			if (!pkgmode) {
 			#if VALA_0_12
-				context.add_source_file (new SourceFile (context, SourceFileType.SOURCE, path));
+				context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, path));
 			#else
 				context.add_source_file (new SourceFile (context, path, true));
 			#endif
