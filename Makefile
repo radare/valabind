@@ -1,12 +1,29 @@
 VERSION=0.4
+CC?=gcc
 DESTDIR?=
 PREFIX?=/usr
 VALAC?=valac
 BIN=valaswig
 FILES=main.vala valaswigcompiler.vala swigwriter.vala cxxwriter.vala
-VALAPKG=`if ${VALAC} --version|grep 0.10>/dev/null; then echo vala-0.10; else echo libvala-0.12; fi`
+VALAPKG=$$(if ${VALAC} --version|grep 0.10>/dev/null; then echo vala-0.10; else echo libvala-0.12; fi)
+OBJS=$(subst .vala,.o,${FILES})
+CFILES=$(subst .vala,.c,${FILES})
 
-all:
+all: valaswig
+
+valaswig: $(OBJS)
+	$(CC) -o $(BIN) $(OBJS) `pkg-config --libs gobject-2.0 glib-2.0 $(VALAPKG)`
+
+$(CFILES): $(FILES)
+	@for a in $(FILES) ; do \
+	   c=`echo $$a|sed -e s,.vala,.c,`; \
+	   if [ $$a -nt $$c ]; then \
+	     $(MAKE) mrproper; $(MAKE) c ; fi ; done
+
+$(OBJS): $(CFILES)
+	$(CC) -c `pkg-config --cflags gobject-2.0 glib-2.0 $(VALAPKG)` $(CFILES)
+
+a:
 	@echo VALAPKG=$(VALAPKG)
 	@echo ${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 	@${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
@@ -25,11 +42,15 @@ install:
 dist:
 	rm -rf valaswig-${VERSION}
 	hg clone . valaswig-${VERSION}
+	cd valaswig-${VERSION} && $(MAKE) c
 	rm -rf valaswig-${VERSION}/.hg
 	tar czvf valaswig-${VERSION}.tar.gz valaswig-${VERSION}
 
 clean:
-	rm -f valaswig
+	rm -f valaswig *.o
+
+mrproper: clean
+	rm -f *.c
 
 deinstall: uninstall
 
