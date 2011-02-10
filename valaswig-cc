@@ -8,12 +8,13 @@ COMPILE=Yes
 ARG_VAPIDIR=""
 EXT="c"
 CXXOUT=0
+NOGEN=0
 if [ -n "`uname -a | grep -i darwin`" ]; then
-SOEXT="dylib"
+  SOEXT="dylib"
 elif [ -n "`echo ${CC} | grep mingw`" ]; then
-SOEXT="dll"
+  SOEXT="dll"
 else
-SOEXT="so"
+  SOEXT="so"
 fi
 
 show_help () {
@@ -25,11 +26,13 @@ show_help () {
   echo "  --vapidir=dir  show version of valaswig"
   echo "  --glib         assume vapi source is glib/gobject based"
   echo "  --test [lang]  test if it is possible to build"
-  echo "  -x             generate c++ swig code"
+  echo "  -x             generate C++ swig code"
+  echo "  -X             output C++ instead of SWIG interface"
   echo "  -I[path]       add includepath for SWIGFLAGS and CFLAGS"
   echo "  -L[path]       append library path to LDFLAGS"
   echo "  -l[lib]        append to LDFLAGS to link a library"
-  echo "  -C             do not compile, just let the .c and .i files"
+  echo "  -C             do not compile, just let the .c/.cxx and .i files"
+  echo "  -n             do not generate .i/.c/.cxx code, but compile it"
   echo " Environment:"
   echo "  PYTHON_CONFIG  path to python-config program (select py2 or py3)"
   exit 0
@@ -129,6 +132,8 @@ while : ; do
     EXT="cxx"
     SWIGFLAGS="-c++ ${SWIGFLAGS}"
     VALASWIGFLAGS="-x ${VALASWIGFLAGS}"
+  elif [ "`echo $1 | grep -- '-n'`" ]; then
+    NOGEN=1
   elif [ "`echo $1 | grep -- '-X'`" ]; then
     EXT="cxx"
     CXXOUT=1
@@ -153,6 +158,11 @@ SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
 if [ "$CXXOUT" = 1 ]; then
   echo valaswig -X ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
   valaswig -X ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.cxx -m ${MOD} ${FILES} || exit 1
+  #TODO:
+  #if [ -n "${COMPILE}" ]; then
+  #  echo ${CC} ${MOD}.cxx -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
+  #  ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
+  #fi
 #  echo ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
 #  ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} > /dev/null 2>&1
 elif [ "$TEST" = 1 ]; then
@@ -170,10 +180,12 @@ elif [ "$TEST" = 1 ]; then
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   rm -rf ${DIR}
 else
-  echo valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
-  valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
-  echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
-  swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+  if [ "${NOGEN}" = 0 ]; then
+    echo valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+    valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+    echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
+    swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+  fi
   if [ -n "${COMPILE}" ]; then
     echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
     ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1

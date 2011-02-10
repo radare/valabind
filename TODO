@@ -1,6 +1,9 @@
 Generic TODO
 ============
 
+* Add support to compile from C, do not generate
+  - only for valaswig-cc
+
 Add support for public variables in classes or structs ..huh!
  Check RCore.file.fd ... imho this is solved by the inner
   radare2 refactoring...so...not much to do here :)
