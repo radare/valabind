@@ -199,9 +199,9 @@ public class CxxWriter : CodeVisitor {
 			classname, c.is_compact.to_string () );
 
 		if (glib_mode) {
-			classname = "%s_%s".printf (nspace, classname);
-			extends += "class %s_%s {\n".printf (modulename, classcname);
-		} else extends += "class %s_%s {\n".printf (modulename, classname);
+			classname = "%s%s".printf (nspace, classname);
+			extends += "class %s%s {\n".printf (modulename, classcname);
+		} else extends += "class %s%s {\n".printf (modulename, classname);
 		//if (has_destructor && has_constructor)
 			extends += " %s *self;\n".printf (classname);
 		extends += " public:\n";
@@ -214,11 +214,11 @@ if (has_destructor && has_constructor) {
 		if (c.is_reference_counting ()) {
 			string? freefun = c.get_unref_function ();
 			if (freefun != null)
-				extends += "  ~%s_%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		} else {
 			string? freefun = c.get_free_function ();
 			if (freefun != null)
-				extends += "  ~%s_%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		}
 }
 		foreach (var m in c.get_methods ())
@@ -236,8 +236,8 @@ if (has_destructor && has_constructor) {
 		enums += "enum %s {\n".printf (enumname);
 		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
-			enums += "  %s_%s,\n".printf (e.name, v.name);
-			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
+			enums += "  %s%s,\n".printf (e.name, v.name);
+			tmp += "#define %s%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
 		enums += "};\n";
 		enums += tmp + "%}\n";
@@ -315,7 +315,7 @@ if (has_destructor && has_constructor) {
 			if (is_constructor) {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				//extends += applys;
-				extends += "  %s_%s (%s) {\n".printf (modulename, classname, def_args);
+				extends += "  %s%s (%s) {\n".printf (modulename, classname, def_args);
 				if (glib_mode)
 					extends += "    g_type_init ();\n";
 				extends += "    self = %s (%s);\n  }\n".printf (cname, call_args);
