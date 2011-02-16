@@ -187,25 +187,40 @@ public class CxxWriter : CodeVisitor {
 		classname = pfx+c.name;
 		classcname = c.get_cname ();
 		process_includes (c);
+
+		bool has_constructor = false;
+		foreach (var m in c.get_methods ())
+			if (m is CreationMethod) {
+				has_constructor = true;
+				break;
+			}
+		bool has_destructor = !c.is_compact;
+		stdout.printf ("class %s %s\n",
+			classname, c.is_compact.to_string () );
+
 		if (glib_mode) {
-			classname = "%s%s".printf (nspace, classname);
-			extends += "class %s%s {\n".printf (modulename, classcname);
-		} else extends += "class %s%s {\n".printf (modulename, classname);
-		extends += " %s *self;\n".printf (classname);
+			classname = "%s_%s".printf (nspace, classname);
+			extends += "class %s_%s {\n".printf (modulename, classcname);
+		} else extends += "class %s_%s {\n".printf (modulename, classname);
+		//if (has_destructor && has_constructor)
+			extends += " %s *self;\n".printf (classname);
 		extends += " public:\n";
 		foreach (var e in c.get_enums ())
 			walk_enum (e);
 		foreach (var f in c.get_fields ())
 			walk_field (f);
+//c.static_destructor!=null?"true":"false");
+if (has_destructor && has_constructor) {
 		if (c.is_reference_counting ()) {
 			string? freefun = c.get_unref_function ();
 			if (freefun != null)
-				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+				extends += "  ~%s_%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		} else {
 			string? freefun = c.get_free_function ();
 			if (freefun != null)
-				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+				extends += "  ~%s_%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		}
+}
 		foreach (var m in c.get_methods ())
 			walk_method (m);
 		extends += "};\n";
@@ -287,7 +302,7 @@ public class CxxWriter : CodeVisitor {
 					arg_type += "*";
 				applys += "  %%apply %s %s { %s %s };\n".printf (
 					arg_type, var_name, arg_type, arg_name);
-				clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
+				//clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
 			}
 			call_args += "%s%s".printf (pfx, arg_name);
 			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
@@ -299,18 +314,20 @@ public class CxxWriter : CodeVisitor {
 		} else {
 			if (is_constructor) {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
-				extends += applys;
-				extends += "  %s%s (%s) {\n".printf (modulename, classname, def_args);
+				//extends += applys;
+				extends += "  %s_%s (%s) {\n".printf (modulename, classname, def_args);
 				if (glib_mode)
 					extends += "    g_type_init ();\n";
 				extends += "    self = %s (%s);\n  }\n".printf (cname, call_args);
 				extends += clears;
 			} else {
-				if (is_static)
-					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-				else call_args = (call_args == "")? "self": "self, " + call_args;
-				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
-				extends += applys;
+			//	if (is_static)
+			//		statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
+//				else 
+if (!is_static)
+	call_args = (call_args == "")? "self": "self, " + call_args;
+//				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
+		//		extends += applys;
 				if (is_static)
 					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
 				else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
@@ -410,8 +427,10 @@ public class CxxWriter : CodeVisitor {
 		}
 */
 		stream.printf ("%s\n", enums);
+#if 0
 		if (show_externs)
 			stream.printf ("%s\n", externs);
+#endif
 		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
 

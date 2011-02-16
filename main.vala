@@ -76,15 +76,11 @@ int main (string[] args) {
 		sc.add_source_file (file);
 	}
 	sc.parse ();
-	if (cxxoutput) {
-		if (output == null)
-			output = "%s.i".printf (modulename);
+	if (output == null)
+		output = "%s.%s".printf (modulename, cxxoutput?"cxx":"i");
+	if (cxxoutput)
 		sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
-	} else {
-		if (output == null)
-			output = "%s.cxx".printf (modulename);
-		sc.emit_swig (output, show_externs, glibmode, true, includefile);
-	}
+	else sc.emit_swig (output, show_externs, glibmode, true, includefile);
 
 	return 0;
 }
