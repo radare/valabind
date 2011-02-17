@@ -20,7 +20,7 @@ fi
 show_help () {
   echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-  echo "  lang: python, ruby, perl, lua, java, csharp, ..."
+  echo "  lang: python, guile, go, ruby, perl, lua, java, csharp, ..."
   echo "  --help,-h      show this help message"
   echo "  --version      show version of valaswig"
   echo "  --vapidir=dir  show version of valaswig"
@@ -60,6 +60,10 @@ esac
 [ -z "${CXX}" ] && CXX=g++
 
 case "${LANG}" in
+"guile")
+  CFLAGS="${CFLAGS} `guile-config compile`"
+  LDFLAGS="${LDFLAGS} `guile-config link`"
+  ;;
 "python")
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
