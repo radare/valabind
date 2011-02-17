@@ -225,7 +225,7 @@ public class SwigWriter : CodeVisitor {
 			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
 		enums += "};\n";
-		enums += tmp + "%}\n";
+		enums = tmp + "%}\n"+enums;
 	}
 
 	private inline bool is_generic(string type) {
