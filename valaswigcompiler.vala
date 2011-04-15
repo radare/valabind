@@ -155,12 +155,12 @@ public class ValaswigCompiler {
 		return true;
 	}
 
-	public inline static void error (string msg) {
+	public static void error (string msg) {
 		stderr.printf ("\x1b[31mERROR:\x1b[0m %s\n", msg);
 		Posix.exit (1);
 	}
 
-	public inline static void warning (string msg) {
+	public static void warning (string msg) {
 		stderr.printf ("\x1b[33mWARNING:\x1b[0m %s\n", msg);
 	}
 }

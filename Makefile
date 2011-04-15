@@ -1,12 +1,13 @@
 # run make V= to get debug output
-VERSION=0.4
+VERSION=0.4.1
 CC?=gcc
 DESTDIR?=
 PREFIX?=/usr
 VALAC?=valac
 BIN=valaswig
 FILES=main.vala valaswigcompiler.vala swigwriter.vala cxxwriter.vala
-VALAPKG=$$(if ${VALAC} --version|grep 0.10>/dev/null; then echo vala-0.10; else echo libvala-0.12; fi)
+VALAPKG=`./getvv`
+#VALAPKG=libvala-0.14
 OBJS=$(subst .vala,.o,${FILES})
 CFILES=$(subst .vala,.c,${FILES})
 V=@
@@ -15,7 +16,7 @@ all: valaswig
 
 valaswig: $(OBJS)
 	@echo LN $(BIN)
-	$(V)$(CC) -o $(BIN) $(OBJS) `pkg-config --libs gobject-2.0 glib-2.0 $(VALAPKG)`
+	$(V)$(CC) -o $(BIN) $(OBJS) $$(pkg-config --libs gobject-2.0 glib-2.0 ${VALAPKG})
 
 $(CFILES): $(FILES)
 	@for a in $(FILES) ; do \
@@ -24,8 +25,9 @@ $(CFILES): $(FILES)
 	     $(MAKE) mrproper; $(MAKE) c ; fi ; done
 
 $(OBJS): $(CFILES)
+	@echo Using $(VALAPKG)
 	@echo CC $(CFILES)
-	$(V)$(CC) -c `pkg-config --cflags gobject-2.0 glib-2.0 $(VALAPKG)` $(CFILES)
+	$(V)$(CC) -c $$(pkg-config --cflags gobject-2.0 glib-2.0 ${VALAPKG}) $(CFILES)
 
 a:
 	@echo VALAPKG=$(VALAPKG)
