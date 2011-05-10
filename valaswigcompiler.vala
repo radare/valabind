@@ -73,19 +73,35 @@ public class ValaswigCompiler {
 		swig_writer.write_file (context, file);
 	}
 
-	public void emit_cxx (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
-		var swig_writer = new CxxWriter (modulename);
-		if (swig_writer != null) {
+	public void emit_gear (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
+		var gear_writer = new GearWriter (modulename);
+		if (gear_writer != null) {
 			/* TODO: why not just pass a ValaswigCompiler reference to it? */
-			swig_writer.show_externs = show_externs;
-			swig_writer.glib_mode = glibmode;
-			swig_writer.cxx_mode = cxxmode;
-			swig_writer.pkgmode = pkgmode;
-			swig_writer.pkgname = pkgname;
+			gear_writer.show_externs = show_externs;
+			gear_writer.glib_mode = glibmode;
+			gear_writer.cxx_mode = cxxmode;
+			gear_writer.pkgmode = pkgmode;
+			gear_writer.pkgname = pkgname;
 			if (include != null)
-				swig_writer.includefiles.append (include);
-			swig_writer.files = source_files;
-			swig_writer.write_file (context, file);
+				gear_writer.includefiles.append (include);
+			gear_writer.files = source_files;
+			gear_writer.write_file (context, file);
+		} else warning ("cannot create swig writer");
+	}
+
+	public void emit_cxx (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
+		var cxx_writer = new CxxWriter (modulename);
+		if (cxx_writer != null) {
+			/* TODO: why not just pass a ValaswigCompiler reference to it? */
+			cxx_writer.show_externs = show_externs;
+			cxx_writer.glib_mode = glibmode;
+			cxx_writer.cxx_mode = cxxmode;
+			cxx_writer.pkgmode = pkgmode;
+			cxx_writer.pkgname = pkgname;
+			if (include != null)
+				cxx_writer.includefiles.append (include);
+			cxx_writer.files = source_files;
+			cxx_writer.write_file (context, file);
 		} else warning ("cannot create swig writer");
 	}
 

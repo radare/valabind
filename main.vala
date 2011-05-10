@@ -1,4 +1,4 @@
-/* Copyleft 2009-2010 -- pancake // nopcode.org */
+/* Copyleft 2009-2011 -- pancake // nopcode.org */
 
 static string[] files;
 static string includefile;
@@ -8,10 +8,11 @@ static bool show_externs;
 static bool glibmode;
 static bool cxxmode;
 static bool cxxoutput;
+static bool gearoutput;
 static string modulename;
 static string? output;
 
-const string version_string = "valaswig 0.2 - pancake @ nopcode.org";
+const string version_string = "valaswig 0.3 - pancake @ nopcode.org";
 
 private const OptionEntry[] options = {
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
@@ -32,6 +33,8 @@ private const OptionEntry[] options = {
 	  ref glibmode, "work in glib/gobject mode", null },
 	{ "cxx", 'x', 0, OptionArg.NONE,
 	  ref cxxmode, "generate c++ swig code", null },
+	{ "gear", 'G', 0, OptionArg.NONE,
+	  ref gearoutput, "generate gearbox interface code", null },
 	{ "cxx-output", 'X', 0, OptionArg.NONE,
 	  ref cxxoutput, "output C++ code instead of SWIG interface", null },
 	{ null }
@@ -77,8 +80,11 @@ int main (string[] args) {
 	}
 	sc.parse ();
 	if (output == null)
-		output = "%s.%s".printf (modulename, cxxoutput?"cxx":"i");
-	if (cxxoutput)
+		output = "%s.%s".printf (modulename,
+			gearoutput?"gear": cxxoutput?"cxx": "i");
+	if (gearoutput)
+		sc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
+	else if (cxxoutput)
 		sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
 	else sc.emit_swig (output, show_externs, glibmode, true, includefile);
 

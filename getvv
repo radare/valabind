@@ -2,7 +2,7 @@
 IFS=:
 for a in $PATH; do
 	if [ -e "$a/valac" ]; then
-		v=$(strings $a/valac | grep vala-)
+		v=$(strings $a/valac | grep vala- | grep -v lib)
 		if [ -n "$v" ]; then
 			printf lib$v
 			exit 0
