@@ -14,6 +14,9 @@ cxx:
 	g++ vstest.o test.cxx -I. `pkg-config gobject-2.0 --cflags --libs`
 	#g++ test.cxx -I. `pkg-config gobject-2.0 --cflags --libs`
 
+v8:
+	../../valaswig --gear -m vstest vstest.vapi
+
 test:
 	LD_LIBRARY_PATH=. python test.py
 

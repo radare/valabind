@@ -77,9 +77,6 @@ public class ValaswigCompiler {
 		var gear_writer = new GearWriter (modulename);
 		if (gear_writer != null) {
 			/* TODO: why not just pass a ValaswigCompiler reference to it? */
-			gear_writer.show_externs = show_externs;
-			gear_writer.glib_mode = glibmode;
-			gear_writer.cxx_mode = cxxmode;
 			gear_writer.pkgmode = pkgmode;
 			gear_writer.pkgname = pkgname;
 			if (include != null)
