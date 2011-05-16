@@ -9,9 +9,11 @@ static bool glibmode;
 static bool cxxmode;
 static bool cxxoutput;
 static bool gearoutput;
+static bool swigoutput;
 static bool giroutput;
 static string modulename;
 static string? output;
+static string? useprofile;
 
 const string version_string = "valaswig 0.4.1 - pancake@nopcode.org";
 
@@ -30,15 +32,19 @@ private const OptionEntry[] options = {
 	  ref output, "specify output file name", null },
 	{ "module-name", 'm', 0, OptionArg.STRING,
 	  ref modulename, "specify module name", null },
+	{ "profile", 'p', 0, OptionArg.NONE,
+	  ref useprofile, "select Vala profile (posix, gobject, dova)", null },
 	{ "glib", 'g', 0, OptionArg.NONE,
 	  ref glibmode, "work in glib/gobject mode", null },
-	{ "cxx", 'x', 0, OptionArg.NONE,
-	  ref cxxmode, "generate c++ swig code", null },
-	{ "gear", 'G', 0, OptionArg.NONE,
+	{ "cxx-swig", 'x', 0, OptionArg.NONE,
+	  ref cxxmode, "generate c++ code for SWIG", null },
+	{ "swig", '\0', 0, OptionArg.NONE,
+	  ref swigoutput, "generate swig interface code (default)", null },
+	{ "gear", '\0', 0, OptionArg.NONE,
 	  ref gearoutput, "generate gearbox interface code", null },
 	{ "gir", '\0', 0, OptionArg.NONE,
-	  ref giroutput, "generate GIR xml", null },
-	{ "cxx-output", 'X', 0, OptionArg.NONE,
+	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
+	{ "cxx", '\0', 0, OptionArg.NONE,
 	  ref cxxoutput, "output C++ code instead of SWIG interface", null },
 	{ null }
 };
@@ -54,7 +60,7 @@ int main (string[] args) {
 		opt_context.add_main_entries (options, null);
 		opt_context.parse (ref args);
 	} catch (OptionError e) {
-		stderr.printf ("%s\nTry --help.\n", e.message);
+		stderr.printf ("%s\nTry --help\n", e.message);
 		return 1;
 	}
 
@@ -72,9 +78,19 @@ int main (string[] args) {
 		stderr.printf ("No files given\n");
 		return 1;
 	}
-	string profile = "posix";
-	if (glibmode)
-		profile = "gobject";
+
+	int count = 0;
+	if (swigoutput) count++;
+	if (gearoutput) count++;
+	if (giroutput) count++;
+	if (cxxoutput) count++;
+	if (count>1) {
+		stderr.printf ("Cannot use --swig, --gir, --gear or --cxx together\n");
+		return 1;
+	}
+
+	string profile = (useprofile!=null)? useprofile: "posix";
+	if (glibmode) profile = "gobject";
 	// TODO: dova?
 
 	var sc = new ValaswigCompiler (modulename, vapidir, profile);
@@ -88,14 +104,12 @@ int main (string[] args) {
 	sc.parse ();
 	if (output == null)
 		output = "%s.%s".printf (modulename,
-			gearoutput?"gear": cxxoutput?"cxx": "i");
-	if (gearoutput)
-		sc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
-	else if (giroutput)
-		sc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
-	else if (cxxoutput)
-		sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
+			giroutput?"gir":
+			gearoutput?"gear":
+			cxxoutput?"cxx": "i");
+	if (gearoutput) sc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
+	else if (giroutput) sc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
+	else if (cxxoutput) sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
 	else sc.emit_swig (output, show_externs, glibmode, true, includefile);
-
 	return 0;
 }

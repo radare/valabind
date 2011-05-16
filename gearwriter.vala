@@ -86,7 +86,8 @@ public class GearWriter : CodeVisitor {
 		var type = get_typeName(_type);
 		if(type == null)
 			return value;
-		var _class = _type.data_type as Class, _struct = _type.data_type as Struct;
+		//var _class = _type.data_type as Class;
+		var _struct = _type.data_type as Struct;
 		if(_struct != null && _struct.is_integer_type())
 			return "%s.to<%s>()".printf(value, _type.get_cname());
 		return "%s[\"self\"].to<%s>()".printf(value, (_type.get_cname()+"*").replace("**","*"));
@@ -209,16 +210,15 @@ public class GearWriter : CodeVisitor {
 		//if (f.no_array_length)
 		//    print ("---> array without length\n");
 		var type = get_ctype(f.variable_type.get_cname());
-		if(f.get_cname() == "class" || classcname == null)
+		if (f.get_cname() == "class" || classcname == null)
 			return;
 		string name = get_alias(f.name);
-		if(type == "char*" || type == "const char*") {
+		if (type == "char*" || type == "const char*") {
 			exports += "%sgetter %s() {\n%s    return String(this[\"self\"].to<%s*>()->%s);\n%s}\n".printf (space, name, space, classcname, name, space);
 			exports += "%ssetter %s(value) {\n%s    setString(this[\"self\"].to<%s*>()->%s, value);\n%s}\n".printf (space, name, space, classcname, name, space);
-		}
-		else if(type == "unsigned char*") /// \todo Binary Buffers
+		} else if (type == "unsigned char*") { /// \todo Binary Buffers
 			ValaswigCompiler.warning ("TODO: %s is a buffer".printf (f.get_cname ()));
-		else {
+		} else {
 			if(type[type.length-1]=='*' && get_typeName(f.variable_type) == null) {
 				ValaswigCompiler.warning ("TODO: %s is a pointer (%s)".printf (f.get_cname (), f.variable_type.get_cname()));
 				return;
@@ -374,14 +374,13 @@ public class GearWriter : CodeVisitor {
 
 			if(arg_type=="char*" || arg_type=="const char*") {
 				params.append(arg_name+".to<String>()");
-				if(param.variable_type.is_array())
+				if (param.variable_type.is_array())
 					params.append(arg_name+".length()");
-			} else
-				params.append(get_typeToC(param.variable_type, arg_name));
+			} else params.append(get_typeToC(param.variable_type, arg_name));
 			def_args += "%s%s".printf (pfx, arg_name);
 			argn++;
 		}
-		if(classname != "" && !is_static && !is_constructor) {
+		if (classname != "" && !is_static && !is_constructor) {
 			int instance_offset = (int)m.cinstance_parameter_position;
 			if(instance_offset < 0)
 				instance_offset = (int)params.length() + 1 + instance_offset;
@@ -400,7 +399,7 @@ public class GearWriter : CodeVisitor {
 		}
 
 		string _call = "%s(%s)".printf(cname, call_args);
-		if(!void_return && !is_constructor)
+		if (!void_return && !is_constructor)
 			_call = "return "+get_typeFromC(m.return_type, _call);
 		/* object oriented shit */
 		if (classname == "")
