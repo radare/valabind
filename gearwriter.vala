@@ -24,7 +24,7 @@ public class GearWriter : CodeVisitor {
 		vectors = "";
 		classname = "";
 		this.modulename = name;
-		this.includefiles = new GLib.List<string>();
+		this.includefiles = new GLib.List<string> ();
 	}
 
 	private string get_alias (string name) {
@@ -60,7 +60,8 @@ public class GearWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			ValaswigCompiler.warning ("%s.%s method renamed to %s.%s".printf (classname, oname, classname, name));
+			ValaswigCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+				classname, oname, classname, name));
 		return name;
 	}
 
@@ -77,8 +78,10 @@ public class GearWriter : CodeVisitor {
 		var type = get_typeName(_type);
 		if(type == null)
 			return "Value("+value+")";
-		return "require(\"%s\")[\"%s\"].newInstance(%s)".printf(modulename, type[type.index_of(".")+1:type.length].replace(".", "\"][\""), value);
+		return "require(\"%s\")[\"%s\"].newInstance(%s)".printf (
+			modulename, type[type.index_of(".")+1:type.length].replace(".", "\"][\""), value);
 	}
+
 	private string get_typeToC(DataType ?_type, string value) {
 		var type = get_typeName(_type);
 		if(type == null)
@@ -408,8 +411,7 @@ public class GearWriter : CodeVisitor {
 			else {
 				if (is_static && !dontStatic)
 					exports += "%sstatic function %s(%s) {\n".printf (space, alias, def_args);
-				else
-					exports += "%sfunction %s(%s) {\n".printf (space, alias, def_args);
+				else exports += "%sfunction %s(%s) {\n".printf (space, alias, def_args);
 				exports += "%s    %s;\n%s}\n".printf (space, _call, space);
 			}
 		}
@@ -457,10 +459,10 @@ public class GearWriter : CodeVisitor {
 			stream.printf ("top {\n");
 			foreach (var inc in includefiles)
 				stream.printf ("    #include <%s>\n", inc);
-			stream.printf("    void setString(char *&&a, String b) {if(b.empty() || !b.length()){a[0]=0;return;}size_t i;for(i = 0; i < b.length(); i++)a[i]=(*b)[i];a[i]=0;}\n");
-			stream.printf("    void setString(const char *&&a, String b) {}\n");
-			stream.printf("    void setString(char *&a, String b) {if(a)delete [] a;String c = b;a = *c;c.clear();}\n");
-			stream.printf("    void setString(const char *&a, String b) {if(a)delete [] a;String c = b;a = *c;c.clear();}\n");
+			stream.printf ("    void setString(char *&&a, String b) {if(b.empty() || !b.length()){a[0]=0;return;}size_t i;for(i = 0; i < b.length(); i++)a[i]=(*b)[i];a[i]=0;}\n");
+			stream.printf ("    void setString(const char *&&a, String b) {}\n");
+			stream.printf ("    void setString(char *&a, String b) {if(a)delete [] a;String c = b;a = *c;c.clear();}\n");
+			stream.printf ("    void setString(const char *&a, String b) {if(a)delete [] a;String c = b;a = *c;c.clear();}\n");
 			stream.printf ("}\n");
 		}
 		stream.printf ("module %s {\n", modulename);

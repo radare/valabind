@@ -10,7 +10,7 @@ public class ValaswigCompiler {
 	public string pkgname;
 	string[] source_files;
 
-	public ValaswigCompiler (string modulename, string vapidir) {
+	public ValaswigCompiler (string modulename, string vapidir, string profile) {
 		context = new CodeContext ();
 		CodeContext.push (context);
 		this.modulename = modulename;
@@ -21,6 +21,21 @@ public class ValaswigCompiler {
 		source_files = null;
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
+		switch (profile) {
+		case "gobject":
+			context.profile = Profile.GOBJECT;
+			context.add_define ("GOBJECT");
+			break;
+		case "dova":
+			context.profile = Profile.DOVA;
+			context.add_define ("DOVA");
+			break;
+		default:
+		case "posix":
+			context.profile = Profile.POSIX;
+			context.add_define ("POSIX");
+			break;
+		}
 	}
 
 	public void parse () {

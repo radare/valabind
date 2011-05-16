@@ -9,10 +9,11 @@ static bool glibmode;
 static bool cxxmode;
 static bool cxxoutput;
 static bool gearoutput;
+static bool giroutput;
 static string modulename;
 static string? output;
 
-const string version_string = "valaswig 0.3 - pancake @ nopcode.org";
+const string version_string = "valaswig 0.4.1 - pancake@nopcode.org";
 
 private const OptionEntry[] options = {
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
@@ -35,6 +36,8 @@ private const OptionEntry[] options = {
 	  ref cxxmode, "generate c++ swig code", null },
 	{ "gear", 'G', 0, OptionArg.NONE,
 	  ref gearoutput, "generate gearbox interface code", null },
+	{ "gir", '\0', 0, OptionArg.NONE,
+	  ref giroutput, "generate GIR xml", null },
 	{ "cxx-output", 'X', 0, OptionArg.NONE,
 	  ref cxxoutput, "output C++ code instead of SWIG interface", null },
 	{ null }
@@ -69,8 +72,12 @@ int main (string[] args) {
 		stderr.printf ("No files given\n");
 		return 1;
 	}
+	string profile = "posix";
+	if (glibmode)
+		profile = "gobject";
+	// TODO: dova?
 
-	var sc = new ValaswigCompiler (modulename, vapidir);
+	var sc = new ValaswigCompiler (modulename, vapidir, profile);
 	foreach (var file in files) {
 		if (file.index_of (".vapi") == -1) {
 			sc.pkgmode = true;
