@@ -91,6 +91,8 @@ int main (string[] args) {
 			gearoutput?"gear": cxxoutput?"cxx": "i");
 	if (gearoutput)
 		sc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
+	else if (giroutput)
+		sc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
 	else if (cxxoutput)
 		sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
 	else sc.emit_swig (output, show_externs, glibmode, true, includefile);

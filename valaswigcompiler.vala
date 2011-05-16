@@ -88,6 +88,19 @@ public class ValaswigCompiler {
 		swig_writer.write_file (context, file);
 	}
 
+	public void emit_gir (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
+		var gir_writer = new GirWriter (modulename);
+		if (gir_writer != null) {
+			/* TODO: why not just pass a ValaswigCompiler reference to it? */
+			gir_writer.pkgmode = pkgmode;
+			gir_writer.pkgname = pkgname;
+			if (include != null)
+				gir_writer.includefiles.append (include);
+			gir_writer.files = source_files;
+			gir_writer.write_file (context, file);
+		} else warning ("cannot create swig writer");
+	}
+
 	public void emit_gear (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var gear_writer = new GearWriter (modulename);
 		if (gear_writer != null) {
