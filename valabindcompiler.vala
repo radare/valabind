@@ -2,7 +2,7 @@
 
 using Vala;
 
-public class ValaswigCompiler {
+public class ValabindCompiler {
 	string vapidir;
 	string modulename;
 	CodeContext context;
@@ -10,7 +10,7 @@ public class ValaswigCompiler {
 	public string pkgname;
 	string[] source_files;
 
-	public ValaswigCompiler (string modulename, string vapidir, string profile) {
+	public ValabindCompiler (string modulename, string vapidir, string profile) {
 		context = new CodeContext ();
 		CodeContext.push (context);
 		this.modulename = modulename;
@@ -42,7 +42,7 @@ public class ValaswigCompiler {
 		var parser = new Parser ();
 		parser.parse (context);
 		if (!init ())
-			warning ("valaswig initialization failed");
+			warning ("valabind initialization failed");
 	}
 
 	public bool init () {
@@ -79,7 +79,7 @@ public class ValaswigCompiler {
 			source_files += path;
 		} else
 		if (!add_package (context, path))
-			ValaswigCompiler.error ("Cannot find '%s'.\n".printf (path));
+			ValabindCompiler.error ("Cannot find '%s'.\n".printf (path));
 		return ret;
 	}
 
@@ -91,7 +91,7 @@ public class ValaswigCompiler {
 	public void emit_gir (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var gir_writer = new GirWriter (modulename);
 		if (gir_writer != null) {
-			/* TODO: why not just pass a ValaswigCompiler reference to it? */
+			/* TODO: why not just pass a ValabindCompiler reference to it? */
 			gir_writer.pkgmode = pkgmode;
 			gir_writer.pkgname = pkgname;
 			if (include != null)
@@ -104,7 +104,7 @@ public class ValaswigCompiler {
 	public void emit_gear (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var gear_writer = new GearWriter (modulename);
 		if (gear_writer != null) {
-			/* TODO: why not just pass a ValaswigCompiler reference to it? */
+			/* TODO: why not just pass a ValabindCompiler reference to it? */
 			gear_writer.pkgmode = pkgmode;
 			gear_writer.pkgname = pkgname;
 			if (include != null)
@@ -117,7 +117,7 @@ public class ValaswigCompiler {
 	public void emit_cxx (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var cxx_writer = new CxxWriter (modulename);
 		if (cxx_writer != null) {
-			/* TODO: why not just pass a ValaswigCompiler reference to it? */
+			/* TODO: why not just pass a ValabindCompiler reference to it? */
 			cxx_writer.show_externs = show_externs;
 			cxx_writer.glib_mode = glibmode;
 			cxx_writer.cxx_mode = cxxmode;
@@ -133,7 +133,7 @@ public class ValaswigCompiler {
 	public void emit_swig (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var swig_writer = new SwigWriter (modulename);
 		if (swig_writer != null) {
-			/* TODO: why not just pass a ValaswigCompiler reference to it? */
+			/* TODO: why not just pass a ValabindCompiler reference to it? */
 			swig_writer.show_externs = show_externs;
 			swig_writer.glib_mode = glibmode;
 			swig_writer.cxx_mode = cxxmode;

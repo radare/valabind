@@ -1,12 +1,12 @@
-.Dd February 11, 2011
-.Dt valaswig \&1 "ValaSwig manual page"
+.Dd May 11, 2011
+.Dt valabind \&1 "Valabind manual page"
 .Os radare
 .Sh NAME
-.Nm valaswig
+.Nm valabind
 .Nd vala to swig interface conversor
 .Pp
 .Sh SYNOPSIS
-.Nm valaswig
+.Nm valabind
 .Op Fl e
 .Op Fl g
 .Op Fl v
@@ -18,15 +18,15 @@
 .Op Fl m Ar modname
 .Ar vapifile
 .Sh DESCRIPTION
-ValaSwig is a program written in Vala that aims to generate SWIG interfaces (.i) from a vala-generated or hand-made vapi files.
+Valabind is a program written in Vala that aims to generate SWIG interfaces (.i) from a vala-generated or hand-made vapi files.
 .Pp
 It permits to create bindings for many programming languages (like python, perl, ruby, lua, ..) interfacing with C or Vala code.
 .Pp
-Note that list of supported languages in valaswig is not the same of swig.
+Note that list of supported languages in valabind is not the same of swig.
 .Pp
 This is because not all swig backends are working in the same way. In other words, there are some languages that doesnt generate correct C code in some unhandled situations and depending on the vapi can break.
 .Pp
-Valaswig can be an interesting tool for unit-testing swig and be able to find problems easily.
+Valabind can be an interesting tool for unit-testing swig and be able to find problems easily.
 .
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
@@ -44,7 +44,7 @@ http://www.swig.org
 .
 .Sh SEE ALSO
 .Pp
-.Xr valaswig-cc(1)
+.Xr valabind-cc(1)
 .Pp
 .
 .Sh AUTHORS

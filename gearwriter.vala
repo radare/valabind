@@ -60,7 +60,7 @@ public class GearWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			ValaswigCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+			ValabindCompiler.warning ("%s.%s method renamed to %s.%s".printf (
 				classname, oname, classname, name));
 		return name;
 	}
@@ -97,7 +97,7 @@ public class GearWriter : CodeVisitor {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
-			ValaswigCompiler.error ("Cannot resolve type");
+			ValabindCompiler.error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		//type = type.replace (".", "");
@@ -201,8 +201,8 @@ public class GearWriter : CodeVisitor {
 
 	public void walk_field (Field f, string space) {
 		// if (f.variable_type.get_ctype () == null) {
-		//     ValaswigCompiler.warning ("Cannot resolve type for field '%s' == %s".printf (f.get_cname (), f.variable_type.get_cname()));
-		//} else ValaswigCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
+		//     ValabindCompiler.warning ("Cannot resolve type for field '%s' == %s".printf (f.get_cname (), f.variable_type.get_cname()));
+		//} else ValabindCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
 		if (f.access == SymbolAccessibility.PRIVATE) {
 			//print ("---> field is private XXX\n");
 			return;
@@ -217,15 +217,15 @@ public class GearWriter : CodeVisitor {
 			exports += "%sgetter %s() {\n%s    return String(this[\"self\"].to<%s*>()->%s);\n%s}\n".printf (space, name, space, classcname, name, space);
 			exports += "%ssetter %s(value) {\n%s    setString(this[\"self\"].to<%s*>()->%s, value);\n%s}\n".printf (space, name, space, classcname, name, space);
 		} else if (type == "unsigned char*") { /// \todo Binary Buffers
-			ValaswigCompiler.warning ("TODO: %s is a buffer".printf (f.get_cname ()));
+			ValabindCompiler.warning ("TODO: %s is a buffer".printf (f.get_cname ()));
 		} else {
 			if(type[type.length-1]=='*' && get_typeName(f.variable_type) == null) {
-				ValaswigCompiler.warning ("TODO: %s is a pointer (%s)".printf (f.get_cname (), f.variable_type.get_cname()));
+				ValabindCompiler.warning ("TODO: %s is a pointer (%s)".printf (f.get_cname (), f.variable_type.get_cname()));
 				return;
 			}
 			exports += "%sgetter %s() {\n%s    return %s;\n%s}\n".printf (space, name, space, get_typeFromC(f.variable_type, "this[\"self\"].to<%s*>()->%s".printf(classcname, name)), space);
 			if(type[0] > 'A' && type[0] < 'Z') {
-				ValaswigCompiler.warning ("TODO: %s is custom (%s)".printf (f.get_cname (), type));
+				ValabindCompiler.warning ("TODO: %s is custom (%s)".printf (f.get_cname (), type));
 				return;
 			}
 			exports += "%ssetter %s(value) {\n%s    this[\"self\"].to<%s*>()->%s = %s;\n%s}\n".printf (space, name, space, classcname, name, get_typeToC(f.variable_type, "value"), space);
@@ -350,7 +350,7 @@ public class GearWriter : CodeVisitor {
 		else
 			ret = get_ctype (m.return_type.get_cname ());
 		if (ret == null)
-			ValaswigCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
+			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		bool void_return = (ret == "void");
 
 		string def_args = "";
@@ -360,7 +360,7 @@ public class GearWriter : CodeVisitor {
 		foreach (var param in m.get_parameters ()) {
 			string arg_name = param.name;
 			if (param.variable_type == null) {
-				ValaswigCompiler.warning("%s: %s => null".printf (alias, arg_name));
+				ValabindCompiler.warning("%s: %s => null".printf (alias, arg_name));
 				return;
 			}
 			arg_name = "_"+arg_name+"_";

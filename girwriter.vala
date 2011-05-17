@@ -61,7 +61,7 @@ public class GirWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			ValaswigCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+			ValabindCompiler.warning ("%s.%s method renamed to %s.%s".printf (
 				classname, oname, classname, name));
 		return name;
 	}
@@ -70,7 +70,7 @@ public class GirWriter : CodeVisitor {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
-			ValaswigCompiler.error ("Cannot resolve type");
+			ValabindCompiler.error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
@@ -174,9 +174,9 @@ public class GirWriter : CodeVisitor {
 
 	public void walk_field (Field f) {
 		if (f.get_ctype () == null) {
-			//ValaswigCompiler.warning (
+			//ValabindCompiler.warning (
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
-		} else ValaswigCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
+		} else ValabindCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
 		if (f.no_array_length)
@@ -251,7 +251,7 @@ public class GirWriter : CodeVisitor {
 		if (is_generic (ret)) ret = get_ctype (ret);
 		else ret = get_ctype (m.return_type.get_cname ());
 		if (ret == null)
-			ValaswigCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
+			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())

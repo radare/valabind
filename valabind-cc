@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyleft valaswig 2009-2011, pancake at nopcode.org
+# Copyleft valabind 2009-2011, pancake at nopcode.org
 
 LANG=$1
 MOD=$2
@@ -18,12 +18,12 @@ else
 fi
 
 show_help () {
-  echo "Usage: valaswig-cc [lang] [module-name] [-flags] vapifile .."
-  echo "Example: valaswig-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
+  echo "Usage: valabind-cc [lang] [module-name] [-flags] vapifile .."
+  echo "Example: valabind-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
   echo "  lang: python, guile, go, ruby, perl, lua, java, csharp, ..."
   echo "  --help,-h      show this help message"
-  echo "  --version      show version of valaswig"
-  echo "  --vapidir=dir  show version of valaswig"
+  echo "  --version      show version of valabind"
+  echo "  --vapidir=dir  show version of valabind"
   echo "  --glib         assume vapi source is glib/gobject based"
   echo "  --test [lang]  test if it is possible to build"
   echo "  -x             generate C++ swig code"
@@ -45,7 +45,7 @@ case "$1" in
   LANG=$2
   ;;
 "--version"|"-V")
-  valaswig --version
+  valabind --version
   swig -version | grep SWIG
   ${CC} --version | grep ${CC}
   exit 0
@@ -135,7 +135,7 @@ while : ; do
     CC="${CXX}"
     EXT="cxx"
     SWIGFLAGS="-c++ ${SWIGFLAGS}"
-    VALASWIGFLAGS="-x ${VALASWIGFLAGS}"
+    VALABINDFLAGS="-x ${VALABINDFLAGS}"
   elif [ "`echo $1 | grep -- '-n'`" ]; then
     NOGEN=1
   elif [ "`echo $1 | grep -- '-X'`" ]; then
@@ -160,8 +160,8 @@ done
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
 
 if [ "$CXXOUT" = 1 ]; then
-  echo valaswig -X ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
-  valaswig -X ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.cxx -m ${MOD} ${FILES} || exit 1
+  echo valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+  valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.cxx -m ${MOD} ${FILES} || exit 1
   #TODO:
   #if [ -n "${COMPILE}" ]; then
   #  echo ${CC} ${MOD}.cxx -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
@@ -185,8 +185,8 @@ elif [ "$TEST" = 1 ]; then
   rm -rf ${DIR}
 else
   if [ "${NOGEN}" = 0 ]; then
-    echo valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
-    valaswig ${VALASWIGFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+    echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+    valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
     echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
     swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
   fi

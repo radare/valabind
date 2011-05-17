@@ -15,8 +15,6 @@ static string modulename;
 static string? output;
 static string? useprofile;
 
-const string version_string = "valaswig 0.4.1 - pancake@nopcode.org";
-
 private const OptionEntry[] options = {
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
 	  ref files, "vala/vapi input files", "FILE FILE .." },
@@ -93,23 +91,23 @@ int main (string[] args) {
 	if (glibmode) profile = "gobject";
 	// TODO: dova?
 
-	var sc = new ValaswigCompiler (modulename, vapidir, profile);
+	var vbc = new ValabindCompiler (modulename, vapidir, profile);
 	foreach (var file in files) {
 		if (file.index_of (".vapi") == -1) {
-			sc.pkgmode = true;
-			sc.pkgname = file;
+			vbc.pkgmode = true;
+			vbc.pkgname = file;
 		}
-		sc.add_source_file (file);
+		vbc.add_source_file (file);
 	}
-	sc.parse ();
+	vbc.parse ();
 	if (output == null)
 		output = "%s.%s".printf (modulename,
 			giroutput?"gir":
 			gearoutput?"gear":
 			cxxoutput?"cxx": "i");
-	if (gearoutput) sc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
-	else if (giroutput) sc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
-	else if (cxxoutput) sc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
-	else sc.emit_swig (output, show_externs, glibmode, true, includefile);
+	if (gearoutput) vbc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
+	else if (giroutput) vbc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
+	else if (cxxoutput) vbc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
+	else vbc.emit_swig (output, show_externs, glibmode, true, includefile);
 	return 0;
 }

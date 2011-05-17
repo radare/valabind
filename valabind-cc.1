@@ -1,14 +1,14 @@
-.Dd February 11,2011
-.Dt valaswig-cc \&1 "ValaSwig compiler frontend"
-.Os valaswig-cc
+.Dd May 11,2011
+.Dt valabind-cc \&1 "Valabind compiler frontend"
+.Os valabind-cc
 .Sh NAME
 .
 .Dd
-.Nm valaswig-cc
+.Nm valabind-cc
 .Nd Vala to swig interface compiler
 .Pp
 .Sh SYNOPSIS
-.Nm valaswig-cc
+.Nm valabind-cc
 .Ar language
 .Ar modname
 .Op Fl -version
@@ -24,12 +24,12 @@
 .Op Fl C
 .Ar vapifile
 .Sh DESCRIPTION
-valaswig-cc is a frontend for valaswig, swig and the C compiler (gcc by default).
+valabind-cc is a frontend for valabind, swig and the C compiler (gcc by default).
 .Pp
 It aims to simplify the use of all the wrapped tools and compile usable bindings for many programming languages.
 .Pp
 .Sh EXAMPLE
-valaswig-cc python r_bp \-I/usr/include/r_bp r_bp.vapi
+valabind-cc python r_bp \-I/usr/include/r_bp r_bp.vapi
 .Pp
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
@@ -38,7 +38,7 @@ Standard freedesktop environment variable to point to the share prefix directory
 .El
 .Sh SEE ALSO
 .Pp
-.Xr valaswig(1)
+.Xr valabind(1)
 .Pp
 .Sh AUTHORS
 .Pp
