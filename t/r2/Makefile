@@ -1,3 +1,4 @@
+# XXX: Hardcoded path
 R2PATH=/home/pancake/prg/radare2/
 
 all: perl ruby python csharp
@@ -15,3 +16,5 @@ python:
 csharp:
 	R2PATH=${R2PATH} sh libr-swig.sh csharp r_bp
 	mcs -main:test *.cs
+
+.PHONY: all perl ruby python csharp

@@ -10,14 +10,13 @@ FILES=main.vala config.vala valabindcompiler.vala
 FILES+=girwriter.vala swigwriter.vala cxxwriter.vala gearwriter.vala
 RTLIBS=gobject-2.0 glib-2.0
 VALAPKG=`./getvv`
-#VALAPKG=libvala-0.14
 OBJS=$(subst .vala,.o,${FILES})
 CFILES=$(subst .vala,.c,${FILES})
 V=@
 
 all: config.vala ${BIN}
 
-${BIN} : $(OBJS)
+${BIN}: $(OBJS)
 	@echo LN $(BIN)
 	$(V)$(CC) -o $(BIN) $(OBJS) $$(pkg-config --libs ${RTLIBS} ${VALAPKG})
 
@@ -29,7 +28,7 @@ $(CFILES): $(FILES)
 	@for a in $(FILES) ; do \
 	   c=`echo $$a|sed -e s,.vala,.c,`; \
 	   if [ $$a -nt $$c ]; then \
-	     $(MAKE) mrproper; $(MAKE) c || exit 1 ; fi ; done
+	     $(MAKE) clean ; $(MAKE) c || exit 1 ; fi ; done
 
 $(OBJS): $(CFILES)
 	@echo Using $(VALAPKG)
@@ -61,10 +60,10 @@ dist:
 	tar czvf valabind-${VERSION}.tar.gz valabind-${VERSION}
 
 clean:
-	rm -f valabind *.o config.vala
+	rm -f valabind *.o *.c
 
 mrproper: clean
-	rm -f *.c
+	rm -f *.c config.vala
 
 deinstall: uninstall
 
