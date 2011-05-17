@@ -1,6 +1,7 @@
 # run make V= to get debug output
 VERSION=0.4.5
 CONTACT=pancake@nopcode.org
+PWD=$(shell pwd)
 CC?=gcc
 DESTDIR?=
 PREFIX?=/usr
@@ -45,13 +46,21 @@ c:
 	@echo VALAC $(FILES)
 	$(V)${VALAC} -C -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
 
-install:
+install_dirs:
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	mkdir -p ${DESTDIR}${PREFIX}/share/man/man1
+
+install: install_dirs
 	cp ${BIN}.1 ${DESTDIR}${PREFIX}/share/man/man1
 	cp ${BIN}-cc.1 ${DESTDIR}${PREFIX}/share/man/man1
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
+
+symstall: install_dirs
+	ln -fs ${PWD}/${BIN}.1 ${DESTDIR}${PREFIX}/share/man/man1
+	ln -fs ${PWD}/${BIN}-cc.1 ${DESTDIR}${PREFIX}/share/man/man1
+	ln -fs ${PWD}/${BIN} ${DESTDIR}${PREFIX}/bin
+	ln -fs ${PWD}/${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
 dist:
 	rm -rf valabind-${VERSION}
@@ -72,4 +81,4 @@ uninstall:
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}
 	-rm ${DESTDIR}${PREFIX}/bin/${BIN}-cc
 
-.PHONY: all clean dist install uninstall deinstall mrproper c a
+.PHONY: all clean dist install symstall uninstall deinstall mrproper c a

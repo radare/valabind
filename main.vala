@@ -30,8 +30,8 @@ private const OptionEntry[] options = {
 	  ref show_version, "show version information", null },
 	{ "output", 'o', 0, OptionArg.STRING,
 	  ref output, "specify output file name", null },
-	{ "module-name", 'm', 0, OptionArg.STRING,
-	  ref modulename, "specify module name", null },
+	{ "module", 'm', 0, OptionArg.STRING,
+	  ref modulename, "specify module name", "NAME" },
 	{ "profile", 'p', 0, OptionArg.NONE,
 	  ref useprofile, "select Vala profile (posix, gobject, dova)", "posix" },
 	{ "glib", 'g', 0, OptionArg.NONE,
@@ -72,7 +72,7 @@ int main (string[] args) {
 	}
 
 	if (modulename == null) {
-		stderr.printf ("No modulename specified. Use --module-name\n");
+		stderr.printf ("No modulename specified. Use --module\n");
 		return 1;
 	}
 
