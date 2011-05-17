@@ -61,6 +61,10 @@ public class ValabindCompiler {
 		return (context.report.get_errors () == 0);
 	}
 
+	public bool add_external_package (string pkg) {
+		return context.add_external_package (pkg);
+	}
+
 	public bool add_source_file (string path) {
 		foreach (var f in source_files) {
 			if (path == f)

@@ -1,5 +1,5 @@
 # run make V= to get debug output
-VERSION=0.4.1
+VERSION=0.4.5
 CONTACT=pancake@nopcode.org
 CC?=gcc
 DESTDIR?=
@@ -12,6 +12,7 @@ RTLIBS=gobject-2.0 glib-2.0
 VALAPKG=`./getvv`
 OBJS=$(subst .vala,.o,${FILES})
 CFILES=$(subst .vala,.c,${FILES})
+CFLAGS?=-g
 V=@
 
 all: config.vala ${BIN}

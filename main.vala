@@ -14,10 +14,12 @@ static bool giroutput;
 static string modulename;
 static string? output;
 static string? useprofile;
+[CCode (array_length = false, array_null_terminated = true)]
+static string[] packages;
 
 private const OptionEntry[] options = {
-	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
-	  ref files, "vala/vapi input files", "FILE FILE .." },
+	{ "pkg", 0, 0, OptionArg.STRING_ARRAY,
+	  ref packages, "Include binding for PACKAGE", "PACKAGE..." },
 	{ "vapidir", 'V', 0, OptionArg.STRING,
 	  ref vapidir, "define alternative vapi directory", null },
 	{ "include", 'i', 0, OptionArg.STRING,
@@ -31,7 +33,7 @@ private const OptionEntry[] options = {
 	{ "module-name", 'm', 0, OptionArg.STRING,
 	  ref modulename, "specify module name", null },
 	{ "profile", 'p', 0, OptionArg.NONE,
-	  ref useprofile, "select Vala profile (posix, gobject, dova)", null },
+	  ref useprofile, "select Vala profile (posix, gobject, dova)", "posix" },
 	{ "glib", 'g', 0, OptionArg.NONE,
 	  ref glibmode, "work in glib/gobject mode", null },
 	{ "cxx-swig", 'x', 0, OptionArg.NONE,
@@ -44,6 +46,8 @@ private const OptionEntry[] options = {
 	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
 	{ "cxx", '\0', 0, OptionArg.NONE,
 	  ref cxxoutput, "output C++ code instead of SWIG interface", null },
+	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
+	  ref files, "vala/vapi input files", "FILE FILE .." },
 	{ null }
 };
 
@@ -53,7 +57,7 @@ int main (string[] args) {
 	files = { "" };
 
 	try {
-		var opt_context = new OptionContext ("- ValaSwig");
+		var opt_context = new OptionContext ("- valabind");
 		opt_context.set_help_enabled (true);
 		opt_context.add_main_entries (options, null);
 		opt_context.parse (ref args);
@@ -68,7 +72,7 @@ int main (string[] args) {
 	}
 
 	if (modulename == null) {
-		stderr.printf ("No modulename specified\n");
+		stderr.printf ("No modulename specified. Use --module-name\n");
 		return 1;
 	}
 
@@ -92,6 +96,13 @@ int main (string[] args) {
 	// TODO: dova?
 
 	var vbc = new ValabindCompiler (modulename, vapidir, profile);
+	if (packages != null)
+		foreach (var pkg in packages) {
+			print ("Adding dependency "+pkg+"\n");
+			vbc.add_external_package (pkg);
+		}
+
+	// TODO: passing more than one source doesnt seems to work :/
 	foreach (var file in files) {
 		if (file.index_of (".vapi") == -1) {
 			vbc.pkgmode = true;

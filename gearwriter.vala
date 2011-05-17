@@ -210,7 +210,7 @@ public class GearWriter : CodeVisitor {
 		//if (f.no_array_length)
 		//    print ("---> array without length\n");
 		var type = get_ctype(f.variable_type.get_cname());
-		if (f.get_cname() == "class" || classcname == null)
+		if (type == null || f.get_cname() == "class" || classcname == null)
 			return;
 		string name = get_alias(f.name);
 		if (type == "char*" || type == "const char*") {
