@@ -1,6 +1,9 @@
 Generic TODO
 ============
 
+--mode=gir --mode=gear --mode=swig --mode=c++
+--format=gir
+
 * Add support to compile from C, do not generate
   - only for valaswig-cc
 

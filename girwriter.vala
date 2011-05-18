@@ -173,14 +173,20 @@ public class GirWriter : CodeVisitor {
 	}
 
 	public void walk_field (Field f) {
-		if (f.get_ctype () == null) {
-			//ValabindCompiler.warning (
-			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
-		} else ValabindCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
-		//if (f.access == Accessibility.PRIVATE)
-		//	print ("---> field is private XXX\n");
-		if (f.no_array_length)
-			print ("---> array without length\n");
+		var name = f.get_cname ();
+		var type = f.variable_type.to_string ();
+		externs += "    <field name=\""+name+"\" type=\""+type+"\"/>\n";
+	}
+
+	public void walk_struct (string pfx, Struct s) {
+		var name = s.name;
+		externs += "  <struct name=\""+name+"\">\n"; // TODO: parent="" type-name="" get-type=""
+		/* TODO: refactor to walk_struct */
+		foreach (var m in s.get_methods ())
+			walk_method (m);
+		foreach (var f in s.get_fields ())
+			walk_field (f);
+		externs += "  </struct>\n";
 	}
 
 	public void walk_class (string pfx, Class c) {
@@ -191,7 +197,9 @@ public class GirWriter : CodeVisitor {
 		process_includes (c);
 		if (glib_mode)
 			classname = "%s%s".printf (nspace, classname);
-		extends += "<object name=\""+classname+"\">"; // TODO: parent="" type-name="" get-type=""
+		externs += "  <object name=\""+classname+"\">\n"; // TODO: parent="" type-name="" get-type=""
+// TODO: print ("PARENT FOR "+classname+" IS: "+c.parent_node.type_name+"\n");
+		// parent=\"\"
 		foreach (var e in c.get_enums ())
 			walk_enum (e);
 		foreach (var f in c.get_fields ())
@@ -209,22 +217,22 @@ public class GirWriter : CodeVisitor {
 */
 		foreach (var m in c.get_methods ())
 			walk_method (m);
-		extends += "</object>\n";
+		extends += "  </object>\n";
 		classname = "";
 	}
 
 	public void walk_enum (Vala.Enum e) {
 		var enumname = classname + e.name;
-		var tmp = "<enum name=\""+enumname+"\">\n"; // type-name=\""+e.name+"\" get-type=\"\">\n";
+		var tmp = "  <enum name=\""+enumname+"\">\n"; // type-name=\""+e.name+"\" get-type=\"\">\n";
 		//enums += "/* enum: %s (%s) */\n".printf ( e.name, e.get_cname ());
 		//enums += "enum %s {\n".printf (enumname);
 		//tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
-                        tmp += "<member name=\""+e.name+"\" value=\""+v.get_cname ()+"\"/>";
+                        tmp += "    <member name=\""+e.name+"\" value=\""+v.get_cname ()+"\"/>";
 			//enums += "  %s_%s,\n".printf (e.name, v.name);
 			//tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
-		tmp += "</enum>\n";
+		tmp += "  </enum>\n";
 		enums = tmp + "\n" + enums;
 	}
 
@@ -236,7 +244,7 @@ public class GirWriter : CodeVisitor {
 		bool first = true;
 		string cname = m.get_cname ();
 		string alias = get_alias (m.name);
-		string ret;
+		string ret, vret;
 		string def_args = "";
 		string call_args = "";
 		bool void_return;
@@ -247,8 +255,8 @@ public class GirWriter : CodeVisitor {
 		// m.get_preconditions ();
 		// m.get_postconditions ();
 
-		ret = m.return_type.to_string ();
-		if (is_generic (ret)) ret = get_ctype (ret);
+		ret = vret = m.return_type.to_string ();
+		if (is_generic (ret)) ret = get_ctype (vret);
 		else ret = get_ctype (m.return_type.get_cname ());
 		if (ret == null)
 			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
@@ -257,70 +265,38 @@ public class GirWriter : CodeVisitor {
 		if (m.is_private_symbol ())
 			return;
 
-		string applys = "";
-		string clears = "";
-		string pfx;
-		foreach (var foo in m.get_parameters ()) {
-			string arg_name = foo.name;
-			//DataType? bar = foo.parameter_type;
-			DataType? bar = foo.variable_type;
-			if (bar == null)
-				continue;
-			string? arg_type = get_ctype (bar.get_cname ());
-
-			if (first) {
-				pfx = "";
-				first = false;
-			} else pfx = ", ";
-
-			/* TODO: move to get_ctype */
-			if (foo.direction != ParameterDirection.IN) {
-				var var_name = "";
-				if (foo.direction == ParameterDirection.OUT)
-					var_name = "OUTPUT";
-				else
-				if (foo.direction == ParameterDirection.REF)
-					var_name = "INOUT";
-
-				if (arg_type.index_of ("*") == -1)
-					arg_type += "*";
-				applys += "  %%apply %s %s { %s %s };\n".printf (
-					arg_type, var_name, arg_type, arg_name);
-				clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
-			}
-			call_args += "%s%s".printf (pfx, arg_name);
-			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
-		}
-
-		/* object oriented shit */
-		if (classname == "") {
-			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
+		string type = is_static?"function":"method";
+		if (classname != "" && !is_static)
+			type = "method";
+		if (is_constructor)
+			type = "constructor";
+		//externs += "<"+type+" name=\""+alias+"\" c:identifier=\""+cname+"\">\n";
+		externs += "<"+type+" name=\""+alias+"\" symbol=\""+cname+"\">\n";
+		if (void_return) {
+			externs += "    <return-type type=\"void\"/>\n";
 		} else {
-			if (is_constructor) {
-				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
-				extends += applys;
-				extends += "  %s (%s) {\n".printf (classname, def_args);
-				if (glib_mode)
-					extends += "    g_type_init ();\n";
-				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
-				extends += clears;
-			} else {
-				if (is_static)
-					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-				else {
-					if (call_args == "")
-						call_args = "self";
-					else call_args = "self, " + call_args;
-				}
-				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
-				extends += applys;
-				if (is_static) extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
-				else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
-				extends += "    %s %s (%s);\n  }\n".printf (
-						void_return?"":"return", cname, call_args);
-				extends += clears;
-			}
+			externs += "    <return-value transfer-ownership=\"none\">\n";
+			externs += "      <type name=\""+vret+"\" c:type=\""+ret+"\"/>\n";
+			externs += "    </return-value>\n";
 		}
+
+		var parameters = m.get_parameters ();
+		if (parameters.size>0) {
+			externs += "  <parameters>\n";
+			foreach (var foo in parameters) {
+				string arg_name = foo.name;
+				DataType? bar = foo.variable_type;
+				if (bar == null)
+					continue;
+				string? arg_type = bar.to_string ();
+				string? arg_ctype = get_ctype (bar.get_cname ());
+				externs += "    <parameter name=\""+arg_name+"\" transfer-ownership=\"none\">\n";
+				externs += "      <type name=\""+arg_type+"\" c:type=\""+arg_ctype+"\"/>\n";
+				externs += "    </parameter>\n";
+			}
+			externs += "  </parameters>\n";
+		}
+		externs += "</function>\n";
 	}
 
 	public override void visit_namespace (Namespace ns) {
@@ -340,13 +316,8 @@ public class GirWriter : CodeVisitor {
 			walk_field (f);
 		foreach (var e in ns.get_enums ())
 			walk_enum (e);
-		foreach (var c in ns.get_structs ()) {
-			/* TODO: refactor to walk_struct */
-			foreach (var m in c.get_methods ())
-				walk_method (m);
-			foreach (var f in c.get_fields ())
-				walk_field (f);
-		}
+		foreach (var s in ns.get_structs ())
+			walk_struct ("", s);
 		foreach (var m in ns.get_methods ())
 			walk_method (m);
 		foreach (var c in ns.get_classes ())
@@ -361,17 +332,13 @@ public class GirWriter : CodeVisitor {
 		this.context = context;
 		context.accept (this);
 		stream.printf ("<?xml version=\"1.0\"?>\n");
+		stream.printf ("<!-- automatically generated with valabind -->\n");
+		stream.printf ("<!-- To compile: g-ir-compiler foo.gir > foo.typelib -->\n");
 		stream.printf ("<repository version=\"1.2\">\n"+
-			"xmlns=\"http://www.gtk.org/introspection/core/1.0\"\n"+
-			"xmlns:c=\"http://www.gtk.org/introspection/c/1.0\"\n"+
-			"xmlns:glib=\"http://www.gtk.org/introspection/glib/1.0\">\n");
+			"	xmlns=\"http://www.gtk.org/introspection/core/1.0\"\n"+
+			"	xmlns:c=\"http://www.gtk.org/introspection/c/1.0\"\n"+
+			"	xmlns:glib=\"http://www.gtk.org/introspection/glib/1.0\">\n");
 		stream.printf ("  <package name=\""+modulename+"\"/>\n");
-		if (!cxx_mode) {
-			stream.printf (
-				"#define bool int\n"+
-				"#define true 1\n"+
-				"#define false 0\n");
-		}
 		if (includefiles.length () > 0) {
 			foreach (var inc in includefiles)
 				stream.printf ("<c:include name=\"%s\"/>\n", inc);
@@ -380,10 +347,12 @@ public class GirWriter : CodeVisitor {
 			stream.printf ("%%include <%s>\n", inc);
 
 		stream.printf ("%s\n", enums);
-		if (show_externs)
-			stream.printf ("%s\n", externs);
+		stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
+
+		stream.printf ("  </package>\n");
+		stream.printf ("</repository>\n");
 
 		this.stream = null;
 	}

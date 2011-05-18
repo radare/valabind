@@ -57,6 +57,7 @@ install: install_dirs
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
 symstall: install_dirs
+	chmod +x ${PWD}/${BIN}-cc
 	ln -fs ${PWD}/${BIN}.1 ${DESTDIR}${PREFIX}/share/man/man1
 	ln -fs ${PWD}/${BIN}-cc.1 ${DESTDIR}${PREFIX}/share/man/man1
 	ln -fs ${PWD}/${BIN} ${DESTDIR}${PREFIX}/bin
