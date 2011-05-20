@@ -107,7 +107,8 @@ public class GirWriter : CodeVisitor {
 			return "char";
 		case "gchar*":
 		case "string":
-			return "char *"; // ??? 
+			return "string";
+			//return "char *"; // ??? 
 		case "gint":
 	 		return "int";
 		case "glong":
@@ -133,7 +134,7 @@ public class GirWriter : CodeVisitor {
 			return "unsigned int";
 		case "bool": // no conversion needed
 		case "gboolean":
-			return "bool"; // XXX bool?
+			return "gboolean";
 		case "RFList":
 			if (iter_type != null)
 				return "std::vector<"+iter_type+">";
@@ -175,6 +176,7 @@ public class GirWriter : CodeVisitor {
 	public void walk_field (Field f) {
 		var name = f.get_cname ();
 		var type = f.variable_type.to_string ();
+		type = get_ctype (type);
 		externs += "    <field name=\""+name+"\" type=\""+type+"\"/>\n";
 	}
 
@@ -217,7 +219,7 @@ public class GirWriter : CodeVisitor {
 */
 		foreach (var m in c.get_methods ())
 			walk_method (m);
-		extends += "  </object>\n";
+		externs += "  </object>\n";
 		classname = "";
 	}
 
@@ -269,13 +271,18 @@ public class GirWriter : CodeVisitor {
 		if (is_constructor)
 			type = "constructor";
 		//externs += "<"+type+" name=\""+alias+"\" c:identifier=\""+cname+"\">\n";
-		externs += "<"+type+" name=\""+alias+"\" symbol=\""+cname+"\">\n";
+		externs += "<"+type+" name=\""+alias+"\" c:identifier=\""+cname+"\">\n";
 		if (void_return) {
-			externs += "    <return-type type=\"void\"/>\n";
+			externs += "  <return-type type=\"void\"/>\n";
 		} else {
+
+			var rtype = get_ctype (ret);
+			externs += "  <return-type type=\""+rtype+"\" />\n";
+/*
 			externs += "    <return-value transfer-ownership=\"none\">\n";
 			externs += "      <type name=\""+vret+"\" c:type=\""+ret+"\"/>\n";
 			externs += "    </return-value>\n";
+*/
 		}
 
 		var parameters = m.get_parameters ();
@@ -294,7 +301,7 @@ public class GirWriter : CodeVisitor {
 			}
 			externs += "  </parameters>\n";
 		}
-		externs += "</function>\n";
+		externs += "</"+type+">\n"; //function>\n";
 	}
 
 	public override void visit_namespace (Namespace ns) {
@@ -308,8 +315,9 @@ public class GirWriter : CodeVisitor {
 		nspace = ns.name;
 		process_includes (ns);
 
-		if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
-			return;
+externs += "<namespace version=\"1.0\" name=\""+nspace+"\">\n";
+		//if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
+		//	return;
 		foreach (var f in ns.get_fields ())
 			walk_field (f);
 		foreach (var e in ns.get_enums ())
@@ -321,6 +329,7 @@ public class GirWriter : CodeVisitor {
 		foreach (var c in ns.get_classes ())
 			walk_class ("", c);
 		//ns.accept_children (this);
+externs += "</namespace>\n";
 	}
 
 	public void write_file (CodeContext context, string filename) {
@@ -336,20 +345,17 @@ public class GirWriter : CodeVisitor {
 			"	xmlns=\"http://www.gtk.org/introspection/core/1.0\"\n"+
 			"	xmlns:c=\"http://www.gtk.org/introspection/c/1.0\"\n"+
 			"	xmlns:glib=\"http://www.gtk.org/introspection/glib/1.0\">\n");
-		stream.printf ("  <package name=\""+modulename+"\"/>\n");
-		if (includefiles.length () > 0) {
+		stream.printf ("  <namespace version=\"1.0\" name=\""+modulename+"\">\n");
+		if (includefiles.length () > 0)
 			foreach (var inc in includefiles)
-				stream.printf ("<c:include name=\"%s\"/>\n", inc);
-		}
-		foreach (var inc in includefiles)
-			stream.printf ("%%include <%s>\n", inc);
+				stream.printf ("  <c:include name=\"%s\"/>\n", inc);
 
 		stream.printf ("%s\n", enums);
 		stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
 
-		stream.printf ("  </package>\n");
+		stream.printf ("  </namespace>\n");
 		stream.printf ("</repository>\n");
 
 		this.stream = null;
