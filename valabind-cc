@@ -87,10 +87,10 @@ case "${LANG}" in
   OMOD="_${MOD}"
   ;;
 "ruby")
-  if [ "`ruby --version | grep 1.8`" ]; then
+  if [ "`ruby --version 2>/dev/null | grep 1.8`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];' 2>/dev/null`
   else
-  if [ "`ruby --version | grep 1.9`" ]; then
+  if [ "`ruby --version 2>/dev/null | grep 1.9`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
   fi ; fi
   CFLAGS="${CFLAGS} ${RB_CFLAGS}"
@@ -98,15 +98,15 @@ case "${LANG}" in
 "perl")
   LC_ALL=C # fix anoying perl warning
   export LC_ALL
-  CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts`"
-  LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts`"
+  CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts 2>/dev/null`"
+  LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts 2>/dev/null`"
   ;;
 "java")
   if [ -f /opt/java/include/jni.h ]; then
-  CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
+    CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
   else
   if [ "$JAVA_HOME" ]; then
-  CFLAGS="${CFLAGS} -I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
+    CFLAGS="${CFLAGS} -I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
   fi ; fi
   ;;
 "lua")

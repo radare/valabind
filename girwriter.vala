@@ -230,7 +230,7 @@ public class GirWriter : CodeVisitor {
 		//enums += "enum %s {\n".printf (enumname);
 		//tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
-                        tmp += "    <member name=\""+e.name+"\" value=\""+v.get_cname ()+"\"/>";
+                        tmp += "    <member name=\""+e.name+"\" value=\""+v.get_cname ()+"\"/>\n";
 			//enums += "  %s_%s,\n".printf (e.name, v.name);
 			//tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
@@ -341,7 +341,7 @@ externs += "</namespace>\n";
 		stream.printf ("<?xml version=\"1.0\"?>\n");
 		stream.printf ("<!-- automatically generated with valabind -->\n");
 		stream.printf ("<!-- To compile: g-ir-compiler foo.gir > foo.typelib -->\n");
-		stream.printf ("<repository version=\"1.2\">\n"+
+		stream.printf ("<repository version=\"1.2\"\n"+
 			"	xmlns=\"http://www.gtk.org/introspection/core/1.0\"\n"+
 			"	xmlns:c=\"http://www.gtk.org/introspection/c/1.0\"\n"+
 			"	xmlns:glib=\"http://www.gtk.org/introspection/glib/1.0\">\n");
