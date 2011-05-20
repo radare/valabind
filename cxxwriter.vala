@@ -37,28 +37,10 @@ public class CxxWriter : CodeVisitor {
 	private string get_alias (string name) {
 		string oname = name;
 		switch (name) {
-/*
-		case "use":
-			return "_use";
-*/
-		case "cmd":
-			name = "_cmd";
-			break;
-		case "def":
-			name = "_def";
-			break;
+		case "break":
 		case "print":
-			name = "_print";
-			break;
-		case "del":
-			name = "_del";
-			break;
-		case "from":
-			name = "_from";
-			break;
 		case "continue":
-			name = "cont";
-			break;
+			return "_"+name;
 		}
 		if (name != oname)
 			ValabindCompiler.warning ("%s.%s method renamed to %s.%s".printf (
@@ -145,9 +127,10 @@ public class CxxWriter : CodeVisitor {
 	}
 
 	private bool is_target_file (string path) {
-		foreach (var file in files)
+		foreach (var file in files) {
 			if (file == path)
 				return true;
+		}
 		return false;
 	}
 
@@ -181,11 +164,14 @@ public class CxxWriter : CodeVisitor {
 			print ("---> array without length\n");
 	}
 
+	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
+
 	public void walk_class (string pfx, Class c) {
 		foreach (var k in c.get_classes ())
 			walk_class (c.name, k);
 		classname = pfx+c.name;
 		classcname = c.get_cname ();
+
 		process_includes (c);
 
 		bool has_constructor = false;
@@ -194,14 +180,20 @@ public class CxxWriter : CodeVisitor {
 				has_constructor = true;
 				break;
 			}
+		//bool is_static = (c.static_constructor != null);
 		bool has_destructor = !c.is_compact;
-		stdout.printf ("class %s %s\n",
-			classname, c.is_compact.to_string () );
+		//stdout.printf ("class %s %s\n",
+		//	classname, c.is_compact.to_string () );
 
-		if (glib_mode) {
-			classname = "%s%s".printf (nspace, classname);
-			extends += "class %s%s {\n".printf (modulename, classcname);
-		} else extends += "class %s%s {\n".printf (modulename, classname);
+		if (glib_mode)
+			classname = "%s_%s".printf (nspace, classname);
+
+		if (defined_classes.lookup (classname))
+			return;
+		defined_classes.insert (classname, true);
+
+		if (glib_mode) extends += "class %s_%s {\n".printf (modulename, classcname);
+		else extends += "class %s_%s {\n".printf (modulename, classname);
 		//if (has_destructor && has_constructor)
 			extends += " %s *self;\n".printf (classname);
 		extends += " public:\n";
@@ -209,18 +201,18 @@ public class CxxWriter : CodeVisitor {
 			walk_enum (e);
 		foreach (var f in c.get_fields ())
 			walk_field (f);
-//c.static_destructor!=null?"true":"false");
-if (has_destructor && has_constructor) {
-		if (c.is_reference_counting ()) {
-			string? freefun = c.get_unref_function ();
-			if (freefun != null)
-				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
-		} else {
-			string? freefun = c.get_free_function ();
-			if (freefun != null)
-				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+		//c.static_destructor!=null?"true":"false");
+		if (has_destructor && has_constructor) {
+			if (c.is_reference_counting ()) {
+				string? freefun = c.get_unref_function ();
+				if (freefun != null)
+					extends += "  ~%s_%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+			} else {
+				string? freefun = c.get_free_function ();
+				if (freefun != null)
+					extends += "  ~%s_%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
+			}
 		}
-}
 		foreach (var m in c.get_methods ())
 			walk_method (m);
 		extends += "};\n";
@@ -236,8 +228,8 @@ if (has_destructor && has_constructor) {
 		enums += "enum %s {\n".printf (enumname);
 		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
-			enums += "  %s%s,\n".printf (e.name, v.name);
-			tmp += "#define %s%s %s\n".printf (e.name, v.name, v.get_cname ());
+			enums += "  %s_%s,\n".printf (e.name, v.name);
+			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
 		enums += "};\n";
 		enums += tmp + "%}\n";
@@ -275,7 +267,7 @@ if (has_destructor && has_constructor) {
 
 		string applys = "";
 		string clears = "";
-		string pfx;
+		string pfx = "";
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = foo.name;
 			//DataType? bar = foo.parameter_type;
@@ -311,83 +303,87 @@ if (has_destructor && has_constructor) {
 		/* object oriented shit */
 		if (classname == "") {
 			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
+			is_constructor = false;
+			is_static = true;
+			classname = nspace;
+		} //else {
+		if (nspace == classname)
+			alias = nspace+"_"+alias;
+		if (is_constructor) {
+			externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
+			//extends += applys;
+			extends += "  %s_%s (%s) {\n".printf (modulename, classname, def_args);
+			if (glib_mode)
+				extends += "    g_type_init ();\n";
+			extends += "    self = %s (%s);\n  }\n".printf (cname, call_args);
+			extends += clears;
 		} else {
-			if (is_constructor) {
-				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
-				//extends += applys;
-				extends += "  %s%s (%s) {\n".printf (modulename, classname, def_args);
-				if (glib_mode)
-					extends += "    g_type_init ();\n";
-				extends += "    self = %s (%s);\n  }\n".printf (cname, call_args);
-				extends += clears;
-			} else {
-			//	if (is_static)
-			//		statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-//				else 
-if (!is_static)
-	call_args = (call_args == "")? "self": "self, " + call_args;
-//				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
-		//		extends += applys;
-				if (is_static)
-					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
-				else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
-				if (cxx_mode && ret.index_of ("std::vector") != -1) {
-					int ptr = ret.index_of ("<");
-					string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
-					iter_type = iter_type.replace ("<", "");
-					iter_type = iter_type.replace (">", "");
-					// TODO: Check if iter type exists before failing
-					//       instead of hardcoding the most common type '<G>'
-					// TODO: Do not construct a generic class if not supported
-					//       instead of failing.
-					if (iter_type == "G*") /* No generic */
-						ValabindCompiler.error ("Fuck, no <G> type support.\n");
-					// TODO: Do not recheck the return_type
-					if (m.return_type.to_string ().index_of ("RFList") != -1) {
-						extends += "    %s ret;\n".printf (ret);
-						extends += "    void** array;\n";
-						extends += "    %s *item;\n".printf (iter_type);
-						extends += "    array = %s (%s);\n".printf (cname, call_args);
-						extends += "    r_flist_rewind (array);\n";
-						extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
-						extends += "        ret.push_back(*item);\n";
-						extends += "    return ret;\n";
-						extends += "  }\n";
-					} else if (m.return_type.to_string ().index_of ("RList") != -1) {
-						extends += "    %s ret;\n".printf (ret);
-						extends += "    RList *list;\n";
-						extends += "    RListIter *iter;\n";
-						extends += "    %s *item;\n".printf (iter_type);
-						extends += "    list = %s (%s);\n".printf (cname, call_args);
-						extends += "    for (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
-						extends += "        ret.push_back(*item);\n";
-						extends += "    return ret;\n";
-						extends += "  }\n";
-					}
-					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (
-							iter_type, iter_type);
-				} else {
-					extends += "    %s %s (%s);\n  }\n".printf (
-							void_return?"":"return", cname, call_args);
+			if (!is_static)
+				call_args = (call_args == "")? "self": "self, " + call_args;
+			//				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
+			//		extends += applys;
+			if (is_static)
+				extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
+			else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
+			if (cxx_mode && ret.index_of ("std::vector") != -1) {
+				int ptr = ret.index_of ("<");
+				string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
+				iter_type = iter_type.replace ("<", "");
+				iter_type = iter_type.replace (">", "");
+				// TODO: Check if iter type exists before failing
+				//       instead of hardcoding the most common type '<G>'
+				// TODO: Do not construct a generic class if not supported
+				//       instead of failing.
+				if (iter_type == "G*") /* No generic */
+					ValabindCompiler.error ("Fuck, no <G> type support.\n");
+				// TODO: Do not recheck the return_type
+				if (m.return_type.to_string ().index_of ("RFList") != -1) {
+					extends += "    %s ret;\n".printf (ret);
+					extends += "    void** array;\n";
+					extends += "    %s *item;\n".printf (iter_type);
+					extends += "    array = %s (%s);\n".printf (cname, call_args);
+					extends += "    r_flist_rewind (array);\n";
+					extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
+					extends += "        ret.push_back(*item);\n";
+					extends += "    return ret;\n";
+					extends += "  }\n";
+				} else if (m.return_type.to_string ().index_of ("RList") != -1) {
+					extends += "    %s ret;\n".printf (ret);
+					extends += "    RList *list;\n";
+					extends += "    RListIter *iter;\n";
+					extends += "    %s *item;\n".printf (iter_type);
+					extends += "    list = %s (%s);\n".printf (cname, call_args);
+					extends += "    for (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
+					extends += "        ret.push_back(*item);\n";
+					extends += "    return ret;\n";
+					extends += "  }\n";
 				}
-				extends += clears;
+				vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (
+						iter_type, iter_type);
+			} else {
+				extends += "    %s %s (%s);\n  }\n".printf (
+						void_return?"":"return", cname, call_args);
 			}
+			extends += clears;
 		}
+		//}
 	}
 
 	public override void visit_namespace (Namespace ns) {
 		if (ns.name == null)
 			return;
 
+		classname = "";
 		SourceReference? sr = ns.source_reference;
 		if (sr != null && !is_target_file (sr.file.filename))
 			return;
 
 		nspace = ns.name;
 		process_includes (ns);
-
+/*
 		if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
 			return;
+*/
 		foreach (var f in ns.get_fields ())
 			walk_field (f);
 		foreach (var e in ns.get_enums ())
@@ -401,8 +397,9 @@ if (!is_static)
 		}
 		foreach (var m in ns.get_methods ())
 			walk_method (m);
+		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ())
-			walk_class ("", c);
+			walk_class (classprefix, c); //ns.name, c);
 		//ns.accept_children (this);
 	}
 

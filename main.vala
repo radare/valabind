@@ -72,7 +72,7 @@ int main (string[] args) {
 	}
 
 	if (modulename == null) {
-		stderr.printf ("No modulename specified. Use --module\n");
+		stderr.printf ("No modulename specified. Use --module or --help\n");
 		return 1;
 	}
 

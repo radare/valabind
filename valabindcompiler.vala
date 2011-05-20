@@ -42,7 +42,7 @@ public class ValabindCompiler {
 		var parser = new Parser ();
 		parser.parse (context);
 		if (!init ())
-			warning ("valabind initialization failed");
+			error ("valabind initialization failed");
 	}
 
 	public bool init () {
@@ -51,9 +51,13 @@ public class ValabindCompiler {
 	#else
 		var resolver = new SymbolResolver ();
 		resolver.resolve (context);
+		if (context.report.get_errors () != 0)
+			return false;
 
 		var analyzer = new SemanticAnalyzer ();
 		analyzer.analyze (context);
+		if (context.report.get_errors () != 0)
+			return false;
 
 		var flow_analyzer = new FlowAnalyzer ();
 		flow_analyzer.analyze (context);

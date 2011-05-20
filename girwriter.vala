@@ -241,12 +241,10 @@ public class GirWriter : CodeVisitor {
 	}
 
 	public void walk_method (Method m) {
-		bool first = true;
+		//bool first = true;
 		string cname = m.get_cname ();
 		string alias = get_alias (m.name);
 		string ret, vret;
-		string def_args = "";
-		string call_args = "";
 		bool void_return;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
 		bool is_constructor = (m is CreationMethod);

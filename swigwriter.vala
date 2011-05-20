@@ -41,6 +41,9 @@ public class SwigWriter : CodeVisitor {
 		case "use":
 			return "_use";
 */
+		case "break":
+			name = "_break";
+			break;
 		case "cmd":
 			name = "_cmd";
 			break;
@@ -81,10 +84,16 @@ public class SwigWriter : CodeVisitor {
 			iter_type = iter_type.replace (">", "");
 			iter_type = iter_type.replace (nspace, "");
 			type = type.split ("<", 2)[0];
+//if (iter_type == "string")
+//	iter_type = "const char*";
+//if (type == "std::vector<string>")
+//	type = "std::vector<const char*>";
 		}
 		type = type.replace ("?","");
 
 		switch (type) {
+		case "std::vector<string>":
+			return "std::vector<const char*>";
 		case "const gchar*":
 			return "const char*";
 		case "G": /* generic type :: TODO: review */
@@ -314,9 +323,13 @@ public class SwigWriter : CodeVisitor {
 				}
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += applys;
+if (ret == "std::vector<string>") {
+	ValabindCompiler.warning ("std::vector<string> is not supported yet");
+	return;
+}
 				if (is_static)
 					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
-				else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
+				else extends += "   %s %s (%s) {\n".printf (ret, alias, def_args);
 				if (cxx_mode && ret.index_of ("std::vector") != -1) {
 					int ptr = ret.index_of ("<");
 					string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
@@ -330,6 +343,7 @@ public class SwigWriter : CodeVisitor {
 						ValabindCompiler.error ("Fuck, no <G> type support.\n");
 					// TODO: Do not recheck the return_type
 					if (m.return_type.to_string ().index_of ("RFList") != -1) {
+						// HACK
 						extends += "    %s ret;\n".printf (ret);
 						extends += "    void** array;\n";
 						extends += "    %s *item;\n".printf (iter_type);
@@ -340,6 +354,9 @@ public class SwigWriter : CodeVisitor {
 						extends += "    return ret;\n";
 						extends += "  }\n";
 					} else if (m.return_type.to_string ().index_of ("RList") != -1) {
+						// HACK
+						ret = ret.replace ("string", "const char*");
+//ret = get_ctype (ret); 
 						extends += "    %s ret;\n".printf (ret);
 						extends += "    RList *list;\n";
 						extends += "    RListIter *iter;\n";

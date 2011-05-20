@@ -179,7 +179,9 @@ elif [ "$TEST" = 1 ]; then
   echo "%module ${MOD}" > ${MOD}.i
   swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
-  echo ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
+  if [ -n "${QUITE}" ]; then
+    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
+  fi
   ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   rm -rf ${DIR}
