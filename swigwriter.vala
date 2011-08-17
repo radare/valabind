@@ -168,7 +168,7 @@ public class SwigWriter : CodeVisitor {
 	}
 
 	public void process_includes (Symbol s) {
-		foreach (var foo in s.get_cheader_filenames ()) {
+		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
 			var include = true;
 			foreach (var inc in includefiles) {
 				if (inc == foo) {
@@ -185,10 +185,13 @@ public class SwigWriter : CodeVisitor {
 		if (f.get_ctype () == null) {
 			//ValabindCompiler.warning (
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
-		} else ValabindCompiler.warning ("Type for %s\n".printf (f.get_cname ()));
+		} else {
+			var cname = CCodeBaseModule.get_ccode_name (f);
+			ValabindCompiler.warning ("Type for "+cname+"\n");
+		}
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
-		if (f.no_array_length)
+		if (CCodeBaseModule.get_ccode_array_length (f))
 			print ("---> array without length\n");
 	}
 
@@ -196,7 +199,7 @@ public class SwigWriter : CodeVisitor {
 		foreach (var k in c.get_classes ())
 			walk_class (c.name, k);
 		classname = pfx+c.name;
-		classcname = c.get_cname ();
+		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
 		if (glib_mode) {
 			classname = "%s%s".printf (nspace, classname);
@@ -206,12 +209,12 @@ public class SwigWriter : CodeVisitor {
 			walk_enum (e);
 		foreach (var f in c.get_fields ())
 			walk_field (f);
-		if (c.is_reference_counting ()) {
-			string? freefun = c.get_unref_function ();
+		if (CCodeBaseModule.is_reference_counting (c)) {
+			string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 			if (freefun != null)
 				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		} else {
-			string? freefun = c.get_free_function ();
+			string? freefun = CCodeBaseModule.get_ccode_free_function (c);
 			if (freefun != null)
 				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		}
@@ -226,12 +229,13 @@ public class SwigWriter : CodeVisitor {
 		var enumname = classname + e.name;
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
-			e.name, e.get_cname ());
+			e.name, CCodeBaseModule.get_ccode_name (e));
 		enums += "enum %s {\n".printf (enumname);
 		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
-			tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
+			tmp += "#define %s_%s %s\n".printf (e.name, v.name, 
+				CCodeBaseModule.get_ccode_name (v));
 		}
 		enums += "};\n";
 		enums = tmp + "%}\n"+enums;
@@ -243,7 +247,7 @@ public class SwigWriter : CodeVisitor {
 
 	public void walk_method (Method m) {
 		bool first = true;
-		string cname = m.get_cname ();
+		string cname = CCodeBaseModule.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		string ret;
 		string def_args = "";
@@ -258,7 +262,7 @@ public class SwigWriter : CodeVisitor {
 
 		ret = m.return_type.to_string ();
 		if (is_generic (ret)) ret = get_ctype (ret);
-		else ret = get_ctype (m.return_type.get_cname ());
+		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
 			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
@@ -275,7 +279,7 @@ public class SwigWriter : CodeVisitor {
 			DataType? bar = foo.variable_type;
 			if (bar == null)
 				continue;
-			string? arg_type = get_ctype (bar.get_cname ());
+			string? arg_type = get_ctype (CCodeBaseModule.get_ccode_name (bar));
 
 			if (first) {
 				pfx = "";

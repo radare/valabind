@@ -160,7 +160,7 @@ public class GirWriter : CodeVisitor {
 	}
 
 	public void process_includes (Symbol s) {
-		foreach (var foo in s.get_cheader_filenames ()) {
+		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
 			var include = true;
 			foreach (var inc in includefiles) {
 				if (inc == foo) {
@@ -174,7 +174,7 @@ public class GirWriter : CodeVisitor {
 	}
 
 	public void walk_field (Field f) {
-		var name = f.get_cname ();
+		var name = CCodeBaseModule.get_ccode_name (f);
 		var type = f.variable_type.to_string ();
 		type = get_ctype (type);
 		externs += "    <field name=\""+name+"\" type=\""+type+"\"/>\n";
@@ -195,7 +195,7 @@ public class GirWriter : CodeVisitor {
 		foreach (var k in c.get_classes ())
 			walk_class (c.name, k);
 		classname = pfx+c.name;
-		classcname = c.get_cname ();
+		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
 		if (glib_mode)
 			classname = "%s%s".printf (nspace, classname);
@@ -230,7 +230,8 @@ public class GirWriter : CodeVisitor {
 		//enums += "enum %s {\n".printf (enumname);
 		//tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
-                        tmp += "    <member name=\""+e.name+"\" value=\""+v.get_cname ()+"\"/>\n";
+                        tmp += "    <member name=\""+e.name+"\" value=\""+
+				CCodeBaseModule.get_ccode_name (v)+"\"/>\n";
 			//enums += "  %s_%s,\n".printf (e.name, v.name);
 			//tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
@@ -244,7 +245,7 @@ public class GirWriter : CodeVisitor {
 
 	public void walk_method (Method m) {
 		//bool first = true;
-		string cname = m.get_cname ();
+		string cname = CCodeBaseModule.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		string ret, vret;
 		bool void_return;
@@ -257,7 +258,7 @@ public class GirWriter : CodeVisitor {
 
 		ret = vret = m.return_type.to_string ();
 		if (is_generic (ret)) ret = get_ctype (vret);
-		else ret = get_ctype (m.return_type.get_cname ());
+		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
 			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
@@ -294,7 +295,7 @@ public class GirWriter : CodeVisitor {
 				if (bar == null)
 					continue;
 				string? arg_type = bar.to_string ();
-				string? arg_ctype = get_ctype (bar.get_cname ());
+				string? arg_ctype = get_ctype (CCodeBaseModule.get_ccode_name (bar));
 				externs += "    <parameter name=\""+arg_name+"\" transfer-ownership=\"none\">\n";
 				externs += "      <type name=\""+arg_type+"\" c:type=\""+arg_ctype+"\"/>\n";
 				externs += "    </parameter>\n";

@@ -69,7 +69,7 @@ public class GearWriter : CodeVisitor {
 		if(_type == null || _type.data_type == null)
 			return null;
 		string type = _type.data_type.get_full_name ();
-		if(type == "string" || _type.data_type.get_cname()[0] == 'g')
+		if (type == "string" || CCodeBaseModule.get_ccode_name (_type.data_type)[0] == 'g')
 			return null;
 		return type;
 	}
@@ -83,14 +83,15 @@ public class GearWriter : CodeVisitor {
 	}
 
 	private string get_typeToC(DataType ?_type, string value) {
-		var type = get_typeName(_type);
-		if(type == null)
+		var type = get_typeName (_type);
+		if (type == null)
 			return value;
 		//var _class = _type.data_type as Class;
+		var type_cname = CCodeBaseModule.get_ccode_name (_type);
 		var _struct = _type.data_type as Struct;
 		if(_struct != null && _struct.is_integer_type())
-			return "%s.to<%s>()".printf(value, _type.get_cname());
-		return "%s[\"self\"].to<%s>()".printf(value, (_type.get_cname()+"*").replace("**","*"));
+			return "%s.to<%s>()".printf (value, type_cname);
+		return "%s[\"self\"].to<%s>()".printf (value, (type_cname+"*").replace ("**","*"));
 	}
 
 	private string get_ctype (string _type) {
@@ -186,7 +187,7 @@ public class GearWriter : CodeVisitor {
 	}
 
 	public void process_includes (Symbol s) {
-		foreach (var foo in s.get_cheader_filenames ()) {
+		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
 			var include = true;
 			foreach (var inc in includefiles) {
 				if (inc == foo) {
@@ -209,26 +210,33 @@ public class GearWriter : CodeVisitor {
 		}
 		//if (f.no_array_length)
 		//    print ("---> array without length\n");
-		var type = get_ctype(f.variable_type.get_cname());
-		if (type == null || f.get_cname() == "class" || classcname == null)
+		var type = get_ctype (CCodeBaseModule.get_ccode_name (f.variable_type));
+		if (type == null || CCodeBaseModule.get_ccode_name (f) == "class" || classcname == null)
 			return;
-		string name = get_alias(f.name);
+		string name = get_alias (f.name);
+		string f_cname = CCodeBaseModule.get_ccode_name (f);
 		if (type == "char*" || type == "const char*") {
-			exports += "%sgetter %s() {\n%s    return String(this[\"self\"].to<%s*>()->%s);\n%s}\n".printf (space, name, space, classcname, name, space);
-			exports += "%ssetter %s(value) {\n%s    setString(this[\"self\"].to<%s*>()->%s, value);\n%s}\n".printf (space, name, space, classcname, name, space);
+			exports += "%sgetter %s() {\n%s    return String(this[\"self\"].to<%s*>()->%s);\n%s}\n".printf (
+				space, name, space, classcname, name, space);
+			exports += "%ssetter %s(value) {\n%s    setString(this[\"self\"].to<%s*>()->%s, value);\n%s}\n".printf (
+				space, name, space, classcname, name, space);
 		} else if (type == "unsigned char*") { /// \todo Binary Buffers
-			ValabindCompiler.warning ("TODO: %s is a buffer".printf (f.get_cname ()));
+			ValabindCompiler.warning ("TODO: %s is a buffer".printf (f_cname));
 		} else {
 			if(type[type.length-1]=='*' && get_typeName(f.variable_type) == null) {
-				ValabindCompiler.warning ("TODO: %s is a pointer (%s)".printf (f.get_cname (), f.variable_type.get_cname()));
+				ValabindCompiler.warning ("TODO: %s is a pointer (%s)".printf (
+					f_cname, CCodeBaseModule.get_ccode_name (f.variable_type)));
 				return;
 			}
-			exports += "%sgetter %s() {\n%s    return %s;\n%s}\n".printf (space, name, space, get_typeFromC(f.variable_type, "this[\"self\"].to<%s*>()->%s".printf(classcname, name)), space);
-			if(type[0] > 'A' && type[0] < 'Z') {
-				ValabindCompiler.warning ("TODO: %s is custom (%s)".printf (f.get_cname (), type));
+			exports += "%sgetter %s() {\n%s    return %s;\n%s}\n".printf (
+				space, name, space, get_typeFromC (f.variable_type,
+				"this[\"self\"].to<%s*>()->%s".printf (classcname, name)), space);
+			if (type[0] > 'A' && type[0] < 'Z') {
+				ValabindCompiler.warning ("TODO: %s is custom (%s)".printf (f_cname, type));
 				return;
 			}
-			exports += "%ssetter %s(value) {\n%s    this[\"self\"].to<%s*>()->%s = %s;\n%s}\n".printf (space, name, space, classcname, name, get_typeToC(f.variable_type, "value"), space);
+			exports += "%ssetter %s(value) {\n%s    this[\"self\"].to<%s*>()->%s = %s;\n%s}\n".printf (
+				space, name, space, classcname, name, get_typeToC(f.variable_type, "value"), space);
 		}
 	}
 
@@ -245,7 +253,7 @@ public class GearWriter : CodeVisitor {
 		foreach (var k in c.get_classes ())
 			walk_class ("", space+"    ", k);
 		classname = pfx+c.name;
-		classcname = c.get_cname ();
+		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
 		foreach (var e in c.get_enums ())
 			walk_enum (e, space+"    ");
@@ -253,14 +261,14 @@ public class GearWriter : CodeVisitor {
 			if(!hasCtor)
 				exports += "%s    function %s() {\n%s        this[\"self\"] = Internal(new %s);\n%s    }\n".printf (space, classname, space, classcname, space);
 			exports += "%s    function %s(_self) {\n%s        this[\"self\"] = Internal(_self);\n%s    }\n".printf (space, classname, space, space);
-			if (c.is_reference_counting ()) {
-				string? freefun = c.get_unref_function ();
+			if (CCodeBaseModule.is_reference_counting (c)) {
+				string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 				if (freefun != null && freefun != "") {
 					exports += "%s    function __%s() {\n%s        %s(this[\"self\"]);\n%s    }\n".printf (space, classname, space, freefun, space);
 					hasDtor = true;
 				}
 			} else {
-				string? freefun = c.get_free_function ();
+				string? freefun = CCodeBaseModule.get_ccode_free_function (c);
 				if (freefun != null && freefun != "") {
 					exports += "%s    function __%s() {\n%s        %s(this[\"self\"]);\n%s    }\n".printf (space, classname, space, freefun, space);
 					hasDtor = true;
@@ -281,27 +289,28 @@ public class GearWriter : CodeVisitor {
 		process_includes (c);
 		bool hasCtor = false, hasDtor = false, hasNonStatic = c.get_fields().size > 0;
 		foreach (var m in c.get_methods ()) {
-			if(m is CreationMethod)
+			if (m is CreationMethod)
 				hasCtor = true;
-			if((m.binding & MemberBinding.STATIC) == 0)
+			if ((m.binding & MemberBinding.STATIC) == 0)
 				hasNonStatic = true;
 		}
-		exports += space+"%s %s {\n".printf (hasNonStatic?"class":"object", pfx+c.name);
+		exports += space+"%s %s {\n".printf (hasNonStatic? "class": "object", pfx+c.name);
 		classname = pfx+c.name;
-		classcname = c.get_cname ();
+		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
-		if(hasNonStatic) {
-			if(!hasCtor)
+		if (hasNonStatic) {
+			if (!hasCtor)
 				exports += "%s    function %s() {\n%s        this[\"self\"] = Internal(new %s);\n%s    }\n".printf (space, classname, space, classcname, space);
 			exports += "%s    function %s(_self) {\n%s        this[\"self\"] = Internal(_self);\n%s    }\n".printf (space, classname, space, space);
-			if (c.is_reference_counting ()) {
-				string? freefun = c.get_unref_function ();
+			if (CCodeBaseModule.is_reference_counting (c)) {
+				// XXX: is this ok?
+				string? freefun = CCodeBaseModule.get_ccode_unref_function (c as ObjectTypeSymbol);
 				if (freefun != null && freefun != "") {
 					exports += "%s    function __%s() {\n%s        %s(this[\"self\"]);\n%s    }\n".printf (space, classname, space, freefun, space);
 					hasDtor = true;
 				}
 			} else {
-				string? freefun = c.get_free_function ();
+				string? freefun = CCodeBaseModule.get_ccode_free_function (c);
 				if (freefun != null && freefun != "") {
 					exports += "%s    function __%s() {\n%s        %s(this[\"self\"]);\n%s    }\n".printf (space, classname, space, freefun, space);
 					hasDtor = true;
@@ -322,7 +331,8 @@ public class GearWriter : CodeVisitor {
 		process_includes (e);
 		exports += "\n%sobject %s {\n".printf (space, e.name);
 		foreach (var v in e.get_values ())
-			exports += "%s    var %s = %s;\n".printf (space, v.name, v.get_cname ());
+			exports += "%s    var %s = %s;\n".printf (
+				space, v.name, CCodeBaseModule.get_ccode_name (v));
 		exports += "%s}\n".printf (space);
 	}
 
@@ -335,7 +345,7 @@ public class GearWriter : CodeVisitor {
 			return;
 
 		process_includes (m);
-		string cname = m.get_cname ();
+		string cname = CCodeBaseModule.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
 		bool is_constructor = (m is CreationMethod);
@@ -348,7 +358,7 @@ public class GearWriter : CodeVisitor {
 		if (is_generic (ret))
 			ret = get_ctype (ret);
 		else
-			ret = get_ctype (m.return_type.get_cname ());
+			ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
 			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
 		bool void_return = (ret == "void");
@@ -364,7 +374,7 @@ public class GearWriter : CodeVisitor {
 				return;
 			}
 			arg_name = "_"+arg_name+"_";
-			string arg_type = get_ctype (param.variable_type.get_cname ());
+			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
 
 			string pfx;
 			if (first) {
@@ -372,24 +382,24 @@ public class GearWriter : CodeVisitor {
 				first = false;
 			} else pfx = ", ";
 
-			if(arg_type=="char*" || arg_type=="const char*") {
-				params.append(arg_name+".to<String>()");
-				if (param.variable_type.is_array())
-					params.append(arg_name+".length()");
-			} else params.append(get_typeToC(param.variable_type, arg_name));
+			if (arg_type=="char*" || arg_type=="const char*") {
+				params.append (arg_name+".to<String>()");
+				if (param.variable_type.is_array ())
+					params.append (arg_name+".length()");
+			} else params.append (get_typeToC (param.variable_type, arg_name));
 			def_args += "%s%s".printf (pfx, arg_name);
 			argn++;
 		}
 		if (classname != "" && !is_static && !is_constructor) {
-			int instance_offset = (int)m.cinstance_parameter_position;
-			if(instance_offset < 0)
-				instance_offset = (int)params.length() + 1 + instance_offset;
-			params.insert("this[\"self\"]", instance_offset);
+			//int instance_offset = (int)m.cinstance_parameter_position;
+			//if (instance_offset < 0)
+			// XXX: this is probably broken
+			int instance_offset = (int)params.length (); // + 1 + instance_offset;
+			params.insert ("this[\"self\"]", instance_offset);
 		}
 		string call_args = "";
 		first = true;
 		foreach (var param in params) {
-
 			string pfx;
 			if (first) {
 				pfx = "";
@@ -398,15 +408,17 @@ public class GearWriter : CodeVisitor {
 			call_args += pfx + param;
 		}
 
-		string _call = "%s(%s)".printf(cname, call_args);
+		string _call = "%s(%s)".printf (cname, call_args);
 		if (!void_return && !is_constructor)
-			_call = "return "+get_typeFromC(m.return_type, _call);
+			_call = "return "+get_typeFromC (m.return_type, _call);
 		/* object oriented shit */
-		if (classname == "")
-			exports += "%sfunction %s(%s) {\n%s    %s;\n%s}\n".printf(space, alias, def_args, space, _call, space);
-		else {
+		if (classname == "") {
+			exports += "%sfunction %s(%s) {\n%s    %s;\n%s}\n".printf (
+				space, alias, def_args, space, _call, space);
+		} else {
 			if (is_constructor)
-				exports += "%sfunction %s(%s) {\n%s    this[\"self\"] = Internal(%s(%s));\n%s}\n".printf (space, classname, def_args, space, cname, call_args, space);
+				exports += "%sfunction %s(%s) {\n%s    this[\"self\"] = Internal(%s(%s));\n%s}\n".printf (
+					space, classname, def_args, space, cname, call_args, space);
 			else {
 				if (is_static && !dontStatic)
 					exports += "%sstatic function %s(%s) {\n".printf (space, alias, def_args);
