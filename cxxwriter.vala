@@ -163,8 +163,8 @@ public class CxxWriter : CodeVisitor {
 		}
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
-		if (CCodeBaseModule.get_ccode_array_length (f))
-			print ("---> array without length\n");
+		//if (CCodeBaseModule.get_ccode_array_length (f))
+		//	print ("---> array without length\n");
 	}
 
 	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);

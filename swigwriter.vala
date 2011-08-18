@@ -191,8 +191,8 @@ public class SwigWriter : CodeVisitor {
 		}
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
-		if (CCodeBaseModule.get_ccode_array_length (f))
-			print ("---> array without length\n");
+		//if (CCodeBaseModule.get_ccode_array_length (f))
+		//	print ("---> array without length\n");
 	}
 
 	public void walk_class (string pfx, Class c) {
