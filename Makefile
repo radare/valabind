@@ -1,5 +1,5 @@
 # run make V= to get debug output
-VERSION=0.4.5
+VERSION=0.5
 CONTACT=pancake@nopcode.org
 PWD=$(shell pwd)
 CC?=gcc
@@ -29,7 +29,7 @@ config.vala:
 $(CFILES): $(FILES)
 	@for a in $(FILES) ; do \
 	   c=`echo $$a|sed -e s,.vala,.c,`; \
-	   if [ $$a -nt $$c ]; then \
+	   if [ ! -f $$c -o $$a -nt $$c ]; then \
 	     $(MAKE) clean ; $(MAKE) c || exit 1 ; fi ; done
 
 $(OBJS): $(CFILES)
@@ -66,7 +66,7 @@ symstall: install_dirs
 dist:
 	rm -rf valabind-${VERSION}
 	hg clone . valabind-${VERSION}
-	cd valabind-${VERSION} && $(MAKE) c
+	cd valabind-${VERSION} && $(MAKE) config.vala c
 	rm -rf valabind-${VERSION}/.hg
 	tar czvf valabind-${VERSION}.tar.gz valabind-${VERSION}
 
