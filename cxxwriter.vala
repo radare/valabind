@@ -356,6 +356,7 @@ public class CxxWriter : CodeVisitor {
 					extends += "    RListIter *iter;\n";
 					extends += "    %s *item;\n".printf (iter_type);
 					extends += "    list = %s (%s);\n".printf (cname, call_args);
+					extends += "    if (list)\n";
 					extends += "    for (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
 					extends += "        ret.push_back(*item);\n";
 					extends += "    return ret;\n";
