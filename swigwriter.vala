@@ -211,11 +211,11 @@ public class SwigWriter : CodeVisitor {
 			walk_field (f);
 		if (CCodeBaseModule.is_reference_counting (c)) {
 			string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
-			if (freefun != null)
+			if (freefun != null && freefun != "")
 				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		} else {
 			string? freefun = CCodeBaseModule.get_ccode_free_function (c);
-			if (freefun != null)
+			if (freefun != null && freefun != "")
 				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		}
 		foreach (var m in c.get_methods ())
