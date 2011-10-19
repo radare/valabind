@@ -61,8 +61,8 @@ esac
 
 case "${LANG}" in
 "guile")
-  CFLAGS="${CFLAGS} `guile-config compile`"
-  LDFLAGS="${LDFLAGS} `guile-config link`"
+  CFLAGS="${CFLAGS} `guile-config compile 2>/dev/null`"
+  LDFLAGS="${LDFLAGS} `guile-config link 2>/dev/null`"
   ;;
 "python")
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
