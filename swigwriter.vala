@@ -181,6 +181,12 @@ public class SwigWriter : CodeVisitor {
 		}
 	}
 
+	public void walk_constant (Constant f) {
+		var cname = CCodeBaseModule.get_ccode_name (f);
+		extends += "%immutable "+f.name+";\n";
+		extends += "static const char *"+f.name+" = "+cname+";\n";
+	}
+
 	public void walk_field (Field f) {
 		if (f.get_ctype () == null) {
 			//ValabindCompiler.warning (
@@ -327,10 +333,10 @@ public class SwigWriter : CodeVisitor {
 				}
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += applys;
-if (ret == "std::vector<string>") {
-	ValabindCompiler.warning ("std::vector<string> is not supported yet");
-	return;
-}
+				if (ret == "std::vector<string>") {
+					ValabindCompiler.warning ("std::vector<string> is not supported yet");
+					return;
+				}
 				if (is_static)
 					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
 				else extends += "   %s %s (%s) {\n".printf (ret, alias, def_args);
@@ -396,6 +402,8 @@ if (ret == "std::vector<string>") {
 
 		if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
 			return;
+		foreach (var f in ns.get_constants ())
+			walk_constant (f);
 		foreach (var f in ns.get_fields ())
 			walk_field (f);
 		foreach (var e in ns.get_enums ())

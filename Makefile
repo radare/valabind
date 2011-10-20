@@ -70,8 +70,11 @@ dist:
 	rm -rf valabind-${VERSION}/.hg
 	tar czvf valabind-${VERSION}.tar.gz valabind-${VERSION}
 
-clean mrproper:
-	rm -f valabind *.o *.c config.vala
+clean:
+	rm -f valabind *.o *.c
+
+mrproper:
+	rm -f config.vala
 
 deinstall: uninstall
 
