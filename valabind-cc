@@ -109,6 +109,10 @@ case "${LANG}" in
     CFLAGS="${CFLAGS} -I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
   fi ; fi
   ;;
+"php5")
+  CFLAGS="`php-config --includes` `pkg-config --libs libpng`"
+  LDFLAGS=`php-config --libs`
+  ;;
 "lua")
   if [ -f /usr/include/lua5.1/lua.h ]; then
     CFLAGS="${CFLAGS} -I/usr/include/lua5.1"
@@ -177,7 +181,7 @@ elif [ "$TEST" = 1 ]; then
   fi
   cd ${DIR}
   echo "%module ${MOD}" > ${MOD}.i
-  swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
+  swig -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   if [ -n "${QUITE}" ]; then
     echo ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
@@ -189,8 +193,8 @@ else
   if [ "${NOGEN}" = 0 ]; then
     echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
     valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
-    echo swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
-    swig ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+    echo swig -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
+    swig -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
   fi
   if [ -n "${COMPILE}" ]; then
     echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
