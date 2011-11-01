@@ -1,5 +1,5 @@
 # run make V= to get debug output
-VERSION=0.5.2
+VERSION=0.6
 CONTACT=pancake@nopcode.org
 PWD=$(shell pwd)
 CC?=gcc
