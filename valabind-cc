@@ -91,7 +91,7 @@ case "${LANG}" in
     LDFLAGS="${LDFLAGS} `$PYCFG --ldflags`"
   fi
   OMOD="_${MOD}"
-  SWIGFLAGS="${SWIGFLAGS} -threads"
+  # XXX SWIGFLAGS="${SWIGFLAGS} -threads"
   ;;
 "ruby")
   if [ "`ruby --version 2>/dev/null | grep 1.8`" ]; then
