@@ -193,7 +193,7 @@ elif [ "$TEST" = 1 ]; then
   if [ -n "${QUITE}" ]; then
     echo ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
   fi
-  ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
+  ${CXX} $@ -fPIC -shared ${MOD}_wrap.cxx ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   rm -rf ${DIR}
 else
