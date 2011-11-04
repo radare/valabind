@@ -177,7 +177,7 @@ public class GirWriter : CodeVisitor {
 		var name = CCodeBaseModule.get_ccode_name (f);
 		var type = f.variable_type.to_string ();
 		type = get_ctype (type);
-		externs += "    <field name=\""+name+"\" allow-none=\"1\">"; //type=\""+type+"\"/>\n";
+		externs += "    <field name=\""+name+"\" allow-none=\"1\">\n";
 		externs += "      <type name=\""+girtype (type)+"\" c:type=\""+type+"\" />\n";
 		externs += "    </field>\n";
 	}
@@ -226,6 +226,7 @@ public class GirWriter : CodeVisitor {
 	}
 
 	public void walk_enum (Vala.Enum e) {
+#if NOT_YET_IMPLEMENTED
 		var enumname = classname + e.name;
 		var tmp = "  <enum name=\""+enumname+"\">\n"; // type-name=\""+e.name+"\" get-type=\"\">\n";
 		//enums += "/* enum: %s (%s) */\n".printf ( e.name, e.get_cname ());
@@ -239,6 +240,7 @@ public class GirWriter : CodeVisitor {
 		}
 		tmp += "  </enum>\n";
 		enums = tmp + "\n" + enums;
+#endif
 	}
 
 	private inline bool is_generic(string type) {
@@ -247,6 +249,8 @@ public class GirWriter : CodeVisitor {
 
 	private static string girtype(string ret) {
 		switch (ret) {
+		case "int[]":
+			return "gpointer"; // XXX
 		case "string?":
 		case "string":
 		case "char*":
@@ -254,7 +258,13 @@ public class GirWriter : CodeVisitor {
 		case "const char*":
 			ret = "utf8";
 			break;
+		case "uint":
+		case "uint32":
+		case "unsigned int":
+			ret = "guint";
+			break;
 		case "int":
+		case "int32":
 			ret = "gint";
 			break;
 		case "unsigned long long":
