@@ -20,6 +20,13 @@ if [ -z "${SOEXT}" ]; then
   fi
 fi
 
+use_cxx() {
+    CC="${CXX}"
+    EXT="cxx"
+    SWIGFLAGS="-c++ ${SWIGFLAGS}"
+    VALABINDFLAGS="-x ${VALABINDFLAGS}"
+}
+
 show_help () {
   echo "Usage: valabind-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valabind-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
@@ -67,10 +74,12 @@ esac
 
 case "${LANG}" in
 "guile")
+  use_cxx
   CFLAGS="${CFLAGS} `guile-config compile 2>/dev/null`"
   LDFLAGS="${LDFLAGS} `guile-config link 2>/dev/null`"
   ;;
 "python")
+  use_cxx
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
@@ -143,10 +152,7 @@ while : ; do
   elif [ "`echo $1 | grep -- '--vapidir'`" ]; then
     ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
   elif [ "`echo $1 | grep -- '-x'`" ]; then
-    CC="${CXX}"
-    EXT="cxx"
-    SWIGFLAGS="-c++ ${SWIGFLAGS}"
-    VALABINDFLAGS="-x ${VALABINDFLAGS}"
+    use_cxx
   elif [ "`echo $1 | grep -- '-n'`" ]; then
     NOGEN=1
   elif [ "`echo $1 | grep -- '-X'`" ]; then
@@ -191,9 +197,9 @@ elif [ "$TEST" = 1 ]; then
   ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i >/dev/null 2>&1
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   if [ -n "${QUITE}" ]; then
-    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.c ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
+    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
   fi
-  ${CXX} $@ -fPIC -shared ${MOD}_wrap.cxx ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
+  ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} >/dev/null 2>&1
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   rm -rf ${DIR}
 else
