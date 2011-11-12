@@ -147,11 +147,60 @@ public class GirWriter : CodeVisitor {
 		return type;
 	}
 
+	private static string girtype(string ret) {
+		switch (ret) {
+		case "int[]":
+			return "gpointer"; // XXX
+		case "string?":
+		case "string":
+		case "char*":
+		case "char *":
+		case "const char*":
+			ret = "utf8";
+			break;
+		case "uint":
+		case "uint32":
+		case "unsigned int":
+			ret = "guint";
+			break;
+		case "int":
+		case "int32":
+			ret = "gint";
+			break;
+		case "unsigned long long":
+		case "uint64":
+			ret = "guint64";
+			break;
+		case "void*":
+		case "unsigned char*":
+		case "uint8*":
+			ret = "gpointer";
+			break;
+		case "bool":
+			ret = "gboolean";
+			break;
+		}
+		if (ret[ret.length-1] == '*')
+			return "gpointer";
+		return ret;
+	}
+
 	private bool is_target_file (string path) {
 		foreach (var file in files)
 			if (file == path)
 				return true;
 		return false;
+	}
+
+	public void walk_constant (Constant f) {
+		var cname = CCodeBaseModule.get_ccode_name (f);
+		var cvalue = "TODO";
+		var ctype = get_ctype (f.type_reference.to_string ());
+		var gtype = girtype (f.type_reference.to_string ());
+		extends += "<constant name=\""+cname+"\" value=\""+cvalue+"\">\n";
+		extends += "  <type name="+gtype+" c:type=\""+ctype+"\">\n";
+		extends += "</constant>\n";
+		//extends += "static const char *"+f.name+" = "+cname+";\n";
 	}
 
 	public override void visit_source_file (SourceFile source) {
@@ -247,44 +296,6 @@ public class GirWriter : CodeVisitor {
 		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
-	private static string girtype(string ret) {
-		switch (ret) {
-		case "int[]":
-			return "gpointer"; // XXX
-		case "string?":
-		case "string":
-		case "char*":
-		case "char *":
-		case "const char*":
-			ret = "utf8";
-			break;
-		case "uint":
-		case "uint32":
-		case "unsigned int":
-			ret = "guint";
-			break;
-		case "int":
-		case "int32":
-			ret = "gint";
-			break;
-		case "unsigned long long":
-		case "uint64":
-			ret = "guint64";
-			break;
-		case "void*":
-		case "unsigned char*":
-		case "uint8*":
-			ret = "gpointer";
-			break;
-		case "bool":
-			ret = "gboolean";
-			break;
-		}
-		if (ret[ret.length-1] == '*')
-			return "gpointer";
-		return ret;
-	}
-
 	public void walk_method (Method m) {
 		//bool first = true;
 		string cname = CCodeBaseModule.get_ccode_name (m);
@@ -359,6 +370,8 @@ public class GirWriter : CodeVisitor {
 //externs += "<namespace version=\"1.0\" name=\""+nspace+"\">\n";
 		//if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
 		//	return;
+		foreach (var f in ns.get_constants ())
+			walk_constant (f);
 		foreach (var f in ns.get_fields ())
 			walk_field (f);
 		foreach (var e in ns.get_enums ())
