@@ -201,7 +201,7 @@ elif [ "$TEST" = 1 ]; then
   cd ${DIR}
   MOD=test # hack to fix guile
   echo "%module ${MOD}" > ${MOD}.i
-  echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i 
+  eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
   eval ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
   if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
   if [ -n "${QUITE}" ]; then
@@ -214,7 +214,7 @@ else
   if [ "${NOGEN}" = 0 ]; then
     echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
     valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
-    echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i
+    eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
     ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
   fi
   if [ -n "${COMPILE}" ]; then
