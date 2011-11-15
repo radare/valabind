@@ -53,6 +53,9 @@ public class SwigWriter : CodeVisitor {
 		case "print":
 			name = "_print";
 			break;
+		case "delete":
+			name = "_delete";
+			break;
 		case "del":
 			name = "_del";
 			break;
