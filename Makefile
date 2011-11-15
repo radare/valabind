@@ -73,7 +73,7 @@ dist:
 clean:
 	rm -f valabind *.o *.c
 
-mrproper:
+mrproper: clean
 	rm -f config.vala
 
 deinstall: uninstall
