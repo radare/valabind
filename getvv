@@ -10,4 +10,5 @@ for a in $PATH; do
 		fi
 	fi
 done
+echo "Cannot find valac version string" >/dev/stderr
 exit 1
