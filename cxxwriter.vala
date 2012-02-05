@@ -38,7 +38,13 @@ public class CxxWriter : CodeVisitor {
 		string oname = name;
 		switch (name) {
 		case "break":
+		case "while":
 		case "print":
+		case "new":
+		case "for":
+		case "if":
+		case "case":
+		case "delete":
 		case "continue":
 			return "_"+name;
 		}
@@ -73,6 +79,8 @@ public class CxxWriter : CodeVisitor {
 		case "gconstpointer":
 		case "gpointer":
 	 		return "void*";
+		case "gsize":
+			return "size_t";
 		case "gdouble":
 			return "double";
 		case "gfloat":
