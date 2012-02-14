@@ -110,10 +110,10 @@ case "${LANG}" in
   ;;
 "ruby")
   if [ "`ruby --version 2>/dev/null | grep 1.8`" ]; then
-    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + Config::CONFIG["archdir"];' 2>/dev/null`
+    RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + RbConfig::CONFIG["archdir"];' 2>/dev/null`
   else
   if [ "`ruby --version 2>/dev/null | grep 1.9`" ]; then
-    RB_CFLAGS=`ruby -e 'require "mkmf"; a=Config::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + Config::CONFIG["arch"];'`
+    RB_CFLAGS=`ruby -e 'require "mkmf"; a=RbConfig::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + RbConfig::CONFIG["arch"];'`
   fi ; fi
   CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   ;;
