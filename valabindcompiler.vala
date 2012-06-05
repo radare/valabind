@@ -70,6 +70,11 @@ public class ValabindCompiler {
 	}
 
 	public bool add_source_file (string path) {
+		if (path == "") {
+			error ("Missing path to source vapi");
+			return false;
+		}
+		path.replace (".vapi", "");
 		foreach (var f in source_files) {
 			if (path == f)
 				return false;
@@ -106,6 +111,19 @@ public class ValabindCompiler {
 				gir_writer.includefiles.append (include);
 			gir_writer.files = source_files;
 			gir_writer.write_file (context, file);
+		} else warning ("cannot create swig writer");
+	}
+
+	public void emit_node (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
+		var node_writer = new NodeFFIWriter (modulename);
+		if (node_writer != null) {
+			/* TODO: why not just pass a ValabindCompiler reference to it? */
+			node_writer.pkgmode = pkgmode;
+			node_writer.pkgname = pkgname;
+			if (include != null)
+				node_writer.includefiles.append (include);
+			node_writer.files = source_files;
+			node_writer.write_file (context, file);
 		} else warning ("cannot create swig writer");
 	}
 
@@ -156,6 +174,10 @@ public class ValabindCompiler {
 
 	/* Ripped from Vala Compiler */
 	private bool add_package (CodeContext context, string pkg) {
+		if (pkg == "") {
+			warning ("Empty add_package()?\n");
+			return true;
+		}
 		print ("Adding dependency package %s\n", pkg);
 
 		// ignore multiple occurences of the same package
@@ -169,7 +191,7 @@ public class ValabindCompiler {
 		var package_path = context.get_package_path (pkg, vapi_directories);
 	#endif
 		if (package_path == null) {
-			stderr.printf ("Cannot find package path '%s'", pkg);
+			stderr.printf ("Cannot find package path '%s'\n", pkg);
 			return false;
 		}
 

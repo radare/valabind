@@ -79,6 +79,9 @@ esac
 [ -z "${CXX}" ] && CXX=g++
 
 case "${LANG}" in
+"node"|"node-ffi")
+  echo "using node-ffi"
+  ;;
 "guile")
   use_cxx
   CFLAGS="${CFLAGS} `guile-config compile 2>/dev/null`"
@@ -181,6 +184,14 @@ while : ; do
 done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
+
+case "${LANG}" in
+"node"|"node-ffi")
+  echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
+  valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
+  exit $?
+  ;;
+esac
 
 if [ "$CXXOUT" = 1 ]; then
   echo valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}

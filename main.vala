@@ -9,6 +9,7 @@ static bool glibmode;
 static bool cxxmode;
 static bool cxxoutput;
 static bool gearoutput;
+static bool nodeoutput;
 static bool swigoutput;
 static bool giroutput;
 static string modulename;
@@ -42,6 +43,8 @@ private const OptionEntry[] options = {
 	  ref swigoutput, "generate swig interface code (default)", null },
 	{ "gear", '\0', 0, OptionArg.NONE,
 	  ref gearoutput, "generate gearbox interface code", null },
+	{ "node-ffi", '\0', 0, OptionArg.NONE,
+	  ref nodeoutput, "generate node-ffi interface code", null },
 	{ "gir", '\0', 0, OptionArg.NONE,
 	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
 	{ "cxx", '\0', 0, OptionArg.NONE,
@@ -84,6 +87,7 @@ int main (string[] args) {
 	int count = 0;
 	if (swigoutput) count++;
 	if (gearoutput) count++;
+	if (nodeoutput) count++;
 	if (giroutput) count++;
 	if (cxxoutput) count++;
 	if (count>1) {
@@ -114,9 +118,11 @@ int main (string[] args) {
 	if (output == null)
 		output = "%s.%s".printf (modulename,
 			giroutput?"gir":
+			nodeoutput?"js":
 			gearoutput?"gear":
 			cxxoutput?"cxx": "i");
-	if (gearoutput) vbc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
+	if (nodeoutput) vbc.emit_node (output, show_externs, glibmode, cxxmode, includefile);
+	else if (gearoutput) vbc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
 	else if (giroutput) vbc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
 	else if (cxxoutput) vbc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);
 	else vbc.emit_swig (output, show_externs, glibmode, true, includefile);
