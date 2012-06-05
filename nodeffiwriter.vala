@@ -124,8 +124,6 @@ public class NodeFFIWriter : CodeVisitor {
 			case "uint8":
 			case "guint8":
 				return "uint8";
-			case "gchar**":
-				return "char**";
 			case "gchar":
 				return "char";
 			case "gchar*":
@@ -137,6 +135,7 @@ public class NodeFFIWriter : CodeVisitor {
 				return "pointer";
 			case "glong":
 				return "long";
+			case "gchar**":
 			case "char**":
 			case "char **":
 				return "pointer";
