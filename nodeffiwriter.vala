@@ -86,7 +86,6 @@ public class NodeFFIWriter : CodeVisitor {
 			return value;
 		//var _class = _type.data_type as Class;
 		var type_cname = CCodeBaseModule.get_ccode_name (_type);
-		var _struct = _type.data_type as Struct;
 		return type_cname;
 	}
 
@@ -168,11 +167,9 @@ if (nspace == null) {
 			case "RFList":
 			case "RList":
 				return "pointer";
-			//	if (iter_type != null)
-			//		return "std::vector<"+iter_type+">";
 			default:
-				return "pointer";
-			break;
+				type = "pointer";
+				break;
 		}
 		return type;
 	}
@@ -204,14 +201,10 @@ if (nspace == null) {
 	}
 
 	public string walk_field (Field f, string space) {
-		//if (f.no_array_length)
-		//    print ("---> array without length\n");
 		var type = get_ctype (CCodeBaseModule.get_ccode_name (f.variable_type));
 		string f_cname = CCodeBaseModule.get_ccode_name (f);
 		if (type == null || f_cname == "class" || classcname == null)
 			return "";
-		string name = get_alias (f.name);
-
 		return "[ '%s', '%s' ]\n".printf (type, f_cname);
 	}
 
@@ -362,10 +355,9 @@ if (nspace == null) {
 			tab = ", ";
 		}
 		foreach (var param in m.get_parameters ()) {
-			string arg_name = param.name;
 			if (param.variable_type == null) continue; // XXX
 			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
-if (arg_type == null) arg_type = "pointer";
+			if (arg_type == null) arg_type = "pointer";
 			symbols += tab + "\"%s\"".printf (arg_type);
 			tab = ", ";
 		}
@@ -384,7 +376,6 @@ if (arg_type == null) arg_type = "pointer";
 				return;
 			}
 			arg_name = "_"+arg_name+"_";
-			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
 
 			string pfx;
 			if (first) {
