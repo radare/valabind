@@ -216,6 +216,10 @@ public class NodeFFIWriter : CodeVisitor {
 		string ctor_name = "";
 		string ctor_args = "";
 
+	/* avoid showing structs outside the namespace */
+	/* fixes a problem with dupped invalid definitions */
+		if (nspace == null)
+			return;
 		foreach (var m in c.get_methods ()) {
 			methods ++;
 			if (m is CreationMethod) {
