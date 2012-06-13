@@ -1,10 +1,11 @@
 # run make V= to get debug output
-VERSION=0.6.5
+VERSION=0.7
 CONTACT=pancake@nopcode.org
 PWD=$(shell pwd)
 CC?=gcc
 DESTDIR?=
 PREFIX?=/usr
+MANDIR?=${PREFIX}/share/man
 VALAC?=valac -g
 BIN=valabind
 FILES=main.vala config.vala valabindcompiler.vala nodeffiwriter.vala
@@ -48,18 +49,18 @@ c:
 
 install_dirs:
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	mkdir -p ${DESTDIR}${PREFIX}/share/man/man1
+	mkdir -p ${DESTDIR}${MANDIR}/man1
 
 install: install_dirs
-	cp ${BIN}.1 ${DESTDIR}${PREFIX}/share/man/man1
-	cp ${BIN}-cc.1 ${DESTDIR}${PREFIX}/share/man/man1
+	cp ${BIN}.1 ${DESTDIR}${MANDIR}/man1
+	cp ${BIN}-cc.1 ${DESTDIR}${MANDIR}/man1
 	cp ${BIN} ${DESTDIR}${PREFIX}/bin
 	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
 symstall: install_dirs
 	chmod +x ${PWD}/${BIN}-cc
-	ln -fs ${PWD}/${BIN}.1 ${DESTDIR}${PREFIX}/share/man/man1
-	ln -fs ${PWD}/${BIN}-cc.1 ${DESTDIR}${PREFIX}/share/man/man1
+	ln -fs ${PWD}/${BIN}.1 ${DESTDIR}${MANDIR}/man1
+	ln -fs ${PWD}/${BIN}-cc.1 ${DESTDIR}${MANDIR}/man1
 	ln -fs ${PWD}/${BIN} ${DESTDIR}${PREFIX}/bin
 	ln -fs ${PWD}/${BIN}-cc ${DESTDIR}${PREFIX}/bin
 
