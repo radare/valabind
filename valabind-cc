@@ -102,7 +102,7 @@ case "${LANG}" in
       fi
     done
     if [ -z "$PYCFG" ]; then
-      printf "No python-config found"
+      printf "No valid PYTHON_CONFIG command found"
       exit 1
     fi
     CFLAGS="${CFLAGS} `$PYCFG --cflags | sed -e 's,-arch .*,,g'`"
