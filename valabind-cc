@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyleft valabind 2009-2011, pancake at nopcode.org
+# Copyleft valabind 2009-2012, pancake at nopcode.org
 
 LANG=$1
 MOD=$2
@@ -79,8 +79,8 @@ esac
 [ -z "${CXX}" ] && CXX=g++
 
 case "${LANG}" in
-"node"|"node-ffi")
-  echo "using node-ffi"
+"nodejs"|"node"|"node-ffi")
+  node --version >/dev/null 2>&1 || exit 1
   ;;
 "guile")
   use_cxx
@@ -204,32 +204,39 @@ if [ "$CXXOUT" = 1 ]; then
 #  echo ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
 #  ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} > /dev/null 2>&1
 elif [ "$TEST" = 1 ]; then
-  DIR=`mktemp -d /tmp/tmp.XXXXXX`
-  if [ ! $? = 0 ]; then
-    echo "Cannot create temporary directory"
-    exit 1
-  fi
-  cd ${DIR}
-  MOD=test # hack to fix guile
-  echo "%module ${MOD}" > ${MOD}.i
-  eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
-  eval ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
-  if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
-  if [ -n "${QUITE}" ]; then
-    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
-  fi
-  eval ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
-  if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
-  rm -rf ${DIR}
-else
-  if [ "${NOGEN}" = 0 ]; then
-    echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
-    valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+case "${LANG}" in
+  "node"|"nodejs"|"node-ffi")
+    node --version > /dev/null 2>&1 
+    ;;
+  *)
+    DIR=`mktemp -d /tmp/tmp.XXXXXX`
+    if [ ! $? = 0 ]; then
+      echo "Cannot create temporary directory"
+      exit 1
+    fi
+    cd ${DIR}
+    MOD=test # hack to fix guile
+    echo "%module ${MOD}" > ${MOD}.i
     eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
-    ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+    eval ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
+    if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
+    if [ -n "${QUITE}" ]; then
+      echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
+    fi
+    eval ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
+    if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
+    rm -rf ${DIR}
+  else
+    if [ "${NOGEN}" = 0 ]; then
+      echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+      valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+      eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
+      ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+    fi
+    if [ -n "${COMPILE}" ]; then
+      echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
+      ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
+    fi
   fi
-  if [ -n "${COMPILE}" ]; then
-    echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
-    ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
-  fi
-fi
+  ;;
+esac

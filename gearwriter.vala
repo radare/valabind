@@ -1,4 +1,4 @@
-/* Copyleft 2009-2011 -- eddyb */
+/* Copyleft 2009-2012 -- eddyb */
 
 using Vala;
 

@@ -1,4 +1,4 @@
-/* Copyleft 2009-2011 -- pancake // nopcode.org */
+/* Copyleft 2009-2012 -- pancake // nopcode.org */
 
 static string[] files;
 static string includefile;
@@ -121,7 +121,9 @@ int main (string[] args) {
 			nodeoutput?"js":
 			gearoutput?"gear":
 			cxxoutput?"cxx": "i");
-	if (nodeoutput) vbc.emit_node (output, show_externs, glibmode, cxxmode, includefile);
+	if (nodeoutput) {
+vbc.emit_node (output, show_externs, glibmode, cxxmode, includefile);
+}
 	else if (gearoutput) vbc.emit_gear (output, show_externs, glibmode, cxxmode, includefile);
 	else if (giroutput) vbc.emit_gir (output, show_externs, glibmode, cxxmode, includefile);
 	else if (cxxoutput) vbc.emit_cxx (output, show_externs, glibmode, cxxmode, includefile);

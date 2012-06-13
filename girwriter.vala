@@ -1,4 +1,4 @@
-/* Copyleft 2011 -- pancake // nopcode.org */
+/* Copyleft 2011-2012 -- pancake // nopcode.org */
 
 using Vala;
 
@@ -82,7 +82,7 @@ public class GirWriter : CodeVisitor {
 			iter_type = iter_type.replace (nspace, "");
 			type = type.split ("<", 2)[0];
 		}
-		type = type.replace ("?","");
+		type = type.replace ("?", "");
 
 		switch (type) {
 		case "const gchar*":

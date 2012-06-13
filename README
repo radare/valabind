@@ -2,7 +2,7 @@ Valabind
 ========
 
 Valabind is a tool to parse vala[1] or vapi files to transform
-them into swig[2] interface files, C++ source files, GIR or GEAR[3].
+them into swig[2] interface files, C++, NodeJS-ffi, GIR or GEAR[3].
 
 With swig, you can create language bindings for any API
 written in vala or C with a vapi interface.
