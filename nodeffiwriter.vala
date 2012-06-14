@@ -77,7 +77,7 @@ public class NodeFFIWriter : CodeVisitor {
 		if(type == null)
 			return "a."+value;
 		string stype = type[type.index_of(".")+1:type.length].replace(".", "");
-		return "new obj.%s (a.%s)".printf (stype, value);
+		return "obj.type.%s (a.%s)".printf (stype, value);
 	}
 
 	private string get_typeToC(DataType ?_type, string value) {
@@ -482,8 +482,11 @@ public class NodeFFIWriter : CodeVisitor {
 		stream.printf ("});\n");
 	
 		stream.printf ("var obj = {\n");
+
+		stream.printf ("type: {\n");
 		stream.printf ("%s\n", enums);
 		stream.printf ("%s\n", structs);
+		stream.printf ("}\n");
 		stream.printf ("%s\n", exports);
 		stream.printf ("}\n");
 		stream.printf ("module.exports = obj;\n");
