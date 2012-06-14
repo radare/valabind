@@ -89,6 +89,7 @@ case "${LANG}" in
   ;;
 "python")
   use_cxx
+  LDFLAGS="-L/usr/local/lib -L/usr/pkg/lib"
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
@@ -185,14 +186,6 @@ done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
 
-case "${LANG}" in
-"node"|"node-ffi")
-  echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
-  valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
-  exit $?
-  ;;
-esac
-
 if [ "$CXXOUT" = 1 ]; then
   echo valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
   valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.cxx -m ${MOD} ${FILES} || exit 1
@@ -204,9 +197,9 @@ if [ "$CXXOUT" = 1 ]; then
 #  echo ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
 #  ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} > /dev/null 2>&1
 elif [ "$TEST" = 1 ]; then
-case "${LANG}" in
-  "node"|"nodejs"|"node-ffi")
-    node --version > /dev/null 2>&1 
+  case "${LANG}" in
+  "nodejs"|"node"|"node-ffi")
+    exec node --version > /dev/null 2>&1
     ;;
   *)
     DIR=`mktemp -d /tmp/tmp.XXXXXX`
@@ -220,15 +213,20 @@ case "${LANG}" in
     eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
     eval ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
     if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
-    if [ -n "${QUITE}" ]; then
-      echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} 
-    fi
+    eval echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
     eval ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
     if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
     rm -rf ${DIR}
     ;;
-esac
-  else
+  esac
+else
+  case "${LANG}" in
+  "nodejs"|"node"|"node-ffi")
+    eval echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
+    eval valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
+    exit $?
+    ;;
+  *)
     if [ "${NOGEN}" = 0 ]; then
       echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
       valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
@@ -236,7 +234,8 @@ esac
       ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
     fi
     if [ -n "${COMPILE}" ]; then
-      echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
+      eval echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
       ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
     fi
-  fi
+  esac
+fi
