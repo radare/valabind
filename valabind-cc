@@ -226,6 +226,8 @@ case "${LANG}" in
     eval ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
     if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
     rm -rf ${DIR}
+    ;;
+esac
   else
     if [ "${NOGEN}" = 0 ]; then
       echo valabind ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
@@ -238,5 +240,3 @@ case "${LANG}" in
       ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
     fi
   fi
-  ;;
-esac
