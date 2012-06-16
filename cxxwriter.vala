@@ -37,6 +37,14 @@ public class CxxWriter : CodeVisitor {
 	private string get_alias (string name) {
 		string oname = name;
 		switch (name) {
+		case "not_eq":
+		case "or_eq":
+		case "xor_eq":
+		case "and_eq":
+		case "or":
+		case "xor":
+		case "not":
+		case "and":
 		case "break":
 		case "while":
 		case "print":
