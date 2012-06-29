@@ -1,78 +1,77 @@
-# run make V= to get debug output
 VERSION=0.7.0
 CONTACT=pancake@nopcode.org
-PWD=$(shell pwd)
-CC?=gcc
+PWD:=$(shell pwd)
 DESTDIR?=
 PREFIX?=/usr
-MANDIR?=${PREFIX}/share/man
+MANDIR?=$(PREFIX)/share/man
 VALAC?=valac -g
-BIN=valabind
-FILES=main.vala config.vala valabindcompiler.vala nodeffiwriter.vala
-FILES+=girwriter.vala swigwriter.vala cxxwriter.vala gearwriter.vala
 RTLIBS=gobject-2.0 glib-2.0
-VALAPKG=`./getvv`
-OBJS=$(subst .vala,.o,${FILES})
-CFILES=$(subst .vala,.c,${FILES})
+VALAPKG:=$(shell ./getvv)
+CC?=gcc
 CFLAGS?=-g
-V=@
+CFLAGS+=$(shell pkg-config --cflags $(RTLIBS) $(VALAPKG))
+LNFLAGS?=
+LNFLAGS+=$(shell pkg-config --libs $(RTLIBS) $(VALAPKG))
+BUILD?=build
+BIN=valabind
+FILES=config.vala main.vala valabindwriter.vala nodeffiwriter.vala girwriter.vala swigwriter.vala cxxwriter.vala
+VAPIS:=$(patsubst %.vala,$(BUILD)/%.vapi,$(FILES))
+CFILES:=$(patsubst %.vala,$(BUILD)/%.c,$(FILES))
+OBJS:=$(patsubst %.vala,$(BUILD)/%.o,$(FILES))
 
-all: config.vala ${BIN}
+all: $(BIN)
 
-${BIN}: $(OBJS)
-	@echo LN $(BIN)
-	$(V)$(CC) -o $(BIN) $(OBJS) $$(pkg-config --libs ${RTLIBS} ${VALAPKG})
+$(BIN): $(OBJS)
+	@echo 'Linking $^ -> $@'
+	@$(CC) -o $@ $(LNFLAGS) $^
 
 config.vala:
-	@echo "mkconfig config.vala"
-	@echo "const string version_string = \"${BIN} ${VERSION} - ${CONTACT}\";" > config.vala
+	@echo 'Generating $@'
+	@echo 'const string version_string = "$(BIN) $(VERSION) - $(CONTACT)";' > $@
 
-$(CFILES): $(FILES)
-	@for a in $(FILES) ; do \
-	   c=`echo $$a|sed -e s,.vala,.c,`; \
-	   if [ ! -f $$c -o $$a -nt $$c ]; then \
-	     $(MAKE) clean ; $(MAKE) c || exit 1 ; fi ; done
+%.o: %.c
+	@echo 'Compiling $^ -> $@'
+	@$(CC) -c -o $@ $(CFLAGS) $^
 
-$(OBJS): $(CFILES)
-	@echo Using $(VALAPKG)
-	@echo CC $(CFILES)
-	$(V)$(CC) -c $$(pkg-config --cflags ${RTLIBS} ${VALAPKG}) $(CFILES)
+.PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
+$(BUILD)/%.c: %.vala $(VAPIS)
+	@echo 'Compiling $< -> $@'
+	@$(VALAC) -C --pkg posix --pkg $(VALAPKG) $(addprefix --use-fast-vapi=,$(subst $(patsubst %.vala,$(BUILD)/%.vapi,$<),,$(VAPIS))) $<
+	@mv $(patsubst $(BUILD)/%.c,%.c,$@) $@
 
-a:
-	@echo VALAPKG=$(VALAPKG)
-	@echo ${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
-	@${VALAC} -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
+$(BUILD)/%.vapi: %.vala | $(BUILD)
+	@echo 'Generating $< -> $@'
+	@$(VALAC) --fast-vapi=$@ $<
 
-c:
-	@echo VALAC $(FILES)
-	$(V)${VALAC} -C -g --pkg posix --pkg ${VALAPKG} ${FILES} -o ${BIN}
+$(BUILD):
+	mkdir -p $@
 
 install_dirs:
-	mkdir -p ${DESTDIR}${PREFIX}/bin
-	mkdir -p ${DESTDIR}${MANDIR}/man1
+	mkdir -p $(DESTDIR)$(PREFIX)/bin
+	mkdir -p $(DESTDIR)$(MANDIR)/man1
 
 install: install_dirs
-	cp ${BIN}.1 ${DESTDIR}${MANDIR}/man1
-	cp ${BIN}-cc.1 ${DESTDIR}${MANDIR}/man1
-	cp ${BIN} ${DESTDIR}${PREFIX}/bin
-	cp ${BIN}-cc ${DESTDIR}${PREFIX}/bin
+	cp $(BIN).1 $(DESTDIR)$(MANDIR)/man1
+	cp $(BIN)-cc.1 $(DESTDIR)$(MANDIR)/man1
+	cp $(BIN) $(DESTDIR)$(PREFIX)/bin
+	cp $(BIN)-cc $(DESTDIR)$(PREFIX)/bin
 
 symstall: install_dirs
-	chmod +x ${PWD}/${BIN}-cc
-	ln -fs ${PWD}/${BIN}.1 ${DESTDIR}${MANDIR}/man1
-	ln -fs ${PWD}/${BIN}-cc.1 ${DESTDIR}${MANDIR}/man1
-	ln -fs ${PWD}/${BIN} ${DESTDIR}${PREFIX}/bin
-	ln -fs ${PWD}/${BIN}-cc ${DESTDIR}${PREFIX}/bin
+	chmod +x $(PWD)/$(BIN)-cc
+	ln -fs $(PWD)/$(BIN).1 $(DESTDIR)$(MANDIR)/man1
+	ln -fs $(PWD)/$(BIN)-cc.1 $(DESTDIR)$(MANDIR)/man1
+	ln -fs $(PWD)/$(BIN) $(DESTDIR)$(PREFIX)/bin
+	ln -fs $(PWD)/$(BIN)-cc $(DESTDIR)$(PREFIX)/bin
 
 dist:
-	rm -rf valabind-${VERSION}
-	hg clone . valabind-${VERSION}
-	cd valabind-${VERSION} && $(MAKE) config.vala #c
-	rm -rf valabind-${VERSION}/.hg
-	tar czvf valabind-${VERSION}.tar.gz valabind-${VERSION}
+	rm -rf valabind-$(VERSION)
+	hg clone . valabind-$(VERSION)
+	cd valabind-$(VERSION) && $(MAKE) config.vala #c
+	rm -rf valabind-$(VERSION)/.hg
+	tar czvf valabind-$(VERSION).tar.gz valabind-$(VERSION)
 
 clean:
-	rm -f valabind *.o *.c
+	rm -rf $(BUILD) $(BIN)
 
 mrproper: clean
 	rm -f config.vala
@@ -80,7 +79,7 @@ mrproper: clean
 deinstall: uninstall
 
 uninstall:
-	-rm ${DESTDIR}${PREFIX}/bin/${BIN}
-	-rm ${DESTDIR}${PREFIX}/bin/${BIN}-cc
+	-rm $(DESTDIR)$(PREFIX)/bin/$(BIN)
+	-rm $(DESTDIR)$(PREFIX)/bin/$(BIN)-cc
 
-.PHONY: all clean dist install symstall uninstall deinstall mrproper c a
+.PHONY: all clean dist install symstall uninstall deinstall mrproper
