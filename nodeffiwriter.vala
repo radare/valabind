@@ -69,30 +69,30 @@ public class NodeFFIWriter : CodeVisitor {
 			return "throw TypeError('Unresolved type')";
 		}
 		if (type is EnumValueType)
-			return "types.int";
+			return "_.int";
 		
 		if (type is GenericType)
-			return "$"+type.to_qualified_string ();
+			return type.to_qualified_string ();
 		
 		if (type is DelegateType)
-			return "ptrT(types.void)/*FIXME Delegate*/";
+			return "_.ptr(_.void)/*FIXME Delegate*/";
 		
 		if (type is PointerType)
-			return "ptrT("+type_name ((type as PointerType).base_type, true)+")";
+			return "_.ptr("+type_name ((type as PointerType).base_type, true)+")";
 		
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type);
 			if (!array.fixed_length)
-				return "ptrT("+element+")";
-			return "arrT("+element+", %d)".printf (array.length);
+				return "_.ptr("+element+")";
+			return "_.array("+element+", %d)".printf (array.length);
 		}
 		
 		if (!ignoreRef && (type is ReferenceType)) {
 			string unref_type = type_name (type, true);
-			if (unref_type == "types.CString") // HACK just check for GLib.string instead (how?)
+			if (unref_type == "_.CString") // HACK just check for GLib.string instead (how?)
 				return unref_type;
-			return "refT("+unref_type+")";
+			return "_.ref("+unref_type+")";
 		}
 		string generic = "";
 		foreach (DataType t in type.get_type_arguments ()) {
@@ -113,44 +113,44 @@ public class NodeFFIWriter : CodeVisitor {
 		switch (_type) {
 			case "gconstpointer":
 			case "gpointer":
-				return "ptrT(types.void)";
+				return "_.ptr(_.void)";
 			case "gboolean":
-				return "types.bool";
+				return "_.bool";
 			case "gchar":
-				return "types.char";
+				return "_.char";
 			case "gint":
-				return "types.int";
+				return "_.int";
 			case "guint":
 			case "unsigned int":
-				return "types.uint";
+				return "_.uint";
 			case "glong":
-				return "types.long";
+				return "_.long";
 			case "ut8":
 			case "guint8":
-				return "types.uint8";
+				return "_.uint8";
 			case "ut16":
 			case "guint16":
-				return "types.uint16";
+				return "_.uint16";
 			case "st32":
 			case "gint32":
-				return "types.int32";
+				return "_.int32";
 			case "ut32":
 			case "guint32":
-				return "types.uint32";
+				return "_.uint32";
 			case "st64":
 			case "gint64":
-				return "types.int64";
+				return "_.int64";
 			case "ut64":
 			case "guint64":
-				return "types.uint64";
+				return "_.uint64";
 			case "gfloat":
-				return "types.float";
+				return "_.float";
 			case "gdouble":
-				return "types.double";
+				return "_.double";
 			case "string":
-				return "types.CString";
+				return "_.CString";
 		}
-		_type = "types."+_type;
+		_type = "_."+_type;
 		if (generic != "")
 			_type += "("+generic+")";
 		return _type;
@@ -218,7 +218,7 @@ public class NodeFFIWriter : CodeVisitor {
 		
 		bind += (bind == "" ? "" : ",\n")+"\t%s: function(".printf (name);
 		foreach (TypeParameter t in c.get_type_parameters ())
-			bind += (bind[bind.length-1] == '(' ? "" : ", ")+"$"+t.name;
+			bind += (bind[bind.length-1] == '(' ? "" : ", ")+t.name;
 		bind += ") {return [{";
 		
 		foreach (Field f in c.get_fields ())
@@ -231,7 +231,7 @@ public class NodeFFIWriter : CodeVisitor {
 		
 		string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 		if (freefun != null && freefun != "")
-			bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\tdelete: ['%s', types.void, [refT(types.%s)]]".printf (freefun, name);
+			bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\tdelete: ['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
 		else if (has_ctor)
 			bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\tdelete: defaults.dtor";
 		
@@ -351,17 +351,22 @@ public class NodeFFIWriter : CodeVisitor {
 
 var ffi = require('ffi'), ref = require('ref'), Struct = require('ref-struct');
 var lib = new ffi.DynamicLibrary('lib"+modulename+"'+ffi.LIB_EXT);
-var types = {};
 
-for(var i in ffi.types)
-	types[i] = ffi.types[i];
+function Tname(T) {
+	return T.hasOwnProperty('$name') ? T.$name : T.name;
+}
+
+var types = exports.type = {};
+
+for(var i in ref.types)
+	types[i] = ref.types[i];
 
 // HACK ref forward-compatibility
 types.CString = types.CString || types.Utf8String;
 
-function staticCString(N) {
+types.staticCString = function staticCString(N) {
 	var r = Object.create(types.char);
-	r.name = r.$name = 'char['+N+']';
+	r.name = 'char['+N+']';
 	r.size *= N;
 	r.get = function get(buf, offset) {
 		if(buf.isNull())
@@ -374,29 +379,26 @@ function staticCString(N) {
 		return buf.writeCString(val, offset);
 	};
 	return r;
-}
+};
 
-function Tname(T) {
-	return T.$name || T.name;
-}
-
-function ptrT(T) {
+var ptrCache = [], ptrCacheTo = [];
+types.ptr = function PointerType(T) {
 	T = ref.coerceType(T);
 	if(T == types.char)
 		return types.CString;
-	var i = ptrT.cache.indexOf(T), n;
-	return i === -1 ? (n = Tname(T), T = ptrT.cacheTo[ptrT.cache.push(T)-1] = ref.refType(T), T.name = T.$name = n+'*', T) : ptrT.cacheTo[i];
-}
-ptrT.cache = [], ptrT.cacheTo = [];
+	var i = ptrCache.indexOf(T);
+	return i === -1 ? ptrCacheTo[ptrCache.push(T)-1] = ref.refType(T) : ptrCacheTo[i];
+};
 
-function refT(T) {
+var refCache = [], refCacheTo = [];
+types.ref = function ReferenceType(T) {
 	T = ref.coerceType(T);
-	var i = refT.cache.indexOf(T);
+	var i = refCache.indexOf(T);
 	if(i !== -1)
-		return refT.cacheTo[i];
-	var p = ptrT(T), r = refT.cacheTo[refT.cache.push(T)-1] = Object.create(p);
+		return refCacheTo[i];
+	var p = types.ptr(T), r = refCacheTo[refCache.push(T)-1] = Object.create(p);
 	r.indirection = 1;
-	r.name = r.$name = Tname(T)+'&';
+	r.name = Tname(T)+'&';
 	r.ffi_type = ffi.FFI_TYPES.pointer;
 	r.get = function get(buf, offset) {
 		buf = ref.get(buf, offset, p);
@@ -408,16 +410,15 @@ function refT(T) {
 		return ref.set(buf, offset, ref.ref(val), p);
 	};
 	return r;
-}
-refT.cache = [], refT.cacheTo = [];
+};
 
-function arrT(T, N) {
+types.array = function ArrayType(T, N) {
 	T = ref.coerceType(T);
 	if(T == types.char)
-		return staticCString(N);
+		return types.staticCString(N);
 	var r = Object.create(T);
 	r.size *= N;
-	r.name = r.$name = Tname(T)+'['+N+']';
+	r.name = Tname(T)+'['+N+']';
 	function ArrayType(pointer, base) {
 		this._pointer = pointer;
 		this._base = base;
@@ -444,7 +445,7 @@ function arrT(T, N) {
 		}
 	};
 	return r;
-}
+};
 
 var defaults = {
 	dtor: function dtor() {
@@ -464,7 +465,7 @@ function bindings(s) {
 		var f = (more == 'variadic' ? ffi.VariadicForeignFunction : ffi.ForeignFunction)(lib.get(name), ret, args);
 		if(static)
 			return f;
-		// HACK refT#set doesn't trigger by itself.
+		// HACK types.ref(T)#set doesn't trigger by itself, as a return type.
 		if(args[0] && args[0].ffi_type === ffi.FFI_TYPES.pointer)
 			return function() {
 				[].unshift.call(arguments, this._pointer);
@@ -558,6 +559,7 @@ function bindings(s) {
 		}
 	}
 }
+var _ = types;
 bindings({\n"+bind+"\n});\n"
 		).replace("\t", "    "));
 		//END Output
