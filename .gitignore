@@ -1,0 +1,4 @@
+config.vala
+*.c
+*.o
+valabind
