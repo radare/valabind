@@ -2,40 +2,53 @@
 
 using Vala;
 
-public class NodeFFIWriter : CodeVisitor {
-	public bool pkgmode;
-	public string pkgname;
-	public string[] files;
-	private string bind;
-	private string modulename;
-	public GLib.List<string> includefiles;
-	private Namespace nspace;
-	private string ?nspace_pfx;
+public class NodeFFIWriter : ValabindWriter {
+	string bind = "";
+	string ?ns_pfx;
+	GLib.List<string> includefiles = new GLib.List<string> ();
 
-	public NodeFFIWriter (string name) {
-		bind = "";
-		modulename = name;
-		includefiles = new GLib.List<string> ();
+	public NodeFFIWriter () {
 	}
 	
-	private bool use_namespace (Namespace ns) {
-		// FIXME implement cmd args to select namespace
-		return ns.get_full_name () == "Radare";
+	public override string get_filename (string base_name) {
+		return base_name+".js";
 	}
 
-	private string get_alias (string name) {
+	public void add_includes (Symbol s) {
+		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+			bool include = true;
+			foreach (string j in includefiles) {
+				if (i == j) {
+					include = false;
+					break;
+				}
+			}
+			if (include)
+				includefiles.prepend (i);
+		}
+	}
+	
+	string sep (string str, string separator) {
+		if(str.length == 0)
+			return str;
+		char last = str[str.length-1];
+		if(last != '(' && last != '[' && last != '{')
+			return str+separator;
+		return str;
+	}
+
+	string get_alias (string name) {
 		switch (name) {
 			case "delete":
-				return "_delete";
 			case "continue":
-				return "_continue";
+				return "_"+name;
 		}
 		return name;
 	}
 
-	private string type_name (DataType type, bool ignoreRef=false) {
+	string type_name (DataType type, bool ignoreRef=false) {
 		if (type == null) {
-			ValabindCompiler.warning ("Cannot resolve type");
+			warning ("Cannot resolve type");
 			return "throw TypeError('Unresolved type')";
 		}
 		if (type is EnumValueType)
@@ -48,7 +61,7 @@ public class NodeFFIWriter : CodeVisitor {
 			DelegateType _delegate = type as DelegateType;
 			string ret = type_name (_delegate.get_return_type ()), args = "";
 			foreach (var param in _delegate.get_parameters ())
-				args += (args == "" ? "" : ", ")+type_name (param.variable_type);
+				args = sep (args, ", ")+type_name (param.variable_type);
 			return "_.delegate(%s, [%s])".printf (ret, args);
 		}
 		
@@ -80,7 +93,7 @@ public class NodeFFIWriter : CodeVisitor {
 		// HACK find a better way to remove generic type args
 		_type = _type.split ("<", 2)[0];
 		
-		_type = _type.replace (nspace_pfx, "").replace (".", "");
+		_type = _type.replace (ns_pfx, "").replace (".", "");
 		_type = _type.replace ("?","").replace (" *", "*");
 		_type = _type.replace("unsigned ", "u");
 
@@ -128,59 +141,40 @@ public class NodeFFIWriter : CodeVisitor {
 			_type += "("+generic+")";
 		return _type;
 	}
-
-	public void add_includes (Symbol s) {
-		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
-			bool include = true;
-			foreach (string j in includefiles) {
-				if (i == j) {
-					include = false;
-					break;
-				}
-			}
-			if (include)
-				includefiles.prepend (i);
-		}
-	}
 	
 	public override void visit_enum (Enum e) {
-		if (nspace == null) return;
-		
-		//ValabindCompiler.warning ("> enum "+e.name);
 		add_includes (e);
 		
+		notice (">\x1b[1menum\x1b[0m "+e.get_full_name ());
+		
 		foreach (var v in e.get_values ())
-			bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\t$%s: /*FIXME %s*/0".printf (v.name, CCodeBaseModule.get_ccode_name (v));
+			bind = sep (bind, ",")+"\n\t\t$%s: /*%s*/0".printf (v.name, CCodeBaseModule.get_ccode_name (v));
 	}
 	
 	public override void visit_struct (Struct s) {
-		if (nspace == null) return;
-		
-		ValabindCompiler.warning ("> struct "+s.get_full_name ());
-		string name = s.get_full_name ().replace (nspace_pfx, "").replace (".", "");
-		
 		add_includes (s);
 		
-		bind += (bind == "" ? "" : ",\n")+"\t%s: function() {return [{".printf (name);
+		notice (">\x1b[1mstruct\x1b[0m "+s.get_full_name ());
+		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
+		
+		bind = sep (bind, ",\n")+"\t%s: function() {return [{".printf (name);
 		
 		foreach (Field f in s.get_fields ())
-			visit_field (f);
+			f.accept (this);
 		
-		bind += (bind[bind.length-1] == '{' ? "" : "\n\t")+"}, {";
+		bind = sep (bind, "\n\t")+"}, {";
 			
 		foreach (Method m in s.get_methods ())
-			visit_method (m);
+			m.accept (this);
 		
-		bind += (bind[bind.length-1] == '{' ? "" : "\n\t")+"}];}";
+		bind = sep (bind, "\n\t")+"}];}";
 	}
 	
 	public override void visit_class (Class c) {
-		if (nspace == null) return;
-		
-		ValabindCompiler.warning ("> class "+c.get_full_name ());
-		string name = c.get_full_name ().replace (nspace_pfx, "").replace (".", "");
-		
 		add_includes (c);
+		
+		notice (">\x1b[1mclass\x1b[0m "+c.get_full_name ());
+		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
 		
 		bool has_ctor = false;
 		foreach (Method m in c.get_methods ())
@@ -189,51 +183,48 @@ public class NodeFFIWriter : CodeVisitor {
 				break;
 			}
 		
-		bind += (bind == "" ? "" : ",\n")+"\t%s: function(".printf (name);
+		bind = sep (bind, ",\n")+"\t%s: function(".printf (name);
 		foreach (TypeParameter t in c.get_type_parameters ())
-			bind += (bind[bind.length-1] == '(' ? "" : ", ")+t.name;
+			bind = sep (bind, ", ")+t.name;
 		bind += ") {return [{";
 		
 		foreach (Field f in c.get_fields ())
-			visit_field (f);
+			f.accept (this);
 		
-		bind += (bind[bind.length-1] == '{' ? "" : "\n\t")+"}, {";
+		bind = sep (bind, "\n\t")+"}, {";
 
 		foreach (Enum e in c.get_enums ())
-			visit_enum (e);
+			e.accept (this);
 		
 		string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
-		if (freefun != null && freefun != "")
-			bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\tdelete: ['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
-		else if (has_ctor)
-			bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\tdelete: defaults.dtor";
+		freefun = freefun == null || freefun == "" ? null : "['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
+		if (freefun != null || has_ctor)
+			bind = sep (bind, ",")+"\n\t\tdelete: "+(freefun != null ? freefun : "defaults.dtor");
 		
+		// BUG if m.accept (this) is used, it skips the constructor
 		foreach (Method m in c.get_methods ())
 			visit_method (m);
 		
-		bind += (bind[bind.length-1] == '{' ? "" : "\n\t")+"}];}";
+		bind = sep (bind, "\n\t")+"}];}";
 		
 		foreach (Struct s in c.get_structs ())
-			visit_struct (s);
+			s.accept (this);
 		
 		foreach (Class k in c.get_classes ())
-			visit_class (k);
+			k.accept (this);
 	}
 	
 	public override void visit_field (Field f) {
-		if (nspace == null) return;
-		
-		bind += (bind[bind.length-1] == '{' ? "" : ",")+"\n\t\t%s: %s".printf (f.name, type_name (f.variable_type));
+		bind = sep (bind, ",")+"\n\t\t%s: %s".printf (f.name, type_name (f.variable_type));
 	}
 	
 	public override void visit_method (Method m) {
-		if (nspace == null) return;
-		
-		//ValabindCompiler.warning ("> method "+m.name);
 		if (m.is_private_symbol () || m.name == "cast")
 			return;
 
 		add_includes (m);
+		
+		//notice (">\x1b[1mmethod\x1b[0m "+m.get_full_name ());
 		string cname = CCodeBaseModule.get_ccode_name (m), alias = get_alias (m.name);
 		var parent = m.parent_symbol;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod), parent_is_class = parent is Class || parent is Struct;
@@ -257,15 +248,16 @@ public class NodeFFIWriter : CodeVisitor {
 		
 		bool variadic = false;
 		foreach (Vala.Parameter param in m.get_parameters ()) {
+			// HACK is this the right way to detect variadic functions?
 			if (param.ellipsis) {
 				variadic = true;
 				continue;
 			}
-			func += (func[func.length-1] == '[' ? "" : ", ")+type_name (param.variable_type);
+			func = sep (func, ", ")+type_name (param.variable_type);
 		}
 		func += variadic ? "], 'variadic']" : "]]";
 		
-		bind += (bind[bind.length-1] == '{' ? "" : ",")+func;
+		bind = sep (bind, ",")+func;
 		if (parent_is_class && alias == "iterator")
 			bind += ",\n\t\tforEach: defaults.forEach";
 	}
@@ -273,48 +265,46 @@ public class NodeFFIWriter : CodeVisitor {
 	public override void visit_namespace (Namespace ns) {
 		string name = ns.get_full_name ();
 		bool use = use_namespace (ns);
-		if (use) {
-			nspace = ns;
-			nspace_pfx = name+".";
-		}
-		if (nspace != null) {
-			ValabindCompiler.warning ("> ns "+name);
+		if (use)
+			ns_pfx = name+".";
+		if (ns_pfx != null) {
+			notice (">\x1b[1mns\x1b[0m "+name);
 			add_includes (ns);
 		}
 		
 		foreach (Namespace n in ns.get_namespaces ())
-			visit_namespace (n);
+			n.accept (this);
 		
-		if (nspace != null && nspace != ns) {
-			bind += (bind == "" ? "" : ",\n")+"\t%s: function() {return {".printf (name.replace (nspace_pfx, "").replace (".", ""));
+		if (ns_pfx != null) {
+			if (!use) {
+				bind = sep (bind, ",\n")+"\t%s: function() {return {".printf (name.replace (ns_pfx, "").replace (".", ""));
+			
+				foreach (Enum e in ns.get_enums ())
+					e.accept (this);
+				
+				foreach (Method m in ns.get_methods ())
+					m.accept (this);
+				
+				bind = sep (bind, "\n\t")+"};}";
+			}
 		
-			foreach (Enum e in ns.get_enums ())
-				visit_enum (e);
+			foreach (Struct s in ns.get_structs ())
+				s.accept (this);
 			
-			foreach (Method m in ns.get_methods ())
-				visit_method (m);
-			
-			bind += (bind[bind.length-1] == '{' ? "" : "\n\t")+"};}";
+			foreach (Class c in ns.get_classes ())
+				c.accept (this);
 		}
 		
-		foreach (Struct s in ns.get_structs ())
-			visit_struct (s);
-		
-		foreach (Class c in ns.get_classes ())
-			visit_class (c);
-		
-		//if (nspace != null)
-		//	ValabindCompiler.warning ("< ns "+name);
-		if (use) {
-			nspace = null;
-			nspace_pfx = null;
-		}
+		//if (ns_pfx != null)
+		//	notice ("<\x1b[1mns\x1b[0m "+name);
+		if (use)
+			ns_pfx = null;
 	}
 
-	public void write_file (CodeContext context, string filename) {
-		var stream = FileStream.open (filename, "w");
+	public override void write (string file) {
+		var stream = FileStream.open (file, "w");
 		if (stream == null)
-			error ("Cannot open %s for writing".printf (filename));
+			error ("Cannot open %s for writing".printf (file));
 		context.root.accept (this);
 		//BEGIN Output
 		stream.puts (("

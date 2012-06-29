@@ -2,39 +2,28 @@
 
 using Vala;
 
-public class SwigWriter : CodeVisitor {
-	public bool pkgmode;
-	public string pkgname;
-	public bool show_externs;
-	public bool glib_mode;
+public class SwigWriter : ValabindWriter {
 	public bool cxx_mode;
-	public string[] files;
-	public GLib.List<string> includefiles;
+	public GLib.List<string> includefiles = new GLib.List<string>();
 	public GLib.List<Method> methods;
-	private CodeContext context;
-	private FileStream? stream;
-	private string classname;
-	private string classcname;
-	private string externs;
-	private string statics;
-	private string extends;
-	private string enums;
-	private string vectors;
-	private string nspace;
-	private string modulename;
+	string classname = "";
+	string classcname;
+	string externs = "";
+	string statics = "";
+	string extends = "";
+	string enums = "";
+	string vectors = "";
+	string nspace;
 
-	public SwigWriter (string name) {
-		enums = "";
-		statics = "";
-		externs = "";
-		extends = "";
-		vectors = "";
-		classname = "";
-		this.modulename = name;
-		this.includefiles = new GLib.List<string>();
+	public SwigWriter (bool cxx_mode) {
+		this.cxx_mode = cxx_mode;
+	}
+	
+	public override string get_filename (string base_name) {
+		return base_name+".i";
 	}
 
-	private string get_alias (string name) {
+	string get_alias (string name) {
 		string oname = name;
 		switch (name) {
 /*
@@ -67,16 +56,16 @@ public class SwigWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			ValabindCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+			warning ("%s.%s method renamed to %s.%s".printf (
 				classname, oname, classname, name));
 		return name;
 	}
 
-	private string get_ctype (string _type) {
+	string get_ctype (string _type) {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
-			ValabindCompiler.error ("Cannot resolve type");
+			error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
@@ -158,8 +147,9 @@ public class SwigWriter : CodeVisitor {
 		return type;
 	}
 
-	private bool is_target_file (string path) {
-		foreach (var file in files)
+	bool is_target_file (string path) {
+		// FIXME implement the new method with use_namespace instead
+		foreach (var file in source_files)
 			if (file == path)
 				return true;
 		return false;
@@ -192,11 +182,10 @@ public class SwigWriter : CodeVisitor {
 
 	public void walk_field (Field f) {
 		if (f.get_ctype () == null) {
-			//ValabindCompiler.warning (
-			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
+			//warning ("Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		} else {
 			var cname = CCodeBaseModule.get_ccode_name (f);
-			ValabindCompiler.warning ("Type for "+cname+"\n");
+			warning ("Type for "+cname+"\n");
 		}
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
@@ -210,7 +199,7 @@ public class SwigWriter : CodeVisitor {
 		classname = pfx+c.name;
 		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
-		if (glib_mode) {
+		if (context.profile == Profile.GOBJECT) {
 			classname = "%s%s".printf (nspace, classname);
 			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
 		} else extends += "%%extend %s {\n".printf (classname);
@@ -229,7 +218,7 @@ public class SwigWriter : CodeVisitor {
 		}
 		foreach (var m in c.get_methods ())
 			walk_method (m);
-		if (glib_mode) extends += "};\n} %s;\n".printf (classname);
+		if (context.profile == Profile.GOBJECT) extends += "};\n} %s;\n".printf (classname);
 		else extends += "};\n";
 		classname = "";
 	}
@@ -250,7 +239,7 @@ public class SwigWriter : CodeVisitor {
 		enums = tmp + "%}\n"+enums;
 	}
 
-	private inline bool is_generic(string type) {
+	inline bool is_generic(string type) {
 		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
@@ -273,7 +262,7 @@ public class SwigWriter : CodeVisitor {
 		if (is_generic (ret)) ret = get_ctype (ret);
 		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
-			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
+			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
@@ -322,7 +311,7 @@ public class SwigWriter : CodeVisitor {
 				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				extends += applys;
 				extends += "  %s (%s) {\n".printf (classname, def_args);
-				if (glib_mode)
+				if (context.profile == Profile.GOBJECT)
 					extends += "    g_type_init ();\n";
 				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
 				extends += clears;
@@ -337,7 +326,7 @@ public class SwigWriter : CodeVisitor {
 				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 				extends += applys;
 				if (ret == "std::vector<string>") {
-					ValabindCompiler.warning ("std::vector<string> is not supported yet");
+					warning ("std::vector<string> is not supported yet");
 					return;
 				}
 				if (is_static)
@@ -353,7 +342,7 @@ public class SwigWriter : CodeVisitor {
 					// TODO: Do not construct a generic class if not supported
 					//       instead of failing.
 					if (iter_type == "G*") /* No generic */
-						ValabindCompiler.error ("Fuck, no <G> type support.\n");
+						error ("Fuck, no <G> type support.\n");
 					// TODO: Do not recheck the return_type
 					if (m.return_type.to_string ().index_of ("RFList") != -1) {
 						// HACK
@@ -425,11 +414,10 @@ public class SwigWriter : CodeVisitor {
 		//ns.accept_children (this);
 	}
 
-	public void write_file (CodeContext context, string filename) {
-		this.stream = FileStream.open (filename, "w");
-		if (this.stream == null)
-			error ("Cannot open %s for writing".printf (filename));
-		this.context = context;
+	public override void write (string file) {
+		var stream = FileStream.open (file, "w");
+		if (stream == null)
+			error ("Cannot open %s for writing".printf (file));
 		context.accept (this);
 		stream.printf ("%%module %s\n%%{\n", modulename);
 		if (!cxx_mode) {
@@ -460,7 +448,5 @@ public class SwigWriter : CodeVisitor {
 			stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
-
-		this.stream = null;
 	}
 }
