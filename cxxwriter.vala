@@ -2,39 +2,26 @@
 
 using Vala;
 
-public class CxxWriter : CodeVisitor {
-	public bool pkgmode;
-	public string pkgname;
-	public bool show_externs;
-	public bool glib_mode;
-	public bool cxx_mode;
-	public string[] files;
-	public GLib.List<string> includefiles;
+public class CxxWriter : ValabindWriter {
+	public GLib.List<string> includefiles = new GLib.List<string>();
 	public GLib.List<Method> methods;
-	private CodeContext context;
-	private FileStream? stream;
-	private string classname;
-	private string classcname;
-	private string externs;
-	private string statics;
-	private string extends;
-	private string enums;
-	private string vectors;
-	private string nspace;
-	private string modulename;
+	string classname = "";
+	string classcname;
+	string externs = "";
+	string statics = "";
+	string extends = "";
+	string enums = "";
+	string vectors = "";
+	string nspace;
 
-	public CxxWriter (string name) {
-		enums = "";
-		statics = "";
-		externs = "";
-		extends = "";
-		vectors = "";
-		classname = "";
-		this.modulename = name;
-		this.includefiles = new GLib.List<string>();
+	public CxxWriter () {
+	}
+	
+	public override string get_filename (string base_name) {
+		return base_name+".cxx";
 	}
 
-	private string get_alias (string name) {
+	string get_alias (string name) {
 		string oname = name;
 		switch (name) {
 		case "not_eq":
@@ -57,16 +44,16 @@ public class CxxWriter : CodeVisitor {
 			return "_"+name;
 		}
 		if (name != oname)
-			ValabindCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+			warning ("%s.%s method renamed to %s.%s".printf (
 				classname, oname, classname, name));
 		return name;
 	}
 
-	private string get_ctype (string _type) {
+	string get_ctype (string _type) {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
-			ValabindCompiler.error ("Cannot resolve type");
+			error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
@@ -142,11 +129,11 @@ public class CxxWriter : CodeVisitor {
 		return type;
 	}
 
-	private bool is_target_file (string path) {
-		foreach (var file in files) {
+	bool is_target_file (string path) {
+		// FIXME implement the new method with use_namespace instead
+		foreach (var file in source_files)
 			if (file == path)
 				return true;
-		}
 		return false;
 	}
 
@@ -171,10 +158,10 @@ public class CxxWriter : CodeVisitor {
 
 	public void walk_field (Field f) {
 		if (f.get_ctype () == null) {
-			//ValabindCompiler.warning (
+			//warning (
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		} else {
-			ValabindCompiler.warning ("Type for %s\n".printf (
+			warning ("Type for %s\n".printf (
 				CCodeBaseModule.get_ccode_name (f)));
 		}
 		//if (f.access == Accessibility.PRIVATE)
@@ -204,14 +191,14 @@ public class CxxWriter : CodeVisitor {
 		//stdout.printf ("class %s %s\n",
 		//	classname, c.is_compact.to_string () );
 
-		if (glib_mode)
+		if (context.profile == Profile.GOBJECT)
 			classname = "%s_%s".printf (nspace, classname);
 
 		if (defined_classes.lookup (classname))
 			return;
 		defined_classes.insert (classname, true);
 
-		if (glib_mode) extends += "class %s_%s {\n".printf (modulename, classcname);
+		if (context.profile == Profile.GOBJECT) extends += "class %s_%s {\n".printf (modulename, classcname);
 		else extends += "class %s_%s {\n".printf (modulename, classname);
 		//if (has_destructor && has_constructor)
 			extends += " %s *self;\n".printf (classname);
@@ -256,8 +243,8 @@ public class CxxWriter : CodeVisitor {
 #endif
 	}
 
-	private inline bool is_generic(string type) {
-		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
+	inline bool is_generic(string type) {
+		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
 	public void walk_method (Method m) {
@@ -278,7 +265,7 @@ public class CxxWriter : CodeVisitor {
 		ret = m.return_type.to_string ();
 		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
-			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
+			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
@@ -332,7 +319,7 @@ public class CxxWriter : CodeVisitor {
 			externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 			//extends += applys;
 			extends += "  %s_%s (%s) {\n".printf (modulename, classname, def_args);
-			if (glib_mode)
+			if (context.profile == Profile.GOBJECT)
 				extends += "    g_type_init ();\n";
 			extends += "    self = %s (%s);\n  }\n".printf (cname, call_args);
 			extends += clears;
@@ -344,7 +331,7 @@ public class CxxWriter : CodeVisitor {
 			if (is_static)
 				extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
 			else extends += "  %s %s (%s) {\n".printf (ret, alias, def_args);
-			if (cxx_mode && ret.index_of ("std::vector") != -1) {
+			if (ret.index_of ("std::vector") != -1) {
 				int ptr = ret.index_of ("<");
 				string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
 				iter_type = iter_type.replace ("<", "");
@@ -354,7 +341,7 @@ public class CxxWriter : CodeVisitor {
 				// TODO: Do not construct a generic class if not supported
 				//       instead of failing.
 				if (iter_type == "G*") /* No generic */
-					ValabindCompiler.error ("Fuck, no <G> type support.\n");
+					error ("Pancake's fault, no <G> type support.\n");
 				// TODO: Do not recheck the return_type
 				if (m.return_type.to_string ().index_of ("RFList") != -1) {
 					extends += "    %s ret;\n".printf (ret);
@@ -423,11 +410,10 @@ public class CxxWriter : CodeVisitor {
 		//ns.accept_children (this);
 	}
 
-	public void write_file (CodeContext context, string filename) {
-		this.stream = FileStream.open (filename, "w");
-		if (this.stream == null)
-			error ("Cannot open %s for writing".printf (filename));
-		this.context = context;
+	public override void write (string file) {
+		var stream = FileStream.open (file, "w");
+		if (stream == null)
+			error ("Cannot open %s for writing".printf (file));
 		context.accept (this);
 		if (includefiles.length () > 0) {
 			stream.printf ("extern \"C\" {\n");
@@ -438,19 +424,11 @@ public class CxxWriter : CodeVisitor {
 		foreach (var inc in includefiles)
 			stream.printf ("#include <%s>\n", inc);
 /*
-		if (cxx_mode) {
-			if (vectors != "")
-				stream.printf ("namespace std {\n%s}\n", vectors);
-		}
+		if (vectors != "")
+			stream.printf ("namespace std {\n%s}\n", vectors);
 */
 		stream.printf ("%s\n", enums);
-#if 0
-		if (show_externs)
-			stream.printf ("%s\n", externs);
-#endif
 		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
-
-		this.stream = null;
 	}
 }

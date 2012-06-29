@@ -2,39 +2,25 @@
 
 using Vala;
 
-public class GirWriter : CodeVisitor {
-	public bool pkgmode;
-	public string pkgname;
-	public bool show_externs;
-	public bool glib_mode;
-	public bool cxx_mode;
-	public string[] files;
-	public GLib.List<string> includefiles;
+public class GirWriter : ValabindWriter {
+	public GLib.List<string> includefiles = new GLib.List<string>();
 	public GLib.List<Method> methods;
-	private CodeContext context;
-	private FileStream? stream;
-	private string classname;
-	private string classcname;
-	private string externs;
-	private string statics;
-	private string extends;
-	private string enums;
-	private string vectors;
-	private string nspace;
-	private string modulename;
+	string classname = "";
+	string classcname;
+	string externs = "";
+	string statics = "";
+	string extends = "";
+	string enums = "";
+	string nspace;
 
-	public GirWriter (string name) {
-		enums = "";
-		statics = "";
-		externs = "";
-		extends = "";
-		vectors = "";
-		classname = "";
-		this.modulename = name;
-		this.includefiles = new GLib.List<string>();
+	public GirWriter () {
+	}
+	
+	public override string get_filename (string base_name) {
+		return base_name+".gir";
 	}
 
-	private string get_alias (string name) {
+	string get_alias (string name) {
 		string oname = name;
 		switch (name) {
 /*
@@ -61,16 +47,16 @@ public class GirWriter : CodeVisitor {
 			break;
 		}
 		if (name != oname)
-			ValabindCompiler.warning ("%s.%s method renamed to %s.%s".printf (
+			warning ("%s.%s method renamed to %s.%s".printf (
 				classname, oname, classname, name));
 		return name;
 	}
 
-	private string get_ctype (string _type) {
+	string get_ctype (string _type) {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
-			ValabindCompiler.error ("Cannot resolve type");
+			error ("Cannot resolve type");
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
@@ -147,7 +133,7 @@ public class GirWriter : CodeVisitor {
 		return type;
 	}
 
-	private static string girtype(string ret) {
+	static string girtype(string ret) {
 		switch (ret) {
 		case "int[]":
 			return "gpointer"; // XXX
@@ -185,8 +171,9 @@ public class GirWriter : CodeVisitor {
 		return ret;
 	}
 
-	private bool is_target_file (string path) {
-		foreach (var file in files)
+	bool is_target_file (string path) {
+		// FIXME implement the new method with use_namespace instead
+		foreach (var file in source_files)
 			if (file == path)
 				return true;
 		return false;
@@ -248,7 +235,7 @@ public class GirWriter : CodeVisitor {
 		classname = pfx+c.name;
 		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
-		if (glib_mode)
+		if (context.profile == Profile.GOBJECT)
 			classname = "%s%s".printf (nspace, classname);
 		externs += "  <record name=\""+classname+"\">\n"; // TODO: parent="" type-name="" get-type=""
 // TODO: print ("PARENT FOR "+classname+" IS: "+c.parent_node.type_name+"\n");
@@ -292,8 +279,8 @@ public class GirWriter : CodeVisitor {
 #endif
 	}
 
-	private inline bool is_generic(string type) {
-		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
+	inline bool is_generic(string type) {
+		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
 	public void walk_method (Method m) {
@@ -313,7 +300,7 @@ public class GirWriter : CodeVisitor {
 		if (is_generic (ret)) ret = get_ctype (vret);
 		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
-			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
+			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
 		if (m.is_private_symbol ())
@@ -386,11 +373,10 @@ public class GirWriter : CodeVisitor {
 //externs += "</namespace>\n";
 	}
 
-	public void write_file (CodeContext context, string filename) {
-		this.stream = FileStream.open (filename, "w");
-		if (this.stream == null)
-			error ("Cannot open %s for writing".printf (filename));
-		this.context = context;
+	public void write_file (string file) {
+		var stream = FileStream.open (file, "w");
+		if (stream == null)
+			error ("Cannot open %s for writing".printf (file));
 		context.accept (this);
 		stream.printf ("<?xml version=\"1.0\"?>\n");
 		stream.printf ("<!-- automatically generated with valabind -->\n");
@@ -412,7 +398,5 @@ public class GirWriter : CodeVisitor {
 
 		stream.printf ("  </namespace>\n");
 		stream.printf ("</repository>\n");
-
-		this.stream = null;
 	}
 }
