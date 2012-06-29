@@ -111,7 +111,7 @@ public class ValabindCompiler {
 				gir_writer.includefiles.append (include);
 			gir_writer.files = source_files;
 			gir_writer.write_file (context, file);
-		} else warning ("cannot create swig writer");
+		} else warning ("Cannot create gir writer");
 	}
 
 	public void emit_node (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
@@ -124,7 +124,7 @@ public class ValabindCompiler {
 				node_writer.includefiles.append (include);
 			node_writer.files = source_files;
 			node_writer.write_file (context, file);
-		} else warning ("cannot create swig writer");
+		} else warning ("Cannot create node-ffi writer");
 	}
 
 	public void emit_cxx (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
@@ -140,7 +140,7 @@ public class ValabindCompiler {
 				cxx_writer.includefiles.append (include);
 			cxx_writer.files = source_files;
 			cxx_writer.write_file (context, file);
-		} else warning ("cannot create swig writer");
+		} else warning ("Cannot create C++ writer");
 	}
 
 	public void emit_swig (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
@@ -156,7 +156,7 @@ public class ValabindCompiler {
 				swig_writer.includefiles.append (include);
 			swig_writer.files = source_files;
 			swig_writer.write_file (context, file);
-		} else warning ("cannot create swig writer");
+		} else warning ("Cannot create swig writer");
 	}
 
 	/* Ripped from Vala Compiler */
