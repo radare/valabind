@@ -71,7 +71,7 @@ dist:
 	tar czvf valabind-$(VERSION).tar.gz valabind-$(VERSION)
 
 clean:
-	rm -rf $(BUILD)
+	rm -rf $(BUILD) $(BIN)
 
 mrproper: clean
 	rm -f config.vala
