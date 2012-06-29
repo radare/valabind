@@ -33,36 +33,6 @@ public class NodeFFIWriter : CodeVisitor {
 		return name;
 	}
 
-	/*
-	private string get_typeFromC (DataType ?_type, string value) {
-		// TODO: DRY (don't repeat yourself) ret/args generation.
-		var _delegate = _type as DelegateType;
-		if (_delegate != null) {
-			var ret = type_name (_delegate.get_return_type ());
-			string args = "";
-			foreach (var param in _delegate.get_parameters ()) {
-				if (args != "") args += ", ";
-				args += type_name (param.variable_type);
-			}
-			return "ffi.ForeignFunction(%s, %s, [%s])".printf (value, ret, args);
-		}
-	}
-
-	private string get_typeToC (DataType ?type, string value) {
-		// TODO: DRY (don't repeat yourself) ret/args generation.
-		var _delegate = type as DelegateType;
-		if (_delegate != null) {
-			var ret = type_name (_delegate.get_return_type ());
-			
-			string args = "";
-			foreach (var param in _delegate.get_parameters ()) {
-				if (args != "") args += ", ";
-				args += type_name (param.variable_type);
-			}
-			return "ffi.Callback(%s, [%s], void(0), %s)".printf (ret, args, value);
-		}
-	}*/
-
 	private string type_name (DataType type, bool ignoreRef=false) {
 		if (type == null) {
 			ValabindCompiler.warning ("Cannot resolve type");
@@ -74,8 +44,13 @@ public class NodeFFIWriter : CodeVisitor {
 		if (type is GenericType)
 			return type.to_qualified_string ();
 		
-		if (type is DelegateType)
-			return "_.ptr(_.void)/*FIXME Delegate*/";
+		if (type is DelegateType) {
+			DelegateType _delegate = type as DelegateType;
+			string ret = type_name (_delegate.get_return_type ()), args = "";
+			foreach (var param in _delegate.get_parameters ())
+				args += (args == "" ? "" : ", ")+type_name (param.variable_type);
+			return "_.delegate(%s, [%s])".printf (ret, args);
+		}
 		
 		if (type is PointerType)
 			return "_.ptr("+type_name ((type as PointerType).base_type, true)+")";
@@ -90,7 +65,7 @@ public class NodeFFIWriter : CodeVisitor {
 		
 		if (!ignoreRef && (type is ReferenceType)) {
 			string unref_type = type_name (type, true);
-			if (unref_type == "_.CString") // HACK just check for GLib.string instead (how?)
+			if (unref_type == "_.CString") // HACK just check for the string class instead (how?)
 				return unref_type;
 			return "_.ref("+unref_type+")";
 		}
@@ -105,10 +80,9 @@ public class NodeFFIWriter : CodeVisitor {
 		// HACK find a better way to remove generic type args
 		_type = _type.split ("<", 2)[0];
 		
-		if (nspace_pfx != null)
-			_type = _type.replace (nspace_pfx, "");
-		
-		_type = _type.replace (".", "").replace ("?","").replace (" *", "*");
+		_type = _type.replace (nspace_pfx, "").replace (".", "");
+		_type = _type.replace ("?","").replace (" *", "*");
+		_type = _type.replace("unsigned ", "u");
 
 		switch (_type) {
 			case "gconstpointer":
@@ -121,7 +95,6 @@ public class NodeFFIWriter : CodeVisitor {
 			case "gint":
 				return "_.int";
 			case "guint":
-			case "unsigned int":
 				return "_.uint";
 			case "glong":
 				return "_.long";
@@ -245,8 +218,6 @@ public class NodeFFIWriter : CodeVisitor {
 		
 		foreach (Class k in c.get_classes ())
 			visit_class (k);
-		
-		//ValabindCompiler.warning ("< class "+c.name);
 	}
 	
 	public override void visit_field (Field f) {
@@ -332,8 +303,8 @@ public class NodeFFIWriter : CodeVisitor {
 		foreach (Class c in ns.get_classes ())
 			visit_class (c);
 		
-		if (nspace != null)
-			ValabindCompiler.warning ("< ns "+name);
+		//if (nspace != null)
+		//	ValabindCompiler.warning ("< ns "+name);
 		if (use) {
 			nspace = null;
 			nspace_pfx = null;
@@ -447,6 +418,22 @@ types.array = function ArrayType(T, N) {
 	return r;
 };
 
+types.delegate = function DelegateType(ret, args) {
+	var p = types.ptr(types.void), r = Object.create(p);
+	r.indirection = 1;
+	r.name = Tname(ret)+'('+args.map(function(T) {return Tname(T);}).join(', ')+')';
+	r.get = function get(buf, offset) {
+		buf = ref.get(buf, offset, p);
+		if(buf.isNull())
+			return null;
+		return ffi.ForeignFunction(buf, ret, args);
+	};
+	r.set = function set(buf, offset, val) {
+		return ref.set(buf, offset, ffi.Callback(ret, args, void(0), val));
+	};
+	return r;
+};
+
 var defaults = {
 	dtor: function dtor() {
 		this.free && this.free();
@@ -510,7 +497,7 @@ function bindings(s) {
 			
 			// Create the new generic.
 			var generic = cacheTo[cache.push(args)-1] = Struct(), g = G.apply(null, args);
-			generic.$name = n+'<'+args.map(function(T) {return T.name;}).join(', ')+'>';
+			generic.$name = n+'<'+args.map(function(T) {return Tname(T);}).join(', ')+'>';
 
 			// Define all the generic's propoerties.
 			for(var i in g[0])
