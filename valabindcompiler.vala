@@ -127,19 +127,6 @@ public class ValabindCompiler {
 		} else warning ("cannot create swig writer");
 	}
 
-	public void emit_gear (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
-		var gear_writer = new GearWriter (modulename);
-		if (gear_writer != null) {
-			/* TODO: why not just pass a ValabindCompiler reference to it? */
-			gear_writer.pkgmode = pkgmode;
-			gear_writer.pkgname = pkgname;
-			if (include != null)
-				gear_writer.includefiles.append (include);
-			gear_writer.files = source_files;
-			gear_writer.write_file (context, file);
-		} else warning ("cannot create swig writer");
-	}
-
 	public void emit_cxx (string file, bool show_externs, bool glibmode, bool cxxmode, string? include) {
 		var cxx_writer = new CxxWriter (modulename);
 		if (cxx_writer != null) {
