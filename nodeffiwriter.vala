@@ -10,9 +10,7 @@ public class NodeFFIWriter : CodeVisitor {
 	public GLib.List<Method> methods;
 	private CodeContext context;
 	private FileStream? stream;
-	private string symbols;
 	private string classname;
-	private string classcname;
 	private string structs;
 	private string structFields;
 	private string exports;
@@ -24,7 +22,6 @@ public class NodeFFIWriter : CodeVisitor {
 	public NodeFFIWriter (string name) {
 		enums = "";
 		exports = "";
-		symbols = "";
 		structs = "";
 		structFields = "";
 		vectors = "";
@@ -71,7 +68,7 @@ public class NodeFFIWriter : CodeVisitor {
 		return name;
 	}
 
-	private string? get_typeName(DataType ?_type) {
+	/*private string? get_typeName(DataType ?_type) {
 		if (_type == null || _type.data_type == null)
 			return null;
 		string type = _type.data_type.get_full_name ();
@@ -103,7 +100,7 @@ public class NodeFFIWriter : CodeVisitor {
 			return "ffi.ForeignFunction(%s, %s, [%s])".printf (value, ret, args);
 		}
 		string stype = type[type.index_of(".")+1:type.length].replace(".", "");
-		return "makeType('%s', %s)".printf (stype, value);
+		return "makeType(types.%s, %s)".printf (stype, value);
 	}
 
 	private string get_typeToC(DataType ?type, string value) {
@@ -128,7 +125,7 @@ public class NodeFFIWriter : CodeVisitor {
 			return "ffi.Callback(%s, [%s], void(0), %s)".printf (ret, args, value);
 		}
 		return value;
-	}
+	}*/
 
 	private string get_ctype (string _type) {
 		string? type = _type;
@@ -249,15 +246,15 @@ public class NodeFFIWriter : CodeVisitor {
 	}
 
 	public string walk_field (Field f) {
-		var type = get_ctype (CCodeBaseModule.get_ccode_name (f.variable_type));
-		string f_cname = CCodeBaseModule.get_ccode_name (f);
-		if (type == null || f_cname == "class" || classcname == null)
-			return "";
-		return "%s: %s".printf (f_cname, type);
+ 		var type = get_ctype (CCodeBaseModule.get_ccode_name (f.variable_type));
+ 		string f_cname = CCodeBaseModule.get_ccode_name (f);
+ 		if (type == null || f_cname == "class" || classname == "")
+ 			return "";
+ 		return "%s: %s".printf (f_cname, type);
 	}
 
 	public void walk_class (string pfx, Class c) {
-		ValabindCompiler.warning ("walking class "+c.name);
+		ValabindCompiler.warning ("> class "+c.name);
 		process_includes (c);
 		Method? ctor = null;
 		bool hasDtor = false;
@@ -275,51 +272,43 @@ public class NodeFFIWriter : CodeVisitor {
 		}
 		
 		classname = pfx+c.name;
-		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
 		structs += "types.%s = Struct();\n".printf (classname);
 		var fields = c.get_fields ();
-		if (fields.size > 0) {
-			if (structFields != "")
-				structFields += "\n";
-			structFields += "/* %s / %s */\n".printf (classname, classcname);
-			structFields += "fields(types.%s, {".printf (classname);
-			string tab = "\n\t";
-			foreach (var f in fields) {
-				string wf = walk_field (f);
-				if (wf == "") continue;
-				structFields += tab+wf;
-				if (tab == "\n\t") tab = ",\n\t";
-			}
-			structFields += "\n});\n";
+		if (structFields != "")
+			structFields += "\n";
+		structFields += "/* %s */\n".printf (classname);
+		structFields += "struct(types.%s, {".printf (classname);
+		string tab = "\n\t";
+		foreach (Field f in fields) {
+			string wf = walk_field (f);
+			if (wf == "") continue;
+			structFields += tab+wf;
+			if (tab == "\n\t") tab = ",\n\t";
 		}
+		structFields += "\n});\n";
 		
 		if (exports != "")
 			exports += "\n";
-		exports += "/* %s / %s */\n".printf (classname, classcname);
+		exports += "/* %s */\n".printf (classname);
 		if (ctor != null)
 			walk_method (ctor, !hasNonStatic);
 		else
-			exports += "exports.%s = function %s() {\n\ttypes.%s.call(this);\n};\n".printf (classname, classname, classname);
-		exports += "\nexports.%s.prototype = new types.%s;\n".printf (classname, classname);
-		exports += "delete exports.%s.prototype._pointer;\n\n".printf (classname);
+			exports += "exports.%s = function %s() {\n\treturn new types.%s;\n};\n".printf (classname, classname, classname);
 
 		foreach (var e in c.get_enums ())
 			walk_enum (e);
 		if (hasNonStatic) {
 			string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 			if (freefun != null && freefun != "") {
-				exports += "exports.%s.prototype.delete = function() {\n\tlib.%s(this._pointer);\n};\n".printf (classname, freefun);
-				if (symbols != "")
-					symbols += ",\n";
-				symbols += "\t%s: [types.void, [ptr(types.%s)]]".printf (freefun, classname);
+				exports += "types.%s.prototype.delete = method('%s', types.void, [ptr(types.%s)]);\n".printf (classname, freefun, classname);
 				hasDtor = true;
 			}
 			if (ctor != null && !hasDtor)
-				exports += "exports.%s.prototype.delete = function() {\n\tthis.free()/* I doubt it's the right thing */;\n};\n".printf (classname);
+				exports += "types.%s.prototype.delete = defaultDtor;\n".printf (classname);
 		}
 		foreach (Method m in c.get_methods ())
-			if (m != ctor)
+			if (!(m is CreationMethod))
 				walk_method (m, !hasNonStatic);
 		
 		foreach (Struct x in c.get_structs ())
@@ -329,10 +318,11 @@ public class NodeFFIWriter : CodeVisitor {
 			walk_class (classname = pfx+c.name, k);
 		
 		classname = "";
+		ValabindCompiler.warning ("< class "+c.name);
 	}
 
 	public void walk_struct(string pfx, Struct c) {
-		ValabindCompiler.warning ("walking struct "+c.name);
+		ValabindCompiler.warning ("> struct "+c.name);
 		classname = pfx+c.name;
 		process_includes (c);
 		structs += "exports.%s = types.%s = Struct();\n".printf (classname, classname);
@@ -340,10 +330,10 @@ public class NodeFFIWriter : CodeVisitor {
 		if (fields.size > 0) {
 			if (structFields != "")
 				structFields += "\n";
-			structFields += "/* %s / %s */\n".printf (classname, classcname);
-			structFields += "fields(types.%s, {".printf (classname);
+			structFields += "/* %s */\n".printf (classname);
+			structFields += "struct(types.%s, {".printf (classname);
 			string tab = "\n\t";
-			foreach (var f in fields) {
+			foreach (Field f in fields) {
 				string wf = walk_field (f);
 				if (wf == "") continue;
 				structFields += tab+wf;
@@ -351,16 +341,17 @@ public class NodeFFIWriter : CodeVisitor {
 			}
 			structFields += "\n});\n";
 		}
+		classname = "";
 	}
 
 	public void walk_enum (Vala.Enum e) {
-		ValabindCompiler.warning ("walking enum "+e.name);
+		ValabindCompiler.warning ("> enum "+e.name);
 		process_includes (e);
-		exports += "/*\n";
+		exports += "/*enum: {\n";
 		foreach (var v in e.get_values ())
 			exports += "\t%s: %s;\n".printf (
 				v.name, CCodeBaseModule.get_ccode_name (v));
-		exports += "*/\n";
+		exports += "}*/\n";
 /*
 		foreach (var v in e.get_values ())
 			exports += "\tvar %s = %s;\n".printf (v.name, CCodeBaseModule.get_ccode_name (v));
@@ -373,7 +364,7 @@ public class NodeFFIWriter : CodeVisitor {
 	}
 
 	public void walk_method (Method m, bool dontStatic=false) {
-		ValabindCompiler.warning ("walking method "+m.name);
+		//ValabindCompiler.warning ("> method "+m.name);
 		if (m.is_private_symbol ())
 			return;
 		if (m.name == "cast")
@@ -392,68 +383,38 @@ public class NodeFFIWriter : CodeVisitor {
 		var ret = get_ctype ((m.return_type.data_type is Enum) ? "int" : m.return_type.to_string ());
 		if (ret == null)
 			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
-
-		/* store sym */
-		if (symbols != "")
-			symbols += ",\n";
-		string tab = "";
-		if (is_static)
-			symbols += "\t%s: [%s, [".printf (cname, ret);
-		else if (is_constructor)
-			symbols += "\t%s: [ptr(types.%s), [".printf (cname, classname);
-		else {
-			symbols += "\t%s: [%s, [ptr(types.%s)".printf (cname, ret, classname);
-			tab = ", ";
-		}
-
-		/* store wrapper */
-		string def_args = "", call_args = is_static || is_constructor ? "" : "this._pointer";
-		foreach (var param in m.get_parameters ()) {
-			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
-			if (arg_type == null || param.variable_type is DelegateType) arg_type = "ptr(types.void)";
-			symbols += tab + "%s".printf (arg_type);
-			tab = ", ";
-			
-			string? arg_name = param.name;
-			if (arg_name == null) break;
-			if (param.variable_type == null) {
-				ValabindCompiler.warning("%s: %s => null".printf (alias, arg_name));
-				return;
-			}
-			arg_name = "$"+arg_name;
-
-			if (def_args != "") def_args += ", ";
-			def_args += arg_name;
-			
-			if (call_args != "") call_args += ", ";
-			call_args += get_typeToC (param.variable_type, arg_name);
-		}
-		symbols += "]]";
-
-		string _call = "lib.%s(%s)".printf (cname, call_args);
-		
-		if (is_constructor) {
-			_call = "types.%s.call(this, %s)".printf (classname, _call);
-			alias = classname;
-		} else if (ret != "void")
-			_call = "return "+get_typeFromC (m.return_type, _call);
 		
 		if (is_constructor || classname == "")
-			exports += "exports.%s = function %s(%s) {\n\t%s;\n};\n".printf (alias, alias, def_args, _call);
+			exports += "exports.%s = method('%s', %s, [".printf (is_constructor ? classname : alias, cname, is_constructor ? "ptr(types."+classname+")" : ret);
+		else if (is_static && !dontStatic)
+			exports += "exports.%s.%s = method('%s', %s, [".printf (classname, alias, cname, ret);
 		else
-			exports += "exports.%s.%s = function %s(%s) {\n\t%s;\n};\n".printf (classname, (!is_static || dontStatic) ? "prototype." + alias : alias, alias, def_args, _call);
-
+			exports += "types.%s.prototype.%s = method('%s', %s, [".printf (classname, "" + alias, cname, ret);
+		
+		string tab = "";
+		if (!is_constructor && !is_static) {
+			exports += "ptr(types."+classname+")";
+			tab = ", ";
+		}
+		foreach (Vala.Parameter param in m.get_parameters ()) {
+			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
+			if (arg_type == null || param.variable_type is DelegateType) arg_type = "ptr(types.void)";
+			exports += tab + "%s".printf (arg_type);
+			tab = ", ";
+		}
+		exports += "]%s);\n".printf (is_static && !dontStatic || is_constructor ? ", true" : "");
 	}
 
 	public override void visit_class (Class c) {
-		ValabindCompiler.warning ("visiting class "+c.name);
+		ValabindCompiler.warning ("VISIT> class "+c.name);
 		walk_class ("", c);
+		ValabindCompiler.warning ("VISIT< class "+c.name);
 	}
 
 	public override void visit_namespace (Namespace ns) {
 		if (ns.name == null)
 			return;
-		ValabindCompiler.warning ("visiting ns "+ns.name);
+		ValabindCompiler.warning ("VISIT> ns "+ns.name);
 
 		SourceReference? sr = ns.source_reference;
 		if (sr != null && !is_target_file (sr.file.filename))
@@ -464,11 +425,9 @@ public class NodeFFIWriter : CodeVisitor {
 
 		if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
 			return;
-		foreach (var f in ns.get_fields ())
-			walk_field (f);
-		foreach (var e in ns.get_enums ())
+		foreach (Enum e in ns.get_enums ())
 			walk_enum (e);
-		foreach (var c in ns.get_structs ()) {
+		foreach (Struct c in ns.get_structs ()) {
 			walk_struct("", c);
 			/* TODO: refactor to walk_struct */
 			//foreach (var m in c.get_methods ())
@@ -476,11 +435,14 @@ public class NodeFFIWriter : CodeVisitor {
 			//foreach (var f in c.get_fields ())
 			//	walk_field (f, "\t");
 		}
-		foreach (var m in ns.get_methods ())
-			walk_method (m, true);
-		foreach (var c in ns.get_classes ())
+		foreach (Class c in ns.get_classes ())
 			walk_class ("", c);
+		foreach (Field f in ns.get_fields ())
+			walk_field (f);
+		foreach (Method m in ns.get_methods ())
+			walk_method (m);
 		//ns.accept_children (this);
+		ValabindCompiler.warning ("VISIT< ns "+ns.name);
 	}
 
 	public void write_file (CodeContext context, string filename) {
@@ -492,20 +454,27 @@ public class NodeFFIWriter : CodeVisitor {
 		stream.printf ("/* DO NOT EDIT. automatically generated by valabind */\n");
 		stream.printf ("var ffi = require('ffi'), ref = require('ref'), Struct = require('ref-struct');\n");
 		
-		stream.printf ("var types = exports.types = {}, ptr = ref.refType;\n\n");
+		stream.printf ("var lib = new ffi.DynamicLibrary('lib%s'+ffi.LIB_EXT);\n", modulename);
+		stream.printf ("var types = {}, ptr = exports.ptr = ref.refType;\n\n");
 		stream.printf ("for(var i in ref.types)\n\ttypes[i] = ref.types[i];\n\n");
 		
-		stream.printf ("function fields(s, f) {\n\tif(s._instanceCreated)\n\t\treturn console.warn('Structure redefined, ignoring...');\n\tfor(var i in f)\n\t\ts.defineProperty(i, f[i]);\n\ts._instanceCreated = true;\n}\n");
-		stream.printf ("function makeType(t, o) {\n\to = new types[t](o);\n\tif(t in exports)\n\t\to.__proto__ = exports[t].prototype;\n\treturn o;\n}\n\n");
+		stream.printf ("function struct(s, f) {\n\tif(s._instanceCreated)\n\t\treturn console.warn('Structure redefined, ignoring...');\n\tfor(var i in f)\n\t\ts.defineProperty(i, f[i]);\n\ts._instanceCreated = true, s._class = true;\n}\n");
+		stream.printf ("function defaultDtor() {\n\tthis.free && this.free();\n}\n");
+		stream.printf ("function fixRetType(r) {\n\treturn (r && r.type && r.type._class) ? r.deref() : r;\n}\n");
+		stream.printf ("function method(name, ret, args, static) {\n"+
+"\tvar f = ffi.ForeignFunction(lib.get(name), ret, args);\n"+
+"\tif(static)\n"+
+"\t\treturn function() {\n"+
+"\t\t\treturn fixRetType(f.apply(null, arguments));\n"+
+"\t\t};\n"+
+"\treturn function() {\n"+
+"\t\treturn fixRetType(f.apply(null, [this._pointer].concat([].slice.call(arguments))));\n"+
+"\t};\n"+
+"}\n\n");
 		
 		stream.printf ("%s", enums);
 		stream.printf ("%s\n", structs);
 		stream.printf ("%s\n", structFields);
-		
-		stream.printf ("var lib = new ffi.Library('lib%s', {\n", modulename);
-		stream.printf ("%s\n", symbols);
-		stream.printf ("});\n\n");
-		
 		stream.printf ("%s", exports);
 
 		this.stream = null;
