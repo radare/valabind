@@ -82,19 +82,52 @@ public class NodeFFIWriter : CodeVisitor {
 
 	private string get_typeFromC(DataType ?_type, string value) {
 		var type = get_typeName(_type);
-		if(type == null)
+		if (type == null)
 			return value;
+		
+		// TODO: DRY (don't repeat yourself) ret/args generation.
+		var _delegate = _type as DelegateType;
+		if (_delegate != null) {
+			var ret = get_ctype (_delegate.get_return_type().to_string ());
+			if (ret == null)
+				ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (CCodeBaseModule.get_ccode_name (_delegate)));
+			
+			string args = "";
+			foreach (var param in _delegate.get_parameters ()) {
+				string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
+				if (arg_type == null) arg_type = "ptr(types.void)";
+				
+				if (args != "") args += ", ";
+				args += arg_type;
+			}
+			return "ffi.ForeignFunction(%s, %s, [%s])".printf (value, ret, args);
+		}
 		string stype = type[type.index_of(".")+1:type.length].replace(".", "");
 		return "makeType('%s', %s)".printf (stype, value);
 	}
 
-	private string get_typeToC(DataType ?_type, string value) {
-		var type = get_typeName (_type);
+	private string get_typeToC(DataType ?type, string value) {
 		if (type == null)
 			return value;
-		//var _class = _type.data_type as Class;
-		var type_cname = CCodeBaseModule.get_ccode_name (_type);
-		return type_cname;
+		
+		// TODO: DRY (don't repeat yourself) ret/args generation.
+		var _delegate = type as DelegateType;
+		if (_delegate != null) {
+			var ret = get_ctype (_delegate.get_return_type().to_string ());
+			if (ret == null)
+				ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (CCodeBaseModule.get_ccode_name (_delegate)));
+			
+			string args = "";
+			foreach (var param in _delegate.get_parameters ()) {
+				string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
+				if (arg_type == null) arg_type = "ptr(types.void)";
+				
+				if (args != "") args += ", ";
+				args += arg_type;
+			}
+			return "ffi.Callback(%s, [%s], void(0), %s)".printf (ret, args, value);
+		}
+		return value;
 	}
 
 	private string get_ctype (string _type) {
@@ -105,8 +138,8 @@ public class NodeFFIWriter : CodeVisitor {
 		if (nspace == null)
 			nspace = "";
 		if (type.has_prefix (nspace))
-			type = type.substring (nspace.length) + "*";
-		//type = type.replace (".", "");
+			type = type.substring (nspace.length) + "*"; // XXX why *? (eddyb)
+		type = type.replace (".", "");
 		if (is_generic (type)) {
 			int ptr = type.index_of ("<");
 			iter_type = (ptr==-1)?type:type[ptr:type.length];
@@ -226,26 +259,17 @@ public class NodeFFIWriter : CodeVisitor {
 	public void walk_class (string pfx, Class c) {
 		ValabindCompiler.warning ("walking class "+c.name);
 		process_includes (c);
-		Method? hasCtor = null;
+		Method? ctor = null;
 		bool hasDtor = false;
 		bool hasNonStatic = c.get_fields ().size > 0;
-		string ctor_name = "";
-		string ctor_args = "";
 
 		/* avoid showing structs outside the namespace */
 		/* fixes a problem with dupped invalid definitions */
 		if (nspace == null)
 			return;
 		foreach (var m in c.get_methods ()) {
-			if (m is CreationMethod) {
-				hasCtor = m;
-				string p = "";
-				foreach (var param in m.get_parameters ()) {
-					p += param.name; //to_string ();
-				}
-				ctor_name = CCodeBaseModule.get_ccode_name (m);
-				ctor_args = p;
-			}
+			if (m is CreationMethod)
+				ctor = m;
 			if ((m.binding & MemberBinding.STATIC) == 0)
 				hasNonStatic = true;
 		}
@@ -273,12 +297,11 @@ public class NodeFFIWriter : CodeVisitor {
 		if (exports != "")
 			exports += "\n";
 		exports += "/* %s / %s */\n".printf (classname, classcname);
-		exports += "exports.%s = function %s(%s) {\n".printf (classname, classname, ctor_args);
-		if (ctor_name != "")
-			exports += "\ttypes.%s.call(this, lib.%s(%s));\n".printf (classname, ctor_name, ctor_args);
+		if (ctor != null)
+			walk_method (ctor, !hasNonStatic);
 		else
-			exports += "\ttypes.%s.call(this);\n".printf (classname);
-		exports += "};\n\nexports.%s.prototype = new types.%s;\n".printf (classname, classname);
+			exports += "exports.%s = function %s() {\n\ttypes.%s.call(this);\n};\n".printf (classname, classname, classname);
+		exports += "\nexports.%s.prototype = new types.%s;\n".printf (classname, classname);
 		exports += "delete exports.%s.prototype._pointer;\n\n".printf (classname);
 
 		foreach (var e in c.get_enums ())
@@ -292,16 +315,17 @@ public class NodeFFIWriter : CodeVisitor {
 				symbols += "\t%s: [types.void, [ptr(types.%s)]]".printf (freefun, classname);
 				hasDtor = true;
 			}
-			if (ctor_name != "" && !hasDtor)
+			if (ctor != null && !hasDtor)
 				exports += "exports.%s.prototype.delete = function() {\n\tthis.free()/* I doubt it's the right thing */;\n};\n".printf (classname);
 		}
-		foreach (var m in c.get_methods ())
-			walk_method (m, !hasNonStatic);
+		foreach (Method m in c.get_methods ())
+			if (m != ctor)
+				walk_method (m, !hasNonStatic);
 		
-		foreach (var x in c.get_structs ())
+		foreach (Struct x in c.get_structs ())
 			walk_struct (pfx+c.name, x);
 		
-		foreach (var k in c.get_classes ())
+		foreach (Class k in c.get_classes ())
 			walk_class (classname = pfx+c.name, k);
 		
 		classname = "";
@@ -365,14 +389,9 @@ public class NodeFFIWriter : CodeVisitor {
 		// m.get_preconditions ();
 		// m.get_postconditions ();
 
-		var ret = m.return_type.to_string ();
-		if (is_generic (ret))
-			ret = get_ctype (ret);
-		else
-			ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
+		var ret = get_ctype ((m.return_type.data_type is Enum) ? "int" : m.return_type.to_string ());
 		if (ret == null)
 			ValabindCompiler.error ("Cannot resolve return type for %s\n".printf (cname));
-		bool void_return = (ret == "void");
 
 		/* store sym */
 		if (symbols != "")
@@ -380,27 +399,21 @@ public class NodeFFIWriter : CodeVisitor {
 		string tab = "";
 		if (is_static)
 			symbols += "\t%s: [%s, [".printf (cname, ret);
-		else if(is_constructor)
+		else if (is_constructor)
 			symbols += "\t%s: [ptr(types.%s), [".printf (cname, classname);
 		else {
 			symbols += "\t%s: [%s, [ptr(types.%s)".printf (cname, ret, classname);
 			tab = ", ";
 		}
-		foreach (var param in m.get_parameters ()) {
-			if (param.variable_type == null) continue; // XXX
-			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
-			if (arg_type == null) arg_type = "ptr(types.void)";
-			symbols += tab + "%s".printf (arg_type);
-			tab = ", ";
-		}
-		symbols += "]]";
 
 		/* store wrapper */
-		string def_args = "", call_args = "";
-		bool first = true;
-		GLib.List<string> params = new GLib.List<string>();
-		double argn = 0;
+		string def_args = "", call_args = is_static || is_constructor ? "" : "this._pointer";
 		foreach (var param in m.get_parameters ()) {
+			string arg_type = get_ctype (CCodeBaseModule.get_ccode_name (param.variable_type));
+			if (arg_type == null || param.variable_type is DelegateType) arg_type = "ptr(types.void)";
+			symbols += tab + "%s".printf (arg_type);
+			tab = ", ";
+			
 			string? arg_name = param.name;
 			if (arg_name == null) break;
 			if (param.variable_type == null) {
@@ -409,29 +422,25 @@ public class NodeFFIWriter : CodeVisitor {
 			}
 			arg_name = "$"+arg_name;
 
-			string pfx;
-			if (first) {
-				pfx = "";
-				first = false;
-			} else pfx = ", ";
-
-			params.append (get_typeToC (param.variable_type, arg_name));
-			def_args += "%s%s".printf (pfx, arg_name);
-			argn++;
+			if (def_args != "") def_args += ", ";
+			def_args += arg_name;
 			
-			if(call_args != "")
-				call_args += ", ";
-			call_args += "$"+param.name;
+			if (call_args != "") call_args += ", ";
+			call_args += get_typeToC (param.variable_type, arg_name);
 		}
+		symbols += "]]";
 
-		string _call = "lib.%s(%s)".printf (cname, (is_static ? "" : "this._pointer" + (call_args == "" ? "" : ", ")) + call_args);
-
-		if (!void_return && !is_constructor)
+		string _call = "lib.%s(%s)".printf (cname, call_args);
+		
+		if (is_constructor) {
+			_call = "types.%s.call(this, %s)".printf (classname, _call);
+			alias = classname;
+		} else if (ret != "void")
 			_call = "return "+get_typeFromC (m.return_type, _call);
 		
-		if (classname == "")
+		if (is_constructor || classname == "")
 			exports += "exports.%s = function %s(%s) {\n\t%s;\n};\n".printf (alias, alias, def_args, _call);
-		else if (!is_constructor)
+		else
 			exports += "exports.%s.%s = function %s(%s) {\n\t%s;\n};\n".printf (classname, (!is_static || dontStatic) ? "prototype." + alias : alias, alias, def_args, _call);
 
 	}
