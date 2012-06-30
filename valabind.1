@@ -1,4 +1,4 @@
-.Dd May 11, 2011
+.Dd Jun 30, 2012
 .Dt valabind \&1 "Valabind manual page"
 .Os radare
 .Sh NAME
@@ -7,27 +7,42 @@
 .Pp
 .Sh SYNOPSIS
 .Nm valabind
-.Op Fl e
-.Op Fl g
-.Op Fl v
+.Op Fl h
 .Op Fl x
-.Op Fl X
+.Op Fl v
 .Op Fl V Ar vapidir
-.Op Fl i Ar file
 .Op Fl o Ar ofile
 .Op Fl m Ar modname
+.Op Fl p Ar profile
+.Op Fl N Ar namespace
+.Op Fl -swig
+.Op Fl -node-ffi
+.Op Fl -gir
+.Op Fl -cxx
 .Ar vapifile
 .Sh DESCRIPTION
-Valabind is a program written in Vala that aims to generate SWIG interfaces (.i) from a vala-generated or hand-made vapi files.
+Valabind is a program written in Vala that aims to generate nodejs, c++ or SWIG interfaces (.i) from a vala-generated or hand-made vapi files.
 .Pp
-Create bindings for many programming languages (like python, perl, ruby, lua, ..) interfacing with C or Vala code.
+SWIG opens the door to create bindings for Python, Perl, ruby, lua, and many other scripting languages.
 .Pp
-Note that list of supported languages in valabind is not the same of swig.
-.Pp
-This is because not all swig backends are working in the same way. In other words, there are some languages that doesnt generate correct C code in some unhandled situations and depending on the vapi can break.
-.Pp
-Valabind can be an interesting tool for unit-testing swig and be able to find problems easily.
-.
+.Bl -tag -wdith Fl
+.It Fl h
+show help message
+.It Fl o Ar OUTPUT
+specify output file name
+.It Fl m Ar NAME
+specify module name
+.It Fl N Ar NS
+include given namespace for processing
+.It Fl p Ar PROFILE
+select Vala profile (posix, gobject, dova)
+.It Fl x
+generate c++ code for SWIG bindings
+.It Fl v
+show version information
+.It Fl V Ar PATH
+specify an alternative vapidir path
+.El
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It XDG_DATA_DIRS
@@ -49,4 +64,6 @@ http://www.swig.org
 .
 .Sh AUTHORS
 .Pp
-pancake <@nopcode.org>
+pancake <pancake@nopcode.org>
+.Pp
+Eduard Burtescu <edy.burt@gmail.com>

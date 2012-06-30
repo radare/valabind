@@ -444,8 +444,6 @@ public class SwigWriter : ValabindWriter {
 		}
 
 		stream.printf ("%s\n", enums);
-		if (show_externs)
-			stream.printf ("%s\n", externs);
 		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
 	}

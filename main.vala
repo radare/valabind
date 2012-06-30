@@ -16,11 +16,25 @@ private static string[] namespaces;
 [CCode (array_length = false, array_null_terminated = true)]
 private static string[] packages;
 
+/* helpers */
+public void notice (string msg) {
+	stderr.printf ("\x1b[34;1mNOTICE\x1b[0m %s\n", msg);
+}
+
+public void warning (string msg) {
+	stderr.printf ("\x1b[33;1mWARNING\x1b[0m %s\n", msg);
+}
+
+public void error (string msg) {
+	stderr.printf ("\x1b[31;1mERROR\x1b[0m %s\n", msg);
+	Posix.exit (1);
+}
+
 private const OptionEntry[] options = {
 	{ "pkg", 0, 0, OptionArg.STRING_ARRAY,
 	  ref packages, "Include binding for PACKAGE", "PACKAGE..." },
 	{ "vapidir", 'V', 0, OptionArg.STRING,
-	  ref vapidir, "define alternative vapi directory", null },
+	  ref vapidir, "define alternative vapi directory", "VAPIDIR"},
 	{ "version", 'v', 0, OptionArg.NONE,
 	  ref show_version, "show version information", null },
 	{ "output", 'o', 0, OptionArg.STRING,
@@ -45,19 +59,6 @@ private const OptionEntry[] options = {
 	  ref files, "vala/vapi input files", "FILE FILE .." },
 	{ null }
 };
-
-void notice (string msg) {
-	stderr.printf ("\x1b[34;1mNOTICE\x1b[0m %s\n", msg);
-}
-
-void warning (string msg) {
-	stderr.printf ("\x1b[33;1mWARNING\x1b[0m %s\n", msg);
-}
-
-void error (string msg) {
-	stderr.printf ("\x1b[31;1mERROR\x1b[0m %s\n", msg);
-	Posix.exit (1);
-}
 
 int main (string[] args) {
 	output = null;

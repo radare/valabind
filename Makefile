@@ -27,7 +27,7 @@ $(BIN): $(OBJS)
 
 config.vala:
 	@echo 'Generating $@'
-	@echo 'const string version_string = "$(BIN) $(VERSION) - $(CONTACT)";' > $@
+	@echo 'const string version_string = "$(VERSION)";' > $@
 
 %.o: %.c
 	@echo 'Compiling $^ -> $@'
