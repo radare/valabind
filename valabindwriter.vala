@@ -7,6 +7,8 @@ public class ValabindWriter : CodeVisitor {
 	public bool pkgmode;
 	public string pkgname;
 	[CCode (array_length = false, array_null_terminated = true)]
+	public string[] include_dirs;
+	[CCode (array_length = false, array_null_terminated = true)]
 	public string[] namespaces;
 	protected CodeContext context = new CodeContext ();
 	protected string vapidir;
