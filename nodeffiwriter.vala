@@ -3,9 +3,11 @@
 using Vala;
 
 public class NodeFFIWriter : ValabindWriter {
-	string bind = "";
-	string ?ns_pfx;
 	GLib.List<string> includefiles = new GLib.List<string> ();
+	string ?ns_pfx;
+	string bind = "";
+	string enum_fmt = "";
+	string enum_vals = "";
 
 	public NodeFFIWriter () {
 	}
@@ -14,7 +16,7 @@ public class NodeFFIWriter : ValabindWriter {
 		return base_name+".js";
 	}
 
-	public void add_includes (Symbol s) {
+	void add_includes (Symbol s) {
 		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
 			bool include = true;
 			foreach (string j in includefiles) {
@@ -29,21 +31,12 @@ public class NodeFFIWriter : ValabindWriter {
 	}
 	
 	string sep (string str, string separator) {
-		if(str.length == 0)
+		if (str.length == 0)
 			return str;
 		char last = str[str.length-1];
-		if(last != '(' && last != '[' && last != '{')
+		if (last != '(' && last != '[' && last != '{')
 			return str+separator;
 		return str;
-	}
-
-	string get_alias (string name) {
-		switch (name) {
-			case "delete":
-			case "continue":
-				return "_"+name;
-		}
-		return name;
 	}
 
 	string type_name (DataType type, bool ignoreRef=false) {
@@ -83,11 +76,8 @@ public class NodeFFIWriter : ValabindWriter {
 			return "_.ref("+unref_type+")";
 		}
 		string generic = "";
-		foreach (DataType t in type.get_type_arguments ()) {
-			if (generic != "")
-				generic += ", ";
-			generic += type_name (t);
-		}
+		foreach (DataType t in type.get_type_arguments ())
+			generic = sep (generic, ", ") + type_name (t);
 		string _type = type.to_string ();
 		
 		// HACK find a better way to remove generic type args
@@ -95,7 +85,7 @@ public class NodeFFIWriter : ValabindWriter {
 		
 		_type = _type.replace (ns_pfx, "").replace (".", "");
 		_type = _type.replace ("?","").replace (" *", "*");
-		_type = _type.replace("unsigned ", "u");
+		_type = _type.replace ("unsigned ", "u");
 
 		switch (_type) {
 			case "gconstpointer":
@@ -142,13 +132,19 @@ public class NodeFFIWriter : ValabindWriter {
 		return _type;
 	}
 	
-	public override void visit_enum (Enum e) {
+	new void visit_enum (Enum e, string pfx="") {
 		add_includes (e);
 		
 		notice (">\x1b[1menum\x1b[0m "+e.get_full_name ());
 		
-		foreach (var v in e.get_values ())
-			bind = sep (bind, ",")+"\n\t\t$%s: /*%s*/0".printf (v.name, CCodeBaseModule.get_ccode_name (v));
+		if (pfx == "")
+			enum_fmt += "exports.%s = {}/*types.Enum*/;\\n".printf (e.name);
+		else
+			bind = sep (bind, ",")+"\n\t\t$%s: {}/*types.Enum*/".printf (e.name);
+		foreach (var v in e.get_values ()) {
+			enum_fmt += "exports.%s%s.%s = %%d;\\n".printf (pfx, e.name, v.name);
+			enum_vals += ","+CCodeBaseModule.get_ccode_name (v);
+		}
 	}
 	
 	public override void visit_struct (Struct s) {
@@ -194,7 +190,7 @@ public class NodeFFIWriter : ValabindWriter {
 		bind = sep (bind, "\n\t")+"}, {";
 
 		foreach (Enum e in c.get_enums ())
-			e.accept (this);
+			visit_enum (e, name+".");
 		
 		string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 		freefun = freefun == null || freefun == "" ? null : "['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
@@ -225,8 +221,8 @@ public class NodeFFIWriter : ValabindWriter {
 		add_includes (m);
 		
 		//notice (">\x1b[1mmethod\x1b[0m "+m.get_full_name ());
-		string cname = CCodeBaseModule.get_ccode_name (m), alias = get_alias (m.name);
 		var parent = m.parent_symbol;
+		string cname = CCodeBaseModule.get_ccode_name (m), name = m.name;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod), parent_is_class = parent is Class || parent is Struct;
 		
 		// TODO: Implement contractual support
@@ -234,14 +230,14 @@ public class NodeFFIWriter : ValabindWriter {
 		// m.get_postconditions ();
 		
 		if (parent_is_class && is_static)
-			alias = "$"+alias;
+			name = "$"+name;
 		
 		DataType this_type = m.this_parameter == null ? null : m.this_parameter.variable_type;
 		string func = "\n\t\t";
 		if (is_constructor) {
 			func += "$constructor: ['%s', %s, [".printf (cname, type_name (this_type));
 		} else {
-			func += "%s: ['%s', %s, [".printf (alias, cname, type_name (m.return_type));
+			func += "%s: ['%s', %s, [".printf (name, cname, type_name (m.return_type));
 			if (this_type != null)
 				func += type_name (this_type);
 		}
@@ -258,7 +254,7 @@ public class NodeFFIWriter : ValabindWriter {
 		func += variadic ? "], 'variadic']" : "]]";
 		
 		bind = sep (bind, ",")+func;
-		if (parent_is_class && alias == "iterator")
+		if (parent_is_class && name == "iterator")
 			bind += ",\n\t\tforEach: defaults.forEach";
 	}
 
@@ -277,17 +273,20 @@ public class NodeFFIWriter : ValabindWriter {
 		
 		if (ns_pfx != null) {
 			if (!use) {
-				bind = sep (bind, ",\n")+"\t%s: function() {return {".printf (name.replace (ns_pfx, "").replace (".", ""));
-			
-				foreach (Enum e in ns.get_enums ())
-					e.accept (this);
+				name = name.replace (ns_pfx, "").replace (".", "");
+				bind = sep (bind, ",\n")+"\t$%s: function() {return {".printf (name);
 				
 				foreach (Method m in ns.get_methods ())
 					m.accept (this);
 				
+				foreach (Enum e in ns.get_enums ())
+					visit_enum (e, name+".");
+				
 				bind = sep (bind, "\n\t")+"};}";
-			}
-		
+			} else
+				foreach (Enum e in ns.get_enums ())
+					visit_enum (e);
+			
 			foreach (Struct s in ns.get_structs ())
 				s.accept (this);
 			
@@ -306,8 +305,7 @@ public class NodeFFIWriter : ValabindWriter {
 		if (stream == null)
 			error ("Cannot open %s for writing".printf (file));
 		context.root.accept (this);
-		//BEGIN Output
-		stream.puts (("
+		{stream.puts ("
 /* DO NOT EDIT. Automatically generated by valabind from "+modulename+" */
 
 var ffi = require('ffi'), ref = require('ref'), Struct = require('ref-struct');
@@ -320,10 +318,8 @@ function Tname(T) {
 var types = exports.type = {};
 
 for(var i in ref.types)
-	types[i] = ref.types[i];
-
-// HACK ref forward-compatibility
-types.CString = types.CString || types.Utf8String;
+	if(i != 'Utf8String') // Try not to trip the deprecated warning.
+		types[i] = ref.types[i];
 
 types.staticCString = function staticCString(N) {
 	var r = Object.create(types.char);
@@ -454,22 +450,17 @@ function bindings(s) {
 		};
 	}
 	
-	function defineMethod(className, n, m) {
-		var static = !className || n[0] === '$';
+	function define(base, n, m) {
+		var static = n[0] == '$' && ((n = n.slice(1)), true);
+		static = static || base[0] == '$' && ((base = base.slice(1)), true);
 		if(Array.isArray(m))
 			m = method(m[0], m[1], m[2], static, m[3]);
-		static && (n = n.slice(1));
-		if(n == 'constructor')
-			exports[className] = m, exports[className].$type = types[className];
-		else if(static)
-			className ? exports[className][n] = m : exports[n] = m;
-		else
-			types[className].prototype[n] = m;
+		static ? exports[base][n] = m : types[base].prototype[n] = m;
 	}
 	
 	function makeGeneric(G, n) {
 		var cache = [], cacheTo = [];
-		return function() {
+		types[n] = function() {
 			var l = arguments.length, args = [], c;
 			
 			// Coerce all type arguments.
@@ -506,39 +497,76 @@ function bindings(s) {
 	}
 	for(var i in s) {
 		if(s[i].length)
-			types[i] = makeGeneric(s[i], i);
+			makeGeneric(s[i], i);
+		else if(i[0] == '$')
+			exports[i.slice(1)] = {};
 		else
 			exports[i] = types[i] = Struct(), types[i].$name = i;
 	}
 	for(var i in s) {
 		if(s[i].length) {
-			// insert constructor
+			// TODO insert constructor
 			delete s[i];
 			continue;
 		}
 		s[i] = s[i]();
-		if(Array.isArray(s[i]))
+		if(Array.isArray(s[i])) {
 			for(var j in s[i][0])
 				types[i].defineProperty(j, s[i][0][j]);
+			s[i] = s[i][1];
+		}
 	}
 	for(var i in s) {
-		if(Array.isArray(s[i]))
-			for(var j in s[i][1])
-				defineMethod(i, j, s[i][1][j]);
-		else {
-			exports[i] = {};
-			for(var j in s[i]) {
-				var m = s[i][j];
-				if(Array.isArray(m))
-					m = method(m[0], m[1], m[2], false, m[3]);
-				exports[i][j] = m;
-			}
+		if('$constructor' in s[i]) {
+			var ctor = s[i].$constructor;
+			exports[i] = method(ctor[0], ctor[1], ctor[2], true, ctor[3]), exports[i].$type = types[i];
+			delete s[i].$constructor;
 		}
+		for(var j in s[i]) 
+			define(i, j, s[i][j]);
 	}
 }
 var _ = types;
-bindings({\n"+bind+"\n});\n"
-		).replace("\t", "    "));
-		//END Output
+bindings({\n"+bind+"\n});
+"
+		);}
+		
+		if (enum_fmt != "") {
+			string enums_exec, enums_out = "";
+			try {
+				FileUtils.close (FileUtils.open_tmp ("vbeXXXXXX", out enums_exec));
+			} catch (FileError e) {
+				error (e.message);
+			}
+			string[] gcc_args = {"gcc", "-x", "c", "-o", enums_exec, "-"};
+			foreach (var i in include_dirs)
+				gcc_args += "-I"+i;
+			try {
+				Pid gcc_pid;
+				int gcc_stdinfd;
+				Process.spawn_async_with_pipes (null, gcc_args, null, SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD, null, out gcc_pid, out gcc_stdinfd);
+				var gcc_stdin = FileStream.fdopen (gcc_stdinfd, "w");
+				if (gcc_stdin == null)
+					throw new SpawnError.IO ("Cannot open gcc's stdin");
+				foreach (string i in includefiles)
+					gcc_stdin.printf ("#include <%s>\n", i);
+				gcc_stdin.printf ("int main(){printf(\"%s\"%s);return 0;}\n", enum_fmt, enum_vals);
+				gcc_stdin = null;
+				int status;
+				Posix.waitpid (gcc_pid, out status, 0);
+				Process.close_pid (gcc_pid);
+				if (status != 0)
+					throw new SpawnError.FAILED ("gcc exited with status %d", status);
+				
+				Process.spawn_sync (null, {enums_exec}, null, 0, null, out enums_out, null, out status);
+				if (status != 0)
+					throw new SpawnError.FAILED ("enums helper exited with status %d", status);
+			} catch (SpawnError e) {
+				FileUtils.unlink (enums_exec);
+				error (e.message);
+			}
+			FileUtils.unlink (enums_exec);
+			stream.puts (enums_out);
+		}
 	}
 }

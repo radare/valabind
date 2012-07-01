@@ -160,6 +160,7 @@ while : ; do
   if [ "`echo $1 | grep -- '-I'`" ]; then
     CFLAGS="${CFLAGS} $1"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
+    VALABINDFLAGS="`echo $1|sed -e 's,^-I,-I ,'` ${VALABINDFLAGS}"
   elif [ "`echo $1 | grep -- '--vapidir'`" ]; then
     ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
   elif [ "`echo $1 | grep -- '-x'`" ]; then

@@ -12,9 +12,11 @@ private static string modulename;
 private static string? output;
 private static string? useprofile;
 [CCode (array_length = false, array_null_terminated = true)]
-private static string[] namespaces;
-[CCode (array_length = false, array_null_terminated = true)]
 private static string[] packages;
+[CCode (array_length = false, array_null_terminated = true)]
+private static string[] include_dirs;
+[CCode (array_length = false, array_null_terminated = true)]
+private static string[] namespaces;
 
 /* helpers */
 public void notice (string msg) {
@@ -32,9 +34,11 @@ public void error (string msg) {
 
 private const OptionEntry[] options = {
 	{ "pkg", 0, 0, OptionArg.STRING_ARRAY,
-	  ref packages, "Include binding for PACKAGE", "PACKAGE..." },
+	  ref packages, "include binding for PACKAGE", "PACKAGE..." },
 	{ "vapidir", 'V', 0, OptionArg.STRING,
-	  ref vapidir, "define alternative vapi directory", "VAPIDIR"},
+	  ref vapidir, "define alternative vapi directory", "VAPIDIR" },
+	{ "include-dir", 'I', 0, OptionArg.STRING_ARRAY,
+	  ref include_dirs, "add include path", "INCLUDEDIR" },
 	{ "version", 'v', 0, OptionArg.NONE,
 	  ref show_version, "show version information", null },
 	{ "output", 'o', 0, OptionArg.STRING,
@@ -47,13 +51,13 @@ private const OptionEntry[] options = {
 	  ref useprofile, "select Vala profile (posix, gobject, dova)", "PROFILE" },
 	{ "cxx-swig", 'x', 0, OptionArg.NONE,
 	  ref cxxmode, "generate C++ code for SWIG", null },
-	{ "swig", '\0', 0, OptionArg.NONE,
+	{ "swig", 0, 0, OptionArg.NONE,
 	  ref swigoutput, "generate swig interface code", null },
-	{ "node-ffi", '\0', 0, OptionArg.NONE,
+	{ "node-ffi", 0, 0, OptionArg.NONE,
 	  ref nodeoutput, "generate node-ffi interface code", null },
-	{ "gir", '\0', 0, OptionArg.NONE,
+	{ "gir", 0, 0, OptionArg.NONE,
 	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
-	{ "cxx", '\0', 0, OptionArg.NONE,
+	{ "cxx", 0, 0, OptionArg.NONE,
 	  ref cxxoutput, "generate C++ interface code", null },
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
 	  ref files, "vala/vapi input files", "FILE FILE .." },
@@ -102,6 +106,7 @@ int main (string[] args) {
 		error ("Cannot specify more than one output mode\n");
 	
 	writer.modulename = modulename;
+	writer.include_dirs = include_dirs;
 	writer.namespaces = namespaces;
 	
 	if (useprofile == null) useprofile = "posix";
