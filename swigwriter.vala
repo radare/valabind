@@ -13,12 +13,23 @@ public class SwigWriter : ValabindWriter {
 	string extends = "";
 	string enums = "";
 	string vectors = "";
-	string nspace;
+	string ?ns_pfx;
+	string nspace = "";
+
+	// FIXME duplicate from NodeFFIWriter
+	string sep (string str, string separator) {
+		if (str.length == 0)
+			return str;     
+		char last = str[str.length-1];
+		if (last != '(' && last != '[' && last != '{')
+			return str+separator;
+		return str;
+	}
 
 	public SwigWriter (bool cxx_mode) {
 		this.cxx_mode = cxx_mode;
 	}
-	
+
 	public override string get_filename (string base_name) {
 		return base_name+".i";
 	}
@@ -30,10 +41,10 @@ public class SwigWriter : ValabindWriter {
 		}
 		string oname = name;
 		switch (name) {
-/*
-		case "use":
-			return "_use";
-*/
+		/*
+		   case "use":
+		   return "_use";
+		 */
 		case "break":
 			name = "_break";
 			break;
@@ -61,7 +72,7 @@ public class SwigWriter : ValabindWriter {
 		}
 		if (name != oname)
 			warning ("%s.%s method renamed to %s.%s".printf (
-				classname, oname, classname, name));
+						classname, oname, classname, name));
 		return name;
 	}
 
@@ -73,17 +84,18 @@ public class SwigWriter : ValabindWriter {
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
-		if (is_generic (type)) {
+		// ugly hack here //
+		if (is_generic_hack (type)) {
 			int ptr = type.index_of ("<");
 			iter_type = (ptr==-1)?type:type[ptr:type.length];
 			iter_type = iter_type.replace ("<", "");
 			iter_type = iter_type.replace (">", "");
 			iter_type = iter_type.replace (nspace, "");
 			type = type.split ("<", 2)[0];
-//if (iter_type == "string")
-//	iter_type = "const char*";
-//if (type == "std::vector<string>")
-//	type = "std::vector<const char*>";
+			//if (iter_type == "string")
+			//    iter_type = "const char*";
+			//if (type == "std::vector<string>")
+			//    type = "std::vector<const char*>";
 		}
 		type = type.replace ("?","");
 
@@ -95,7 +107,7 @@ public class SwigWriter : ValabindWriter {
 		case "G": /* generic type :: TODO: review */
 		case "gconstpointer":
 		case "gpointer":
-	 		return "void*";
+			return "void*";
 		case "gdouble":
 			return "double";
 		case "gfloat":
@@ -115,11 +127,11 @@ public class SwigWriter : ValabindWriter {
 		case "string*":
 			return "char *"; // ??? 
 		case "guint":
-	 		return "unsigned int";
+			return "unsigned int";
 		case "gint":
-	 		return "int";
+			return "int";
 		case "glong":
-	 		return "long";
+			return "long";
 		case "st64":
 		case "int64":
 		case "gint64":
@@ -128,7 +140,7 @@ public class SwigWriter : ValabindWriter {
 		case "uint64":
 		case "guint64":
 			return "unsigned long long";
-		/* XXX swig does not support unsigned char* */
+			/* XXX swig does not support unsigned char* */
 		case "uint8*":
 		case "guint8*":
 			return "unsigned char*";
@@ -154,19 +166,6 @@ public class SwigWriter : ValabindWriter {
 		return type;
 	}
 
-	bool is_target_file (string path) {
-		// FIXME implement the new method with use_namespace instead
-		foreach (var file in source_files)
-			if (file == path)
-				return true;
-		return false;
-	}
-
-	public override void visit_source_file (SourceFile source) {
-		if (is_target_file (source.filename))
-			source.accept_children (this);
-	}
-
 	public void process_includes (Symbol s) {
 		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
 			var include = true;
@@ -181,13 +180,13 @@ public class SwigWriter : ValabindWriter {
 		}
 	}
 
-	public void walk_constant (Constant f) {
-		var cname = CCodeBaseModule.get_ccode_name (f);
-		extends += "%immutable "+f.name+";\n";
-		extends += "static const char *"+f.name+" = "+cname+";\n";
+	public override void visit_constant (Constant c) {
+		var cname = CCodeBaseModule.get_ccode_name (c);
+		extends += "%immutable "+c.name+";\n";
+		extends += "static const char *"+c.name+" = "+cname+";\n";
 	}
 
-	public void walk_field (Field f) {
+	public override void visit_field (Field f) {
 		if (f.get_ctype () == null) {
 			//warning ("Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		} else {
@@ -195,25 +194,27 @@ public class SwigWriter : ValabindWriter {
 			warning ("Type for "+cname+"\n");
 		}
 		//if (f.access == Accessibility.PRIVATE)
-		//	print ("---> field is private XXX\n");
+		//    print ("---> field is private XXX\n");
 		//if (CCodeBaseModule.get_ccode_array_length (f))
-		//	print ("---> array without length\n");
+		//    print ("---> array without length\n");
 	}
 
-	public void walk_class (string pfx, Class c) {
-		foreach (var k in c.get_classes ())
-			walk_class (c.name, k);
-		classname = pfx+c.name;
+	public override void visit_struct (Struct s) {
+		/* TODO: implement struct visitor here */
+	}
+
+	public override void visit_class (Class c) {
+		classname = ns_pfx+c.name;
 		classcname = CCodeBaseModule.get_ccode_name (c);
 		process_includes (c);
 		if (context.profile == Profile.GOBJECT) {
 			classname = "%s%s".printf (nspace, classname);
 			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
 		} else extends += "%%extend %s {\n".printf (classname);
-		foreach (var e in c.get_enums ())
-			walk_enum (e);
-		foreach (var f in c.get_fields ())
-			walk_field (f);
+		foreach (Enum e in c.get_enums ())
+			e.accept (this);
+		foreach (Field f in c.get_fields ())
+			f.accept (this);
 		if (CCodeBaseModule.is_reference_counting (c)) {
 			string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 			if (freefun != null && freefun != "")
@@ -223,34 +224,52 @@ public class SwigWriter : ValabindWriter {
 			if (freefun != null && freefun != "")
 				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
 		}
-		foreach (var m in c.get_methods ())
-			walk_method (m);
+		foreach (Method m in c.get_methods ())
+			m.accept (this);
+		foreach (Struct s in c.get_structs ())
+			s.accept (this);
+		foreach (Class k in c.get_classes ())
+			k.accept (this);
 		if (context.profile == Profile.GOBJECT) extends += "};\n} %s;\n".printf (classname);
 		else extends += "};\n";
 		classname = "";
 	}
 
-	public void walk_enum (Vala.Enum e) {
-		var enumname = classname + e.name;
+	/// new void visit_enum (Enum e, string pfx="") {
+	// that pfx thing looks wrong
+	// "that pfx thing" is for the C program that outputs the enum code
+	// everything else is context-based, so only the name is required
+	// but this needs absolute property names.
+	// that's node-ffi specific anyway, just rename the current methods
+	// to visit_*
+
+	public override void visit_enum (Enum e) {
+		var enumname = (classname + e.name).replace(".","");
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
-			e.name, CCodeBaseModule.get_ccode_name (e));
+				e.name, CCodeBaseModule.get_ccode_name (e));
 		enums += "enum %s {\n".printf (enumname);
 		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
 			tmp += "#define %s_%s %s\n".printf (e.name, v.name, 
-				CCodeBaseModule.get_ccode_name (v));
+					CCodeBaseModule.get_ccode_name (v));
 		}
 		enums += "};\n";
 		enums = tmp + "%}\n"+enums;
 	}
 
-	inline bool is_generic(string type) {
+
+	// another fugly hack, see get_type in node-ffi for sparkly clean implementation <3
+	inline bool is_generic_hack(string type) {
 		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
-	public void walk_method (Method m) {
+	inline bool is_generic(DataType type) {
+		return (type.get_type_arguments ().size >0);
+	}
+
+	public override void visit_method (Method m) {
 		bool first = true;
 		string cname = CCodeBaseModule.get_ccode_name (m);
 		string alias = get_alias (m.name);
@@ -266,7 +285,8 @@ public class SwigWriter : ValabindWriter {
 		// m.get_postconditions ();
 
 		ret = m.return_type.to_string ();
-		if (is_generic (ret)) ret = get_ctype (ret);
+		if (is_generic (m.return_type))
+			ret = get_ctype (ret);
 		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
 		if (ret == null)
 			error ("Cannot resolve return type for %s\n".printf (cname));
@@ -297,13 +317,13 @@ public class SwigWriter : ValabindWriter {
 				if (foo.direction == ParameterDirection.OUT)
 					var_name = "OUTPUT";
 				else
-				if (foo.direction == ParameterDirection.REF)
-					var_name = "INOUT";
+					if (foo.direction == ParameterDirection.REF)
+						var_name = "INOUT";
 
 				if (arg_type.index_of ("*") == -1)
 					arg_type += "*";
 				applys += "  %%apply %s %s { %s %s };\n".printf (
-					arg_type, var_name, arg_type, arg_name);
+						arg_type, var_name, arg_type, arg_name);
 				clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
 			}
 			call_args += "%s%s".printf (pfx, arg_name);
@@ -365,7 +385,7 @@ public class SwigWriter : ValabindWriter {
 					} else if (m.return_type.to_string ().index_of ("RList") != -1) {
 						// HACK
 						ret = ret.replace ("string", "const char*");
-//ret = get_ctype (ret); 
+						//ret = get_ctype (ret); 
 						extends += "    %s ret;\n".printf (ret);
 						extends += "    RList *list;\n";
 						extends += "    RListIter *iter;\n";
@@ -389,49 +409,43 @@ public class SwigWriter : ValabindWriter {
 	}
 
 	public override void visit_namespace (Namespace ns) {
-		if (ns.name == null)
-			return;
-
-		SourceReference? sr = ns.source_reference;
-		if (sr != null && !is_target_file (sr.file.filename))
-			return;
-
-		nspace = ns.name;
-		process_includes (ns);
-
-		if (pkgmode && sr.file.filename.index_of (pkgname) == -1)
-			return;
-		foreach (var f in ns.get_constants ())
-			walk_constant (f);
-		foreach (var f in ns.get_fields ())
-			walk_field (f);
-		foreach (var e in ns.get_enums ())
-			walk_enum (e);
-		foreach (var c in ns.get_structs ()) {
-			/* TODO: refactor to walk_struct */
-			foreach (var m in c.get_methods ())
-				walk_method (m);
-			foreach (var f in c.get_fields ())
-				walk_field (f);
+		string name = ns.get_full_name ();
+		bool use = use_namespace (ns);
+		if (use)
+			ns_pfx = name+ ".";
+		if (ns_pfx != null)
+			process_includes (ns);
+		foreach (var n in ns.get_namespaces ())
+			n.accept (this);
+		if (ns_pfx != null) {
+			foreach (Constant c in ns.get_constants ())
+				c.accept (this);
+			foreach (Field f in ns.get_fields ())
+				f.accept (this);
+			foreach (Enum e in ns.get_enums ())
+				e.accept (this);
+			foreach (Struct s in ns.get_structs ())
+				s.accept (this);
+			foreach (Class c in ns.get_classes ())
+				c.accept (this);
+			foreach (Method m in ns.get_methods ())
+				m.accept (this);
 		}
-		foreach (var m in ns.get_methods ())
-			walk_method (m);
-		foreach (var c in ns.get_classes ())
-			walk_class ("", c);
-		//ns.accept_children (this);
+		if (use)
+			ns_pfx = null;
 	}
 
 	public override void write (string file) {
 		var stream = FileStream.open (file, "w");
 		if (stream == null)
 			error ("Cannot open %s for writing".printf (file));
-		context.accept (this);
+		context.root.accept (this);
 		stream.printf ("%%module %s\n%%{\n", modulename);
 		if (!cxx_mode) {
 			stream.printf (
-				"#define bool int\n"+
-				"#define true 1\n"+
-				"#define false 0\n");
+					"#define bool int\n"+
+					"#define true 1\n"+
+					"#define false 0\n");
 		}
 		if (includefiles.length () > 0) {
 			if (cxx_mode)
@@ -455,3 +469,4 @@ public class SwigWriter : ValabindWriter {
 		stream.printf ("%s\n", extends);
 	}
 }
+
