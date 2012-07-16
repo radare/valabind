@@ -4,44 +4,33 @@ PWD:=$(shell pwd)
 DESTDIR?=
 PREFIX?=/usr
 MANDIR?=$(PREFIX)/share/man
-VALAC?=valac -g
+CC?=gcc
+VALAC?=valac -g --cc="$(CC)"
 RTLIBS=gobject-2.0 glib-2.0
 VALAPKG:=$(shell ./getvv)
-CC?=gcc
-CFLAGS?=-g
-CFLAGS+=$(shell pkg-config --cflags $(RTLIBS) $(VALAPKG))
-LNFLAGS?=
-LNFLAGS+=$(shell pkg-config --libs $(RTLIBS) $(VALAPKG))
 BUILD?=build
 BIN=valabind
-FILES=config.vala main.vala valabindwriter.vala nodeffiwriter.vala girwriter.vala swigwriter.vala cxxwriter.vala
-VAPIS:=$(patsubst %.vala,$(BUILD)/%.vapi,$(FILES))
-CFILES:=$(patsubst %.vala,$(BUILD)/%.c,$(FILES))
-OBJS:=$(patsubst %.vala,$(BUILD)/%.o,$(FILES))
+SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala girwriter.vala swigwriter.vala cxxwriter.vala
+VAPIS:=$(SRC:%.vala=$(BUILD)/%.vapi)
+CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
 
 all: $(BIN)
 
-$(BIN): $(OBJS)
-	@echo 'Linking $^ -> $@'
-	@$(CC) -o $@ $(LNFLAGS) $^
-
-config.vala:
-	@echo 'Generating $@'
-	@echo 'const string version_string = "$(VERSION)";' > $@
-
-%.o: %.c
-	@echo 'Compiling $^ -> $@'
-	@$(CC) -c -o $@ $(CFLAGS) $^
-
 .PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
-$(BUILD)/%.c: %.vala $(VAPIS)
-	@echo 'Compiling $< -> $@'
-	@$(VALAC) -C --pkg posix --pkg $(VALAPKG) $(addprefix --use-fast-vapi=,$(subst $(patsubst %.vala,$(BUILD)/%.vapi,$<),,$(VAPIS))) $<
-	@mv $(patsubst $(BUILD)/%.c,%.c,$@) $@
+
+VALA_FILTER=$(filter %.vala,$?)
+$(BIN): $(SRC) | $(VAPIS)
+	@echo 'Compiling $(VALA_FILTER) -> $@'
+	@$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps $(addprefix --use-fast-vapi=,$(filter-out $(VALA_FILTER:%.vala=$(BUILD)/%.vapi),$(VAPIS))) $(VALA_FILTER) $(patsubst %.vala,$(BUILD)/%.c,$(filter-out $?,$^))
+	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
 	@echo 'Generating $< -> $@'
 	@$(VALAC) --fast-vapi=$@ $<
+
+config.vala:
+	@echo 'Generating $@'
+	@echo 'const string version_string = "$(VERSION)";' > $@
 
 $(BUILD):
 	mkdir -p $@
