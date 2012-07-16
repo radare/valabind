@@ -20,9 +20,7 @@ public class ValabindWriter : CodeVisitor {
 	public void init (string vapidir, string profile) {
 		CodeContext.push (context);
 		this.vapidir = vapidir;
-	#if VALA_0_12
 		context.vapi_directories = { vapidir };
-	#endif
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
 		switch (profile) {
@@ -50,22 +48,7 @@ public class ValabindWriter : CodeVisitor {
 	}
 
 	public bool check () {
-	#if VALA_0_12
 		context.check ();
-	#else
-		var resolver = new SymbolResolver ();
-		resolver.resolve (context);
-		if (context.report.get_errors () != 0)
-			return false;
-
-		var analyzer = new SemanticAnalyzer ();
-		analyzer.analyze (context);
-		if (context.report.get_errors () != 0)
-			return false;
-
-		var flow_analyzer = new FlowAnalyzer ();
-		flow_analyzer.analyze (context);
-	#endif
 		return (context.report.get_errors () == 0);
 	}
 
@@ -86,13 +69,8 @@ public class ValabindWriter : CodeVisitor {
 
 		bool found = FileUtils.test (path, FileTest.IS_REGULAR);
 		if (found) {
-			if (!pkgmode) {
-			#if VALA_0_12
+			if (!pkgmode)
 				context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, path));
-			#else
-				context.add_source_file (new SourceFile (context, path, true));
-			#endif
-			}
 			source_files.append(path);
 		} else if (!add_package (context, path))
 			error ("Cannot find '%s'".printf (path));
@@ -111,12 +89,7 @@ public class ValabindWriter : CodeVisitor {
 		if (context.has_package (pkg))
 			return true;
 
-	#if VALA_0_12
 		var package_path = context.get_vapi_path (pkg);
-	#else
-		string[] vapi_directories = { vapidir };
-		var package_path = context.get_package_path (pkg, vapi_directories);
-	#endif
 		if (package_path == null) {
 			warning ("Cannot find package path '%s'".printf (pkg));
 			return false;
@@ -124,11 +97,7 @@ public class ValabindWriter : CodeVisitor {
 
 		if (pkgmode)
 			add_source_file (package_path);
-	#if VALA_0_12
 		context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, package_path));
-	#else
-		context.add_source_file (new SourceFile (context, package_path, true));
-	#endif
 		context.add_package (pkg);
 		
 		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));
