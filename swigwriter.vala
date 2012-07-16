@@ -14,7 +14,6 @@ public class SwigWriter : ValabindWriter {
 	string enums = "";
 	string vectors = "";
 	string ?ns_pfx;
-	string nspace = "";
 
 	public SwigWriter (bool cxx_mode) {
 		this.cxx_mode = cxx_mode;
@@ -209,26 +208,26 @@ public class SwigWriter : ValabindWriter {
 	}
 
 	public override void visit_class (Class c) {
-		classname = ns_pfx+c.name;
+		// FIXME does SWIG support actual namespaces?
+		classname = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
 		classcname = CCodeBaseModule.get_ccode_name (c);
 		add_includes (c);
-		if (context.profile == Profile.GOBJECT) {
-			classname = "%s%s".printf (nspace, classname);
+		if (context.profile == Profile.GOBJECT)
 			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
-		} else extends += "%%extend %s {\n".printf (classname);
+		else extends += "%%extend %s {\n".printf (classname);
 		foreach (Enum e in c.get_enums ())
 			e.accept (this);
 		foreach (Field f in c.get_fields ())
 			f.accept (this);
-		if (CCodeBaseModule.is_reference_counting (c)) {
-			string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
-			if (freefun != null && freefun != "")
-				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
-		} else {
-			string? freefun = CCodeBaseModule.get_ccode_free_function (c);
-			if (freefun != null && freefun != "")
-				extends += "  ~%s%s() {\n    %s (self);\n  }\n".printf (modulename, classname, freefun);
-		}
+
+		string? freefun = null;
+		if (CCodeBaseModule.is_reference_counting (c))
+			freefun = CCodeBaseModule.get_ccode_unref_function (c);
+		else
+			freefun = CCodeBaseModule.get_ccode_free_function (c);
+		if (freefun != null && freefun != "")
+			extends += "  ~%s() {\n    %s (self);\n  }\n".printf (classname, freefun);
+
 		foreach (Method m in c.get_methods ())
 			m.accept (this);
 		foreach (Struct s in c.get_structs ())
@@ -424,8 +423,9 @@ public class SwigWriter : ValabindWriter {
 				stream.printf ("}\n#include <vector>\n");
 		}
 		stream.printf ("%%}\n");
-		foreach (var inc in includefiles)
-			stream.printf ("%%include <%s>\n", inc);
+		// FIXME this breaks because the included files are not SWIG files.
+		//foreach (var inc in includefiles)
+		//	stream.printf ("%%include <%s>\n", inc);
 		if (cxx_mode) {
 			stream.printf ("%%include \"std_vector.i\"\n\n");
 			if (vectors != "")
