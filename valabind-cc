@@ -65,8 +65,9 @@ case "$1" in
   LANG=$2
   ;;
 "--version"|"-V")
-  valabind --version
+  printf "valabind " ; valabind --version
   ${SWIG} -version | grep SWIG
+  [ -z "${CC}" ] && CC=gcc
   ${CC} --version | grep ${CC}
   exit 0
   ;;
