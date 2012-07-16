@@ -3,34 +3,6 @@
 
 LANG=$1
 MOD=$2
-OMOD=${MOD}
-[ -z "${SWIG}" ] && SWIG=swig
-COMPILE=Yes
-ARG_VAPIDIR=""
-EXT="c"
-CXXOUT=0
-NOGEN=0
-if [ -z "${SOEXT}" ]; then
-  if [ -n "`uname -a | grep -i darwin`" ]; then
-    SOEXT="dylib"
-  elif [ -n "`echo ${CC} | grep mingw`" ]; then
-    SOEXT="dll"
-  else
-    SOEXT="so"
-  fi
-fi
-if [ -z "${VALABIND_DEBUG}" ]; then
-  NULLPIPE=">/dev/null 2>&1"
-else
-  NULLPIPE=""
-fi
-
-use_cxx() {
-    CC="${CXX}"
-    EXT="cxx"
-    SWIGFLAGS="-c++ ${SWIGFLAGS}"
-    VALABINDFLAGS="-x ${VALABINDFLAGS}"
-}
 
 show_help () {
   echo "Usage: valabind-cc [lang] [module-name] [-flags] vapifile .."
@@ -58,6 +30,39 @@ show_help () {
   exit 0
 }
 
+OMOD=${MOD}
+[ -z "${SWIG}" ] && SWIG=swig
+[ -z "${LANG}" ] && show_help
+[ -z "${CC}" ] && CC=gcc
+[ -z "${CXX}" ] && CXX=g++
+COMPILE=Yes
+ARG_VAPIDIR=""
+EXT="c"
+CXXOUT=0
+NOGEN=0
+if [ -z "${SOEXT}" ]; then
+  if [ -n "`uname -a | grep -i darwin`" ]; then
+    SOEXT="dylib"
+  elif [ -n "`echo ${CC} | grep mingw`" ]; then
+    SOEXT="dll"
+  else
+    SOEXT="so"
+  fi
+fi
+if [ -z "${VALABIND_DEBUG}" ]; then
+  NULLPIPE=">/dev/null 2>&1"
+else
+  NULLPIPE=""
+fi
+
+use_cxx() {
+    CC="${CXX}"
+    EXT="cxx"
+    CFLAGS="${CFLAGS} ${CXXFLAGS}"
+    SWIGFLAGS="-c++ ${SWIGFLAGS}"
+    VALABINDFLAGS="-x ${VALABINDFLAGS}"
+}
+
 TEST=0
 case "$1" in
 "--test")
@@ -67,7 +72,6 @@ case "$1" in
 "--version"|"-V")
   printf "valabind " ; valabind --version
   ${SWIG} -version | grep SWIG
-  [ -z "${CC}" ] && CC=gcc
   ${CC} --version | grep ${CC}
   exit 0
   ;;
@@ -75,10 +79,6 @@ case "$1" in
   show_help
   ;;
 esac
-
-[ -z "${LANG}" ] && show_help
-[ -z "${CC}" ] && CC=gcc
-[ -z "${CXX}" ] && CXX=g++
 
 case "${LANG}" in
 "nodejs"|"node"|"node-ffi")
@@ -190,6 +190,10 @@ while : ; do
 done
 
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
+
+# strip problematic cflags. can be problematic if not used
+CFLAGS="`echo "${CFLAGS}" | sed 's,-pie,,gi'`"
+LDFLAGS="`echo "${LDFLAGS}" | sed 's,-pie,,gi'`"
 
 if [ "$CXXOUT" = 1 ]; then
   echo valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
