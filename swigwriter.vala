@@ -16,6 +16,29 @@ public class SwigWriter : ValabindWriter {
 	string ?ns_pfx;
 	string nspace = "";
 
+	public SwigWriter (bool cxx_mode) {
+		this.cxx_mode = cxx_mode;
+	}
+
+	public override string get_filename (string base_name) {
+		return base_name+".i";
+	}
+
+	// FIXME duplicate from NodeFFIWriter
+	void add_includes (Symbol s) {
+		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+			bool include = true;
+			foreach (string j in includefiles) {
+				if (i == j) {
+					include = false;
+					break;
+				}
+			}
+			if (include)
+				includefiles.prepend (i);
+		}
+	}
+
 	// FIXME duplicate from NodeFFIWriter
 	string sep (string str, string separator) {
 		if (str.length == 0)
@@ -24,14 +47,6 @@ public class SwigWriter : ValabindWriter {
 		if (last != '(' && last != '[' && last != '{')
 			return str+separator;
 		return str;
-	}
-
-	public SwigWriter (bool cxx_mode) {
-		this.cxx_mode = cxx_mode;
-	}
-
-	public override string get_filename (string base_name) {
-		return base_name+".i";
 	}
 
 	string get_alias (string? name) {
@@ -76,108 +91,98 @@ public class SwigWriter : ValabindWriter {
 		return name;
 	}
 
-	string get_ctype (string _type) {
-		string type = _type;
-		string? iter_type = null;
-		if (type == "null")
-			error ("Cannot resolve type");
-		if (type.has_prefix (nspace))
-			type = type.substring (nspace.length) + "*";
-		type = type.replace (".", "");
-		// ugly hack here //
-		if (is_generic_hack (type)) {
-			int ptr = type.index_of ("<");
-			iter_type = (ptr==-1)?type:type[ptr:type.length];
-			iter_type = iter_type.replace ("<", "");
-			iter_type = iter_type.replace (">", "");
-			iter_type = iter_type.replace (nspace, "");
-			type = type.split ("<", 2)[0];
-			//if (iter_type == "string")
-			//    iter_type = "const char*";
-			//if (type == "std::vector<string>")
-			//    type = "std::vector<const char*>";
+	string type_name (DataType type, bool ignoreRef=false) {
+		if (type == null) {
+			warning ("Cannot resolve type");
+			return "__UNRESOLVED_TYPE_OH_PLEASE_KILL_ME_NOW__";
 		}
-		type = type.replace ("?","");
 
-		switch (type) {
-		case "std::vector<string>":
-			return "std::vector<const char*>";
-		case "const gchar*":
-			return "const char*";
-		case "G": /* generic type :: TODO: review */
-		case "gconstpointer":
-		case "gpointer":
-			return "void*";
-		case "gdouble":
-			return "double";
-		case "gfloat":
-			return "float";
-		case "break":
-			return "_break";
-		case "ut8":
-		case "uint8":
-		case "guint8":
-			return "unsigned char";
-		case "gchar**":
-			return "char **";
-		case "gchar":
-			return "char";
-		case "gchar*":
-		case "string":
-		case "string*":
-			return "char *"; // ??? 
-		case "guint":
-			return "unsigned int";
-		case "gint":
-			return "int";
-		case "glong":
-			return "long";
-		case "st64":
-		case "int64":
-		case "gint64":
-			return "long long";
-		case "ut64":
-		case "uint64":
-		case "guint64":
-			return "unsigned long long";
-			/* XXX swig does not support unsigned char* */
-		case "uint8*":
-		case "guint8*":
-			return "unsigned char*";
-		case "guint16":
-		case "uint16":
-			return "unsigned short";
-		case "ut32":
-		case "uint32":
-		case "guint32":
-			return "unsigned int";
-		case "bool": // no conversion needed
-		case "gboolean":
-			return "bool"; // XXX bool?
-		case "RFList":
-			if (iter_type != null)
-				return "std::vector<"+iter_type+">";
-			break;
-		case "RList":
-			if (iter_type != null)
-				return "std::vector<"+iter_type+">";
-			break;
-		}
-		return type;
-	}
+		// HACK is this required?
+		if (type is EnumValueType)
+			return "long int";
 
-	public void process_includes (Symbol s) {
-		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
-			var include = true;
-			foreach (var inc in includefiles) {
-				if (inc == foo) {
-					include = false;
-					break;
-				}
-			}
-			if (include)
-				includefiles.prepend (foo);
+		if (type is GenericType)
+			return type.to_qualified_string ();
+
+		if (type is PointerType)
+			return type_name ((type as PointerType).base_type, true)+"*";
+
+		if (type is ArrayType) {
+			ArrayType array = type as ArrayType;
+			string element = type_name (array.element_type);
+			if (!array.fixed_length)
+				return element+"*"; // FIXME should this be element+"[]"?
+			return element+"[%d]".printf (array.length); // FIXME will this work?
 		}
+
+		string generic = "";
+		foreach (DataType t in type.get_type_arguments ())
+			generic = sep (generic, ", ") + type_name (t);
+		// FIXME is this the right way to get the C type?
+		string _type = CCodeBaseModule.get_ccode_name (type);//.to_string ();
+
+		// HACK find a better way to remove generic type args
+		_type = _type.split ("<", 2)[0];
+
+		_type = _type.replace ("?","");
+		_type = _type.replace ("unsigned ", "u");
+
+		switch (_type) {
+			// FIXME won't catch (std::vector)
+			case "std::vector<string>":
+				return "std::vector<const char*>";
+			// FIXME won't catch (PointerType)
+			case "const gchar*":
+				return "const char*";
+			case "gconstpointer":
+			case "gpointer":
+				return "void*";
+			case "gdouble":
+				return "double";
+			case "gfloat":
+				return "float";
+			// HACK why?
+			case "break":
+				return "_break";
+			case "ut8":
+			case "uint8":
+			case "guint8":
+				return "unsigned char";
+			case "gchar":
+				return "char";
+			case "string":
+				return "char*";
+			case "guint":
+				return "unsigned int";
+			case "gint":
+				return "int";
+			case "glong":
+				return "long";
+			case "st64":
+			case "int64":
+			case "gint64":
+				return "long long";
+			case "ut64":
+			case "uint64":
+			case "guint64":
+				return "unsigned long long";
+			case "guint16":
+			case "uint16":
+				return "unsigned short";
+			case "ut32":
+			case "uint32":
+			case "guint32":
+				return "unsigned int";
+			case "bool":
+			case "gboolean":
+				return "bool";
+			// HACK needs proper generic support
+			case "RList":
+				if (generic != "")
+					return "std::vector<"+generic+">";
+				break;
+		}
+		return _type;
 	}
 
 	public override void visit_constant (Constant c) {
@@ -206,7 +211,7 @@ public class SwigWriter : ValabindWriter {
 	public override void visit_class (Class c) {
 		classname = ns_pfx+c.name;
 		classcname = CCodeBaseModule.get_ccode_name (c);
-		process_includes (c);
+		add_includes (c);
 		if (context.profile == Profile.GOBJECT) {
 			classname = "%s%s".printf (nspace, classname);
 			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
@@ -230,18 +235,11 @@ public class SwigWriter : ValabindWriter {
 			s.accept (this);
 		foreach (Class k in c.get_classes ())
 			k.accept (this);
-		if (context.profile == Profile.GOBJECT) extends += "};\n} %s;\n".printf (classname);
+		if (context.profile == Profile.GOBJECT)
+			extends += "};\n} %s;\n".printf (classname);
 		else extends += "};\n";
 		classname = "";
 	}
-
-	/// new void visit_enum (Enum e, string pfx="") {
-	// that pfx thing looks wrong
-	// "that pfx thing" is for the C program that outputs the enum code
-	// everything else is context-based, so only the name is required
-	// but this needs absolute property names.
-	// that's node-ffi specific anyway, just rename the current methods
-	// to visit_*
 
 	public override void visit_enum (Enum e) {
 		var enumname = (classname + e.name).replace(".","");
@@ -249,6 +247,7 @@ public class SwigWriter : ValabindWriter {
 		enums += "/* enum: %s (%s) */\n".printf (
 				e.name, CCodeBaseModule.get_ccode_name (e));
 		enums += "enum %s {\n".printf (enumname);
+		// HACK use this or type_name?
 		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
@@ -259,18 +258,7 @@ public class SwigWriter : ValabindWriter {
 		enums = tmp + "%}\n"+enums;
 	}
 
-
-	// another fugly hack, see get_type in node-ffi for sparkly clean implementation <3
-	inline bool is_generic_hack(string type) {
-		return (cxx_mode && type.index_of ("<") != -1 && type.index_of (">") != -1);
-	}
-
-	inline bool is_generic(DataType type) {
-		return (type.get_type_arguments ().size >0);
-	}
-
 	public override void visit_method (Method m) {
-		bool first = true;
 		string cname = CCodeBaseModule.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		string ret;
@@ -284,10 +272,7 @@ public class SwigWriter : ValabindWriter {
 		// m.get_preconditions ();
 		// m.get_postconditions ();
 
-		ret = m.return_type.to_string ();
-		if (is_generic (m.return_type))
-			ret = get_ctype (ret);
-		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
+		ret = type_name (m.return_type);
 		if (ret == null)
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
@@ -295,30 +280,22 @@ public class SwigWriter : ValabindWriter {
 		if (m.is_private_symbol ())
 			return;
 
-		string applys = "";
-		string clears = "";
-		string pfx;
+		string applys = "", clears = "";
 		foreach (var foo in m.get_parameters ()) {
 			string arg_name = get_alias (foo.name);
 			//DataType? bar = foo.parameter_type;
 			DataType? bar = foo.variable_type;
 			if (bar == null)
 				continue;
-			string? arg_type = get_ctype (CCodeBaseModule.get_ccode_name (bar));
+			string? arg_type = type_name (bar);
 
-			if (first) {
-				pfx = "";
-				first = false;
-			} else pfx = ", ";
-
-			/* TODO: move to get_ctype */
+			/* TODO: move to type_name */
 			if (foo.direction != ParameterDirection.IN) {
 				var var_name = "";
 				if (foo.direction == ParameterDirection.OUT)
 					var_name = "OUTPUT";
-				else
-					if (foo.direction == ParameterDirection.REF)
-						var_name = "INOUT";
+				else if (foo.direction == ParameterDirection.REF)
+					var_name = "INOUT";
 
 				if (arg_type.index_of ("*") == -1)
 					arg_type += "*";
@@ -326,8 +303,8 @@ public class SwigWriter : ValabindWriter {
 						arg_type, var_name, arg_type, arg_name);
 				clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
 			}
-			call_args += "%s%s".printf (pfx, arg_name);
-			def_args += "%s%s %s".printf (pfx, arg_type, arg_name);
+			call_args = sep(call_args, ", ") + arg_name;
+			def_args = sep(def_args, ", ") +  arg_type + " " + arg_name;
 		}
 
 		/* object oriented shit */
@@ -359,6 +336,8 @@ public class SwigWriter : ValabindWriter {
 				if (is_static)
 					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
 				else extends += "   %s %s (%s) {\n".printf (ret, alias, def_args);
+
+				//BEGIN HACK HACK HACK DIE IN A FIRE
 				if (cxx_mode && ret.index_of ("std::vector") != -1) {
 					int ptr = ret.index_of ("<");
 					string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
@@ -371,21 +350,8 @@ public class SwigWriter : ValabindWriter {
 					if (iter_type == "G*") /* No generic */
 						error ("Fuck, no <G> type support.\n");
 					// TODO: Do not recheck the return_type
-					if (m.return_type.to_string ().index_of ("RFList") != -1) {
-						// HACK
-						extends += "    %s ret;\n".printf (ret);
-						extends += "    void** array;\n";
-						extends += "    %s *item;\n".printf (iter_type);
-						extends += "    array = %s (%s);\n".printf (cname, call_args);
-						extends += "    r_flist_rewind (array);\n";
-						extends += "    while (*array != 0 && (item = (%s*)(*array++)))\n".printf (iter_type);
-						extends += "        ret.push_back(*item);\n";
-						extends += "    return ret;\n";
-						extends += "  }\n";
-					} else if (m.return_type.to_string ().index_of ("RList") != -1) {
-						// HACK
-						ret = ret.replace ("string", "const char*");
-						//ret = get_ctype (ret); 
+					if (m.return_type.to_string ().index_of ("RList") != -1) {
+						//ret = type_name (ret);
 						extends += "    %s ret;\n".printf (ret);
 						extends += "    RList *list;\n";
 						extends += "    RListIter *iter;\n";
@@ -399,10 +365,11 @@ public class SwigWriter : ValabindWriter {
 					}
 					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (
 							iter_type, iter_type);
-				} else {
+				}
+				//END HACK HACK HACK DIE IN A FIRE
+				else
 					extends += "    %s %s (%s);\n  }\n".printf (
 							void_return?"":"return", cname, call_args);
-				}
 				extends += clears;
 			}
 		}
@@ -414,7 +381,7 @@ public class SwigWriter : ValabindWriter {
 		if (use)
 			ns_pfx = name+ ".";
 		if (ns_pfx != null)
-			process_includes (ns);
+			add_includes (ns);
 		foreach (var n in ns.get_namespaces ())
 			n.accept (this);
 		if (ns_pfx != null) {
@@ -439,14 +406,15 @@ public class SwigWriter : ValabindWriter {
 		var stream = FileStream.open (file, "w");
 		if (stream == null)
 			error ("Cannot open %s for writing".printf (file));
+
 		context.root.accept (this);
+
 		stream.printf ("%%module %s\n%%{\n", modulename);
-		if (!cxx_mode) {
+		if (!cxx_mode)
 			stream.printf (
 					"#define bool int\n"+
 					"#define true 1\n"+
 					"#define false 0\n");
-		}
 		if (includefiles.length () > 0) {
 			if (cxx_mode)
 				stream.printf ("extern \"C\" {\n");

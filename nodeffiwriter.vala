@@ -44,6 +44,7 @@ public class NodeFFIWriter : ValabindWriter {
 			warning ("Cannot resolve type");
 			return "throw TypeError('Unresolved type')";
 		}
+
 		if (type is EnumValueType)
 			return "_.int";
 		
@@ -75,6 +76,7 @@ public class NodeFFIWriter : ValabindWriter {
 				return unref_type;
 			return "_.ref("+unref_type+")";
 		}
+
 		string generic = "";
 		foreach (DataType t in type.get_type_arguments ())
 			generic = sep (generic, ", ") + type_name (t);
@@ -84,7 +86,7 @@ public class NodeFFIWriter : ValabindWriter {
 		_type = _type.split ("<", 2)[0];
 		
 		_type = _type.replace (ns_pfx, "").replace (".", "");
-		_type = _type.replace ("?","").replace (" *", "*");
+		_type = _type.replace ("?","");
 		_type = _type.replace ("unsigned ", "u");
 
 		switch (_type) {
