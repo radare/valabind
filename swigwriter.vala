@@ -23,7 +23,11 @@ public class SwigWriter : ValabindWriter {
 		return base_name+".i";
 	}
 
-	string get_alias (string name) {
+	string get_alias (string? name) {
+		if (name == null) {
+			warning ("get_alias with null name");
+			return "";
+		}
 		string oname = name;
 		switch (name) {
 /*
@@ -108,7 +112,10 @@ public class SwigWriter : ValabindWriter {
 			return "char";
 		case "gchar*":
 		case "string":
+		case "string*":
 			return "char *"; // ??? 
+		case "guint":
+	 		return "unsigned int";
 		case "gint":
 	 		return "int";
 		case "glong":
@@ -272,7 +279,7 @@ public class SwigWriter : ValabindWriter {
 		string clears = "";
 		string pfx;
 		foreach (var foo in m.get_parameters ()) {
-			string arg_name = foo.name;
+			string arg_name = get_alias (foo.name);
 			//DataType? bar = foo.parameter_type;
 			DataType? bar = foo.variable_type;
 			if (bar == null)
