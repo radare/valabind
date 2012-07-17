@@ -212,9 +212,7 @@ public class SwigWriter : ValabindWriter {
 		classname = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
 		classcname = CCodeBaseModule.get_ccode_name (c);
 		add_includes (c);
-		if (context.profile == Profile.GOBJECT)
-			extends += "typedef struct _%s {\n%%extend {\n".printf (classcname);
-		else extends += "%%extend %s {\n".printf (classname);
+		extends += "typedef struct %s {\n%%extend {\n".printf (classcname);
 		foreach (Enum e in c.get_enums ())
 			e.accept (this);
 		foreach (Field f in c.get_fields ())
@@ -234,9 +232,7 @@ public class SwigWriter : ValabindWriter {
 			s.accept (this);
 		foreach (Class k in c.get_classes ())
 			k.accept (this);
-		if (context.profile == Profile.GOBJECT)
-			extends += "};\n} %s;\n".printf (classname);
-		else extends += "};\n";
+		extends += "};\n} %s;\n".printf (classname);
 		classname = "";
 	}
 
@@ -423,9 +419,8 @@ public class SwigWriter : ValabindWriter {
 				stream.printf ("}\n#include <vector>\n");
 		}
 		stream.printf ("%%}\n");
-		// FIXME this breaks because the included files are not SWIG files.
-		//foreach (var inc in includefiles)
-		//	stream.printf ("%%include <%s>\n", inc);
+		foreach (string inc in includefiles)
+			stream.printf ("%%include <%s>\n", inc);
 		if (cxx_mode) {
 			stream.printf ("%%include \"std_vector.i\"\n\n");
 			if (vectors != "")
