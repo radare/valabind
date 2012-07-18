@@ -4,7 +4,7 @@ using Vala;
 
 public class SwigWriter : ValabindWriter {
 	public bool cxx_mode;
-	public GLib.List<string> includefiles = new GLib.List<string>();
+	public GLib.List<string> includefiles = new GLib.List<string> ();
 	public GLib.List<Method> methods;
 	string classname = "";
 	string classcname;
