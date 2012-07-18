@@ -7,12 +7,11 @@ public class SwigWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	public GLib.List<Method> methods;
 	string classname = "";
-	string classcname;
-	string externs = "";
 	string statics = "";
+	string structs = "";
 	string extends = "";
 	string enums = "";
-	string vectors = "";
+	//string vectors = "";
 	string ?ns_pfx;
 
 	public SwigWriter (bool cxx_mode) {
@@ -41,56 +40,30 @@ public class SwigWriter : ValabindWriter {
 	// FIXME duplicate from NodeFFIWriter
 	string sep (string str, string separator) {
 		if (str.length == 0)
-			return str;     
+			return str;
 		char last = str[str.length-1];
 		if (last != '(' && last != '[' && last != '{')
 			return str+separator;
 		return str;
 	}
 
-	string get_alias (string? name) {
-		if (name == null) {
-			warning ("get_alias with null name");
-			return "";
-		}
-		string oname = name;
-		switch (name) {
-		/*
-		   case "use":
-		   return "_use";
-		 */
-		case "break":
-			name = "_break";
-			break;
-		case "cmd":
-			name = "_cmd";
-			break;
-		case "def":
-			name = "_def";
-			break;
-		case "print":
-			name = "_print";
-			break;
-		case "delete":
-			name = "_delete";
-			break;
-		case "del":
-			name = "_del";
-			break;
-		case "from":
-			name = "_from";
-			break;
-		case "continue":
-			name = "cont";
-			break;
+	string get_alias (string oname) {
+		string name = oname;
+		switch (oname) {
+			case "break":
+			case "delete":
+				name = "_"+oname;
+				break;
+			case "continue":
+				name = "cont";
+				break;
 		}
 		if (name != oname)
-			warning ("%s.%s method renamed to %s.%s".printf (
-						classname, oname, classname, name));
+			warning ("%s.%s renamed to %s.%s".printf (classname, oname, classname, name));
 		return name;
 	}
 
-	string type_name (DataType type, bool ignoreRef=false) {
+	string type_name (DataType type, bool retType=false, bool ignoreRef=false) {
 		if (type == null) {
 			warning ("Cannot resolve type");
 			return "__UNRESOLVED_TYPE_OH_PLEASE_KILL_ME_NOW__";
@@ -100,86 +73,96 @@ public class SwigWriter : ValabindWriter {
 		if (type is EnumValueType)
 			return "long int";
 
+		// HACK needs proper generic support
 		if (type is GenericType)
-			return type.to_qualified_string ();
+			return "void*";
+			//return type.to_qualified_string ();
 
 		if (type is PointerType)
-			return type_name ((type as PointerType).base_type, true)+"*";
+			return type_name ((type as PointerType).base_type, retType, true)+"*";
 
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
-			string element = type_name (array.element_type);
+			string element = type_name (array.element_type, retType);
 			if (!array.fixed_length)
 				return element+"*"; // FIXME should this be element+"[]"?
 			return element+"[%d]".printf (array.length); // FIXME will this work?
 		}
 
+		if (!ignoreRef && (type is ReferenceType)) {
+			string unref_type = type_name (type, retType, true);
+			// HACK just check for the string class instead (how?)
+			if (unref_type == "char*" || unref_type == "const char*")
+				return unref_type;
+			// FIXME should it be & under C++?
+			return unref_type+"*";
+		}
+
 		string generic = "";
 		foreach (DataType t in type.get_type_arguments ())
 			generic = sep (generic, ", ") + type_name (t);
-		// FIXME is this the right way to get the C type?
-		string _type = CCodeBaseModule.get_ccode_name (type);//.to_string ();
+
+		string _type = type.to_string ();
 
 		// HACK find a better way to remove generic type args
 		_type = _type.split ("<", 2)[0];
 
+		_type = _type.replace (ns_pfx, "").replace (".", "");
 		_type = _type.replace ("?","");
 		_type = _type.replace ("unsigned ", "u");
 
 		switch (_type) {
-			// FIXME won't catch (std::vector)
-			case "std::vector<string>":
-				return "std::vector<const char*>";
-			// FIXME won't catch (PointerType)
-			case "const gchar*":
-				return "const char*";
+			case "bool":
+			case "gboolean":
+				return "bool";
 			case "gconstpointer":
 			case "gpointer":
 				return "void*";
+			case "gchar":
+				return "char";
+			case "gint":
+				return "int";
+			case "guint":
+				return "unsigned int";
+			case "glong":
+				return "long";
+			case "ut8":
+			case "uint8":
+			case "guint8":
+				return "uint8_t";
+			case "guint16":
+			case "uint16":
+				return "uint16_t";
+			case "st32":
+			case "int32":
+			case "gint32":
+				return "int32_t";
+			case "ut32":
+			case "uint32":
+			case "guint32":
+				return "uint32_t";
+			case "st64":
+			case "int64":
+			case "gint64":
+				return "int64_t";
+			case "ut64":
+			case "uint64":
+			case "guint64":
+				// HACK uint64_t doesn't work here because radare2 doesn't use the right type
+				return "unsigned long long";
 			case "gdouble":
 				return "double";
 			case "gfloat":
 				return "float";
-			// HACK why?
-			case "break":
-				return "_break";
-			case "ut8":
-			case "uint8":
-			case "guint8":
-				return "unsigned char";
-			case "gchar":
-				return "char";
 			case "string":
-				return "char*";
-			case "guint":
-				return "unsigned int";
-			case "gint":
-				return "int";
-			case "glong":
-				return "long";
-			case "st64":
-			case "int64":
-			case "gint64":
-				return "long long";
-			case "ut64":
-			case "uint64":
-			case "guint64":
-				return "unsigned long long";
-			case "guint16":
-			case "uint16":
-				return "unsigned short";
-			case "ut32":
-			case "uint32":
-			case "guint32":
-				return "unsigned int";
-			case "bool":
-			case "gboolean":
-				return "bool";
+				return retType ? "const char*" : "char*";
+			//case "const gchar*":
+			//	return "const char*";
 			// HACK needs proper generic support
-			case "RList":
+			/*case "RList":
 				if (generic != "")
 					return "std::vector<"+generic+">";
-				break;
+				break;*/
 		}
 		return _type;
 	}
@@ -191,69 +174,83 @@ public class SwigWriter : ValabindWriter {
 	}
 
 	public override void visit_field (Field f) {
-		if (f.get_ctype () == null) {
-			//warning ("Cannot resolve type for field '%s'".printf (f.get_cname ()));
-		} else {
-			var cname = CCodeBaseModule.get_ccode_name (f);
-			warning ("Type for "+cname+"\n");
-		}
-		//if (f.access == Accessibility.PRIVATE)
-		//    print ("---> field is private XXX\n");
-		//if (CCodeBaseModule.get_ccode_array_length (f))
-		//    print ("---> array without length\n");
+		if (f.is_private_symbol ())
+			return;
+		// HACK don't output fields with C++ keywords as names.
+		if (f.name == "class")
+			return;
+		string field = "";
+		DataType type = f.variable_type;
+		if (type is ArrayType) {
+			ArrayType array = type as ArrayType;
+			string element = type_name (array.element_type);
+			if (!array.fixed_length)
+				field = element + "* " + f.name; // FIXME should this be element+"[]"?
+			field = element + " " + f.name + "[%d]".printf (array.length); // FIXME will this work?
+		} else
+			field = type_name (type) + " " + f.name;
+		structs += "\t" + field + ";\n";
+	}
+
+	public override void visit_enum (Enum e) {
+		add_includes (e);
+
+		/*extends += "enum %s {\n".printf (e.name);
+		foreach (var v in e.get_values ())
+			extends += "\t%s = %s,\n".printf (v.name, CCodeBaseModule.get_ccode_name (v));
+		extends += "};\n";*/
 	}
 
 	public override void visit_struct (Struct s) {
+		add_includes (s);
 		/* TODO: implement struct visitor here */
 	}
 
 	public override void visit_class (Class c) {
+		add_includes (c);
+
 		// FIXME does SWIG support actual namespaces?
 		classname = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		classcname = CCodeBaseModule.get_ccode_name (c);
-		add_includes (c);
-		extends += "typedef struct %s {\n%%extend {\n".printf (classcname);
-		foreach (Enum e in c.get_enums ())
-			e.accept (this);
+		string cname = CCodeBaseModule.get_ccode_name (c);
+
+		structs += "typedef struct %s {\n".printf (cname);
 		foreach (Field f in c.get_fields ())
 			f.accept (this);
+		structs += "} %s;\n".printf (classname);
+		foreach (Enum e in c.get_enums ())
+			e.accept (this);
 
 		string? freefun = null;
 		if (CCodeBaseModule.is_reference_counting (c))
 			freefun = CCodeBaseModule.get_ccode_unref_function (c);
 		else
 			freefun = CCodeBaseModule.get_ccode_free_function (c);
-		if (freefun != null && freefun != "")
-			extends += "  ~%s() {\n    %s (self);\n  }\n".printf (classname, freefun);
+		if (freefun == "")
+			freefun = null;
+		var methods = c.get_methods ();
+		if (freefun != null || methods.size > 0) {
+			extends += "%%extend %s {\n".printf (classname);
+			if (freefun != null && freefun != "")
+				extends += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (classname, freefun);
+			foreach (Method m in methods)
+				m.accept (this);
+			extends += "};\n";
+		}
 
-		foreach (Method m in c.get_methods ())
-			m.accept (this);
+		classname = "";
+
 		foreach (Struct s in c.get_structs ())
 			s.accept (this);
 		foreach (Class k in c.get_classes ())
 			k.accept (this);
-		extends += "};\n} %s;\n".printf (classname);
-		classname = "";
-	}
-
-	public override void visit_enum (Enum e) {
-		var enumname = (classname + e.name).replace(".","");
-		var tmp = "%{\n";
-		enums += "/* enum: %s (%s) */\n".printf (
-				e.name, CCodeBaseModule.get_ccode_name (e));
-		enums += "enum %s {\n".printf (enumname);
-		// HACK use this or type_name?
-		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
-		foreach (var v in e.get_values ()) {
-			enums += "  %s_%s,\n".printf (e.name, v.name);
-			tmp += "#define %s_%s %s\n".printf (e.name, v.name, 
-					CCodeBaseModule.get_ccode_name (v));
-		}
-		enums += "};\n";
-		enums = tmp + "%}\n"+enums;
 	}
 
 	public override void visit_method (Method m) {
+		if (m.is_private_symbol ())
+			return;
+
+		add_includes (m);
+
 		string cname = CCodeBaseModule.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		string ret;
@@ -267,21 +264,19 @@ public class SwigWriter : ValabindWriter {
 		// m.get_preconditions ();
 		// m.get_postconditions ();
 
-		ret = type_name (m.return_type);
+		ret = type_name (m.return_type, true);
 		if (ret == null)
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
 
-		if (m.is_private_symbol ())
-			return;
 
 		string applys = "", clears = "";
 		foreach (var foo in m.get_parameters ()) {
-			string arg_name = get_alias (foo.name);
 			//DataType? bar = foo.parameter_type;
 			DataType? bar = foo.variable_type;
 			if (bar == null)
 				continue;
+			string arg_name = get_alias (foo.name);
 			string? arg_type = type_name (bar);
 
 			/* TODO: move to type_name */
@@ -294,45 +289,44 @@ public class SwigWriter : ValabindWriter {
 
 				if (arg_type.index_of ("*") == -1)
 					arg_type += "*";
-				applys += "  %%apply %s %s { %s %s };\n".printf (
+				applys += "\t%%apply %s %s { %s %s };\n".printf (
 						arg_type, var_name, arg_type, arg_name);
-				clears += "  %%clear %s %s;\n".printf (arg_type, arg_name);
+				clears += "\t%%clear %s %s;\n".printf (arg_type, arg_name);
 			}
-			call_args = sep(call_args, ", ") + arg_name;
-			def_args = sep(def_args, ", ") +  arg_type + " " + arg_name;
+			call_args = sep (call_args, ", ") + arg_name;
+			def_args = sep (def_args, ", ") + arg_type + " " + arg_name;
 		}
 
 		/* object oriented shit */
-		if (classname == "") {
-			externs += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-		} else {
+		//if (classname != ""){
 			if (is_constructor) {
-				externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
+				//externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 				extends += applys;
-				extends += "  %s (%s) {\n".printf (classname, def_args);
+				extends += "\t%s (%s) {\n".printf (classname, def_args);
 				if (context.profile == Profile.GOBJECT)
-					extends += "    g_type_init ();\n";
-				extends += "    return %s (%s);\n  }\n".printf (cname, call_args);
+					extends += "\t\tg_type_init ();\n";
+				extends += "\t\treturn %s (%s);\n\t}\n".printf (cname, call_args);
 				extends += clears;
 			} else {
-				if (is_static)
-					statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-				else {
+				string func = "";
+				//if (is_static)
+					//statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
+				//else {
+				if (!is_static) {
 					if (call_args == "")
 						call_args = "self";
 					else call_args = "self, " + call_args;
 				}
-				externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
-				extends += applys;
-				if (ret == "std::vector<string>") {
-					warning ("std::vector<string> is not supported yet");
-					return;
-				}
+
+				//externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
+				func += applys;
+
 				if (is_static)
-					extends += "  static %s %s (%s) {\n".printf (ret, alias, def_args);
-				else extends += "   %s %s (%s) {\n".printf (ret, alias, def_args);
+					func += "\tstatic %s %s(%s) {\n".printf (ret, alias, def_args);
+				else func += "\t%s %s(%s) {\n".printf (ret, alias, def_args);
 
 				//BEGIN HACK HACK HACK DIE IN A FIRE
+				#if 0
 				if (cxx_mode && ret.index_of ("std::vector") != -1) {
 					int ptr = ret.index_of ("<");
 					string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
@@ -347,27 +341,33 @@ public class SwigWriter : ValabindWriter {
 					// TODO: Do not recheck the return_type
 					if (m.return_type.to_string ().index_of ("RList") != -1) {
 						//ret = type_name (ret);
-						extends += "    %s ret;\n".printf (ret);
-						extends += "    RList *list;\n";
-						extends += "    RListIter *iter;\n";
-						extends += "    %s *item;\n".printf (iter_type);
-						extends += "    list = %s (%s);\n".printf (cname, call_args);
-						extends += "    if (list)\n";
-						extends += "    for (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
-						extends += "        ret.push_back(*item);\n";
-						extends += "    return ret;\n";
-						extends += "  }\n";
+						extends += "\t\t%s ret;\n".printf (ret);
+						extends += "\t\tRList *list;\n";
+						extends += "\t\tRListIter *iter;\n";
+						extends += "\t\t%s *item;\n".printf (iter_type);
+						extends += "\t\tlist = %s (%s);\n".printf (cname, call_args);
+						extends += "\t\tif (list)\n";
+						extends += "\t\tfor (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
+						extends += "\t\t\tret.push_back(*item);\n";
+						extends += "\t\treturn ret;\n";
+						extends += "\t}\n";
 					}
-					vectors += "  %%template(%sVector) std::vector<%s>;\n".printf (
+					vectors += "\t%%template(%sVector) std::vector<%s>;\n".printf (
 							iter_type, iter_type);
 				}
 				//END HACK HACK HACK DIE IN A FIRE
 				else
-					extends += "    %s %s (%s);\n  }\n".printf (
-							void_return?"":"return", cname, call_args);
-				extends += clears;
+				#endif
+					func += "\t\t%s%s(%s);\n\t}\n".printf (void_return?"":"return ", cname, call_args);
+				func += clears;
+
+				if (classname == "") {
+					statics += func;
+					extends += "\tstatic %s %s(%s);\n".printf (ret, alias, def_args);
+				} else
+					extends += func;
 			}
-		}
+		//}
 	}
 
 	public override void visit_namespace (Namespace ns) {
@@ -382,16 +382,16 @@ public class SwigWriter : ValabindWriter {
 		if (ns_pfx != null) {
 			foreach (Constant c in ns.get_constants ())
 				c.accept (this);
-			foreach (Field f in ns.get_fields ())
-				f.accept (this);
+			//foreach (Field f in ns.get_fields ())
+			//	f.accept (this);
 			foreach (Enum e in ns.get_enums ())
 				e.accept (this);
 			foreach (Struct s in ns.get_structs ())
 				s.accept (this);
 			foreach (Class c in ns.get_classes ())
 				c.accept (this);
-			foreach (Method m in ns.get_methods ())
-				m.accept (this);
+			//foreach (Method m in ns.get_methods ())
+			//	m.accept (this);
 		}
 		if (use)
 			ns_pfx = null;
@@ -407,28 +407,25 @@ public class SwigWriter : ValabindWriter {
 		stream.printf ("%%module %s\n%%{\n", modulename);
 		if (!cxx_mode)
 			stream.printf (
-					"#define bool int\n"+
-					"#define true 1\n"+
-					"#define false 0\n");
-		if (includefiles.length () > 0) {
+					"\t#define bool int\n"+
+					"\t#define true 1\n"+
+					"\t#define false 0\n");
+		if (statics != "" || includefiles.length () > 0) {
 			if (cxx_mode)
-				stream.printf ("extern \"C\" {\n");
-			foreach (var inc in includefiles)
-				stream.printf ("#include <%s>\n", inc);
+				stream.printf ("\textern \"C\" {\n");
+			foreach (string inc in includefiles)
+				stream.printf ("\t#include <%s>\n", inc);
+			stream.printf ("%s", statics);
 			if (cxx_mode)
-				stream.printf ("}\n#include <vector>\n");
+				stream.printf ("\t}\n\t#include <vector>\n");
 		}
 		stream.printf ("%%}\n");
-		foreach (string inc in includefiles)
-			stream.printf ("%%include <%s>\n", inc);
-		if (cxx_mode) {
-			stream.printf ("%%include \"std_vector.i\"\n\n");
-			if (vectors != "")
-				stream.printf ("namespace std {\n%s}\n", vectors);
-		}
 
+		//if (cxx_mode && vectors != "")
+		//		stream.printf ("%%include \"std_vector.i\"\n\nnamespace std {\n%s}\n", vectors);
+
+		stream.printf ("%s\n", structs);
 		stream.printf ("%s\n", enums);
-		stream.printf ("%s\n", statics);
 		stream.printf ("%s\n", extends);
 	}
 }
