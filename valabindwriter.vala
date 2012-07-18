@@ -16,7 +16,7 @@ public class ValabindWriter : CodeVisitor {
 
 	public ValabindWriter () {
 	}
-	
+
 	public void init (string vapidir, string profile) {
 		CodeContext.push (context);
 		this.vapidir = vapidir;
@@ -99,7 +99,7 @@ public class ValabindWriter : CodeVisitor {
 			add_source_file (package_path);
 		context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, package_path));
 		context.add_package (pkg);
-		
+
 		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));
 		if (FileUtils.test (deps_filename, FileTest.EXISTS)) {
 			try {
@@ -120,22 +120,22 @@ public class ValabindWriter : CodeVisitor {
 		}
 		return true;
 	}
-	
+
 	protected bool use_namespace (Namespace ns) {
 		if (namespaces == null)
 			return true;
-		
+
 		string name = ns.get_full_name ();
 		foreach (string i in namespaces)
 			if(name == i)
 				return true;
 		return false;
 	}
-	
+
 	public virtual void write (string file) {
 		error ("ValabindWriter.write not implemented");
 	}
-	
+
 	public virtual string get_filename (string base_name) {
 		warning ("ValabindWriter.get_filename not implemented");
 		return base_name;

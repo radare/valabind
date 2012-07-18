@@ -3,7 +3,7 @@
 using Vala;
 
 public class GirWriter : ValabindWriter {
-	public GLib.List<string> includefiles = new GLib.List<string>();
+	public GLib.List<string> includefiles = new GLib.List<string> ();
 	public GLib.List<Method> methods;
 	string classname = "";
 	string classcname;
@@ -15,7 +15,7 @@ public class GirWriter : ValabindWriter {
 
 	public GirWriter () {
 	}
-	
+
 	public override string get_filename (string base_name) {
 		return base_name+".gir";
 	}
@@ -94,7 +94,7 @@ public class GirWriter : ValabindWriter {
 		case "gchar*":
 		case "string":
 			return "char *";
-			//return "char *"; // ??? 
+			//return "char *"; // ???
 		case "gint":
 	 		return "int";
 		case "glong":

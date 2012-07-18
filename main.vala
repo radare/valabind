@@ -104,11 +104,11 @@ int main (string[] args) {
 		error ("No output mode specified. Try --help\n");
 	else if (count > 1)
 		error ("Cannot specify more than one output mode\n");
-	
+
 	writer.modulename = modulename;
 	writer.include_dirs = include_dirs;
 	writer.namespaces = namespaces;
-	
+
 	if (useprofile == null) useprofile = "posix";
 	writer.init (vapidir, useprofile);
 	if (packages != null)
