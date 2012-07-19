@@ -192,8 +192,8 @@ done
 SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
 
 # strip problematic cflags. can be problematic if not used
-CFLAGS="`echo "${CFLAGS}" | sed 's,-pie,,gi'`"
-LDFLAGS="`echo "${LDFLAGS}" | sed 's,-pie,,gi'`"
+CFLAGS="`echo "${CFLAGS}" | sed -e 's,-pie,,g' -e 's,-PIE,,g'`"
+LDFLAGS="`echo "${LDFLAGS}" | sed -e 's,-pie,,g' -e 's,-PIE,,g'`"
 
 if [ "$CXXOUT" = 1 ]; then
   echo valabind -X ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
