@@ -1,20 +1,24 @@
 # XXX: Hardcoded path
-R2PATH=/home/pancake/prg/radare2/
+# HACK(eddyb): Relative path, more chance of success :)
+R2PATH:=../../../radare2
+MOD:=r_bp
+NS:=Radare
+FLAGS:=$(MOD) $(MOD) -N$(NS) -I$(R2PATH)/libr/include --vapidir=$(R2PATH)/r2-bindings/vapi -l$(MOD)
 
 all: perl ruby python csharp
 
 perl:
-	R2PATH=${R2PATH} sh libr-swig.sh perl r_bp
+	valabind-cc perl $(FLAGS)
 
 ruby:
-	R2PATH=${R2PATH} sh libr-swig.sh ruby r_bp
+	valabind-cc ruby $(FLAGS)
 
 python:
 	rm -f r_bp.so
-	R2PATH=${R2PATH} sh libr-swig.sh python r_bp
+	valabind-cc python $(FLAGS)
 
 csharp:
-	R2PATH=${R2PATH} sh libr-swig.sh csharp r_bp
+	valabind-cc csharp $(FLAGS)
 	mcs -main:test *.cs
 
 .PHONY: all perl ruby python csharp
