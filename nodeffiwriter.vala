@@ -164,6 +164,7 @@ public class NodeFFIWriter : ValabindWriter {
 
 		bind = sep (bind, "\n\t")+"}, {";
 
+		// NOTE if m.accept (this) is used, it might try other functions than visit_method
 		foreach (Method m in s.get_methods ())
 			m.accept (this);
 
@@ -175,13 +176,6 @@ public class NodeFFIWriter : ValabindWriter {
 
 		notice (">\x1b[1mclass\x1b[0m "+c.get_full_name ());
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-
-		bool has_ctor = false;
-		foreach (Method m in c.get_methods ())
-			if (m is CreationMethod) {
-				has_ctor = true;
-				break;
-			}
 
 		bind = sep (bind, ",\n")+"\t%s: function(".printf (name);
 		foreach (TypeParameter t in c.get_type_parameters ())
@@ -196,12 +190,16 @@ public class NodeFFIWriter : ValabindWriter {
 		foreach (Enum e in c.get_enums ())
 			visit_enum (e, name+".");
 
-		string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
-		freefun = freefun == null || freefun == "" ? null : "['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
-		if (freefun != null || has_ctor)
-			bind = sep (bind, ",")+"\n\t\tdelete: "+(freefun != null ? freefun : "defaults.dtor");
+		// TODO use node-weak to call the free function on GC
+		string? freefun = null;
+		if (CCodeBaseModule.is_reference_counting (c))
+			freefun = CCodeBaseModule.get_ccode_unref_function (c);
+		else
+			freefun = CCodeBaseModule.get_ccode_free_function (c);
+		if (freefun != null && freefun != "")
+			bind = sep (bind, ",")+"\n\t\tdelete: ['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
 
-		// BUG if m.accept (this) is used, it skips the constructor
+		// NOTE if m.accept (this) is used, it might try other functions than visit_method
 		foreach (Method m in c.get_methods ())
 			visit_method (m);
 
@@ -209,7 +207,6 @@ public class NodeFFIWriter : ValabindWriter {
 
 		foreach (Struct s in c.get_structs ())
 			s.accept (this);
-
 		foreach (Class k in c.get_classes ())
 			k.accept (this);
 	}
@@ -227,7 +224,8 @@ public class NodeFFIWriter : ValabindWriter {
 		//notice (">\x1b[1mmethod\x1b[0m "+m.get_full_name ());
 		var parent = m.parent_symbol;
 		string cname = CCodeBaseModule.get_ccode_name (m), name = m.name;
-		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod), parent_is_class = parent is Class || parent is Struct;
+		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod);
+		bool parent_is_class = parent is Class || parent is Struct;
 
 		// TODO: Implement contractual support
 		// m.get_preconditions ();
@@ -425,9 +423,6 @@ types.delegate = function DelegateType(ret, args) {
 };
 
 var defaults = {
-	dtor: function dtor() {
-		this.free && this.free();
-	},
 	forEach: function forEach(callback, thisArg) {
 		if({}.toString.call(callback) != '[object Function]')
 			throw new TypeError(callback + ' is not a function');
