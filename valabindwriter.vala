@@ -17,15 +17,17 @@ public class ValabindWriter : CodeVisitor {
 	public ValabindWriter () {
 	}
 
-	public void init (string vapidir) {
+	public void init (string vapidir, bool glibmode) {
 		CodeContext.push (context);
 		this.vapidir = vapidir;
 		context.vapi_directories = { vapidir };
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
 		/* vala 0.17 only support gobject profile */
+		if (glibmode)
+			context.add_define ("GOBJECT");
+		// required to avoid ugly runtime errors
 		context.profile = Profile.GOBJECT;
-		context.add_define ("GOBJECT");
 	}
 
 	public void parse () {

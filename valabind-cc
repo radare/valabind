@@ -189,7 +189,7 @@ while : ; do
   shift
 done
 
-SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST"
+SWIGCPP="-DG_BEGIN_DECLS -DG_END_DECLS -DG_GNUC_CONST -DSWIG_PYTHON_SILENT_MEMLEAK"
 
 # strip problematic cflags. can be problematic if not used
 CFLAGS="`echo "${CFLAGS}" | sed -e 's,-pie,,g' -e 's,-PIE,,g'`"
@@ -243,8 +243,8 @@ else
       ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
     fi
     if [ -n "${COMPILE}" ]; then
-      eval echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
-      ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
+      eval echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
+      ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
     fi
   esac
 fi

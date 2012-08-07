@@ -1,4 +1,4 @@
-/* Copyleft 2009-2012 -- pancake // nopcode.org */
+/* Copyleft 2009-2012 -- pancake, eddyb */
 
 using Vala;
 
@@ -9,7 +9,7 @@ public class SwigWriter : ValabindWriter {
 	string structs = "";
 	string extends = "";
 	string enums = "";
-	//string vectors = "";
+	string vectors = "";
 	string ?ns_pfx;
 
 	public SwigWriter (bool cxx_mode) {
@@ -157,10 +157,10 @@ public class SwigWriter : ValabindWriter {
 			//case "const gchar*":
 			//	return "const char*";
 			// HACK needs proper generic support
-			/*case "RList":
+			case "RList":
 				if (generic != "")
 					return "std::vector<"+generic+">";
-				break;*/
+				break;
 		}
 		return _type;
 	}
@@ -260,8 +260,18 @@ public class SwigWriter : ValabindWriter {
 			if (!array.fixed_length)
 				field = element + "* " + f.name; // FIXME should this be element+"[]"?
 			field = element + " " + f.name + "[%d]".printf (array.length); // FIXME will this work?
-		} else
-			field = type_name (type) + " " + f.name;
+		} else {
+			/* HACK to support generics. this is r2 specific */
+			string _type = type.to_string ();
+			if (_type.index_of ("RListIter") != -1) {
+				field = "RListIter* " + f.name;
+			} else
+			if (_type.index_of ("RList") != -1) {
+				field = "RList* " + f.name;
+			} else
+				field = type_name (type) + " " + f.name;
+		}
+
 		structs += "\t" + field + ";\n";
 	}
 
@@ -314,12 +324,13 @@ public class SwigWriter : ValabindWriter {
 			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
 			extends += applys;
 			extends += "\t%s (%s) {\n".printf (classname, def_args);
-			if (context.profile == Profile.GOBJECT)
+			if (context.is_defined ("GOBJECT"))
 				extends += "\t\tg_type_init ();\n";
 			extends += "\t\treturn %s (%s);\n\t}\n".printf (cname, call_args);
 			extends += clears;
 		} else {
 			string func = "";
+			string fbdy = "";
 			//if (is_static)
 				//statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
 			//else {
@@ -332,44 +343,45 @@ public class SwigWriter : ValabindWriter {
 			//externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
 			func += applys;
 
-			if (is_static)
-				func += "\tstatic %s %s(%s) {\n".printf (ret, alias, def_args);
-			else func += "\t%s %s(%s) {\n".printf (ret, alias, def_args);
-
 			//BEGIN HACK HACK HACK DIE IN A FIRE
-			#if 0
 			if (cxx_mode && ret.index_of ("std::vector") != -1) {
+				ret = ret.replace (">*", ">").replace ("*>",">");
 				int ptr = ret.index_of ("<");
 				string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
 				iter_type = iter_type.replace ("<", "");
 				iter_type = iter_type.replace (">", "");
+				iter_type = iter_type.replace ("*", "");
+				//ret = ret.replace ("*>", ">");
 				// TODO: Check if iter type exists before failing
 				//       instead of hardcoding the most common type '<G>'
 				// TODO: Do not construct a generic class if not supported
 				//       instead of failing.
 				if (iter_type == "G*") /* No generic */
-					error ("Fuck, no <G> type support.\n");
+					error ("Oops. No <G> type support.\n");
 				// TODO: Do not recheck the return_type
 				if (m.return_type.to_string ().index_of ("RList") != -1) {
-					//ret = type_name (ret);
-					extends += "\t\t%s ret;\n".printf (ret);
-					extends += "\t\tRList *list;\n";
-					extends += "\t\tRListIter *iter;\n";
-					extends += "\t\t%s *item;\n".printf (iter_type);
-					extends += "\t\tlist = %s (%s);\n".printf (cname, call_args);
-					extends += "\t\tif (list)\n";
-					extends += "\t\tfor (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
-					extends += "\t\t\tret.push_back(*item);\n";
-					extends += "\t\treturn ret;\n";
-					extends += "\t}\n";
+					fbdy += "\t\t%s ret;\n".printf (ret);
+					fbdy += "\t\tRList *list;\n";
+					fbdy += "\t\tRListIter *iter;\n";
+					fbdy += "\t\t%s *item;\n".printf (iter_type);
+					fbdy += "\t\tlist = %s (%s);\n".printf (cname, call_args);
+					fbdy += "\t\tif (list)\n";
+					fbdy += "\t\tfor (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
+					fbdy += "\t\t\tret.push_back(*item);\n";
+					fbdy += "\t\treturn ret;\n";
+					fbdy += "\t}\n";
 				}
 				vectors += "\t%%template(%sVector) std::vector<%s>;\n".printf (
 						iter_type, iter_type);
-			}
-			else
-			#endif
+			} else 
 			//END HACK HACK HACK DIE IN A FIRE
-				func += "\t\t%s%s(%s);\n\t}\n".printf ((ret == "void")?"":"return ", cname, call_args);
+
+			fbdy += "\t\t%s%s(%s);\n\t}\n".printf ((ret == "void")?"":"return ", cname, call_args);
+
+			if (is_static)
+				func += "\tstatic %s %s(%s) {\n".printf (ret, alias, def_args);
+			else func += "\t%s %s(%s) {\n".printf (ret, alias, def_args);
+			func += fbdy;
 			func += clears;
 
 			if (!parent_is_class) {
@@ -431,9 +443,8 @@ public class SwigWriter : ValabindWriter {
 		}
 		stream.printf ("%%}\n");
 
-		//if (cxx_mode && vectors != "")
-		//		stream.printf ("%%include \"std_vector.i\"\n\nnamespace std {\n%s}\n", vectors);
-
+		if (cxx_mode && vectors != "")
+			stream.printf ("%%include \"std_vector.i\"\n\nnamespace std {\n%s}\n", vectors);
 		stream.printf ("%s\n", structs);
 		stream.printf ("%s\n", enums);
 		stream.printf ("%s\n", extends);

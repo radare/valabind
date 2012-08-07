@@ -3,6 +3,7 @@
 private static string[] files;
 private static string vapidir;
 private static bool show_version;
+private static bool glibmode;
 private static bool cxxmode;
 private static bool cxxoutput;
 private static bool nodeoutput;
@@ -48,6 +49,8 @@ private const OptionEntry[] options = {
 	  ref namespaces, "include namespace in the output", "NSPACE" },
 	{ "cxx-swig", 'x', 0, OptionArg.NONE,
 	  ref cxxmode, "generate C++ code for SWIG", null },
+	{ "glib", 0, 0, OptionArg.NONE,
+	  ref glibmode, "call g_type_init before any constructor", null },
 	{ "swig", 0, 0, OptionArg.NONE,
 	  ref swigoutput, "generate swig interface code", null },
 	{ "node-ffi", 0, 0, OptionArg.NONE,
@@ -106,7 +109,7 @@ int main (string[] args) {
 	writer.include_dirs = include_dirs;
 	writer.namespaces = namespaces;
 
-	writer.init (vapidir);
+	writer.init (vapidir, glibmode);
 	if (packages != null)
 		foreach (var pkg in packages)
 			writer.add_external_package (pkg);
