@@ -17,27 +17,15 @@ public class ValabindWriter : CodeVisitor {
 	public ValabindWriter () {
 	}
 
-	public void init (string vapidir, string profile) {
+	public void init (string vapidir) {
 		CodeContext.push (context);
 		this.vapidir = vapidir;
 		context.vapi_directories = { vapidir };
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
-		switch (profile) {
-		case "gobject":
-			context.profile = Profile.GOBJECT;
-			context.add_define ("GOBJECT");
-			break;
-		case "dova":
-			context.profile = Profile.DOVA;
-			context.add_define ("DOVA");
-			break;
-		case "posix":
-		default:
-			context.profile = Profile.POSIX;
-			context.add_define ("POSIX");
-			break;
-		}
+		/* vala 0.17 only support gobject profile */
+		context.profile = Profile.GOBJECT;
+		context.add_define ("GOBJECT");
 	}
 
 	public void parse () {

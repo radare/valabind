@@ -10,7 +10,6 @@ private static bool swigoutput;
 private static bool giroutput;
 private static string modulename;
 private static string? output;
-private static string? useprofile;
 [CCode (array_length = false, array_null_terminated = true)]
 private static string[] packages;
 [CCode (array_length = false, array_null_terminated = true)]
@@ -47,8 +46,6 @@ private const OptionEntry[] options = {
 	  ref modulename, "specify module name", "NAME" },
 	{ "namespace", 'N', 0, OptionArg.STRING_ARRAY,
 	  ref namespaces, "include namespace in the output", "NSPACE" },
-	{ "profile", 'p', 0, OptionArg.STRING,
-	  ref useprofile, "select Vala profile (posix, gobject, dova)", "PROFILE" },
 	{ "cxx-swig", 'x', 0, OptionArg.NONE,
 	  ref cxxmode, "generate C++ code for SWIG", null },
 	{ "swig", 0, 0, OptionArg.NONE,
@@ -109,8 +106,7 @@ int main (string[] args) {
 	writer.include_dirs = include_dirs;
 	writer.namespaces = namespaces;
 
-	if (useprofile == null) useprofile = "posix";
-	writer.init (vapidir, useprofile);
+	writer.init (vapidir);
 	if (packages != null)
 		foreach (var pkg in packages)
 			writer.add_external_package (pkg);
