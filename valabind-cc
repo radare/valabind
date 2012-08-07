@@ -80,6 +80,7 @@ case "$1" in
   ;;
 esac
 
+SWIG="${SWIG} -small"
 case "${LANG}" in
 "nodejs"|"node"|"node-ffi")
   node --version >/dev/null 2>&1 || exit 1
