@@ -11,14 +11,16 @@ It can also generate bindings for C++.
 
 Valabind mercurial repository is stored here:
 
-    hg clone http://hg.youterm.com/valabind
+    git clone git://github.com/radare/valabind
 
 This software is free, feel free to contribute, modify and
 report patches, ideas, bug reports, etc..
 
-Reach me at pancake // nopcode.org
 
---pancake
+Contact
+-------
+    e-mail:  pancake@nopcode.org
+    twitter: @trufae
 
 [1] http://live.gnome.org/Vala  
 [2] http://www.swig.org  
