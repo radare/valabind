@@ -1,4 +1,4 @@
-VERSION=0.7.0
+VERSION=0.7.1git
 CONTACT=pancake@nopcode.org
 PWD:=$(shell pwd)
 DESTDIR?=
