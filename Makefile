@@ -54,9 +54,9 @@ symstall: install_dirs
 
 dist:
 	rm -rf valabind-$(VERSION)
-	hg clone . valabind-$(VERSION)
+	git clone . valabind-$(VERSION)
 	cd valabind-$(VERSION) && $(MAKE) config.vala #c
-	rm -rf valabind-$(VERSION)/.hg
+	rm -rf valabind-$(VERSION)/.git
 	tar czvf valabind-$(VERSION).tar.gz valabind-$(VERSION)
 
 clean:
