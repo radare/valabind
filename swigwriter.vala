@@ -171,7 +171,7 @@ public class SwigWriter : ValabindWriter {
 		extends += "static const char *"+c.name+" = "+cname+";\n";
 	}
 
-	public override void visit_enum (Enum e) {
+	public override void visit_enum (Vala.Enum e) {
 		add_includes (e);
 
 		/*extends += "enum %s {\n".printf (e.name);
@@ -216,7 +216,7 @@ public class SwigWriter : ValabindWriter {
 			f.accept (this);
 		structs += "} %s;\n".printf (name);
 
-		foreach (Enum e in c.get_enums ())
+		foreach (Vala.Enum e in c.get_enums ())
 			e.accept (this);
 
 		string? freefun = null;
@@ -406,7 +406,7 @@ public class SwigWriter : ValabindWriter {
 				c.accept (this);
 			//foreach (Field f in ns.get_fields ())
 			//	f.accept (this);
-			foreach (Enum e in ns.get_enums ())
+			foreach (Vala.Enum e in ns.get_enums ())
 				e.accept (this);
 			foreach (Struct s in ns.get_structs ())
 				s.accept (this);

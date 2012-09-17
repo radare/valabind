@@ -136,7 +136,7 @@ public class NodeFFIWriter : ValabindWriter {
 		return _type;
 	}
 
-	new void visit_enum (Enum e, string pfx="") {
+	new void visit_enum (Vala.Enum e, string pfx="") {
 		add_includes (e);
 
 		notice (">\x1b[1menum\x1b[0m "+e.get_full_name ());
@@ -187,7 +187,7 @@ public class NodeFFIWriter : ValabindWriter {
 
 		bind = sep (bind, "\n\t")+"}, {";
 
-		foreach (Enum e in c.get_enums ())
+		foreach (Vala.Enum e in c.get_enums ())
 			visit_enum (e, name+".");
 
 		// TODO use node-weak to call the free function on GC
@@ -281,12 +281,12 @@ public class NodeFFIWriter : ValabindWriter {
 				foreach (Method m in ns.get_methods ())
 					m.accept (this);
 
-				foreach (Enum e in ns.get_enums ())
+				foreach (Vala.Enum e in ns.get_enums ())
 					visit_enum (e, name+".");
 
 				bind = sep (bind, "\n\t")+"};}";
 			} else
-				foreach (Enum e in ns.get_enums ())
+				foreach (Vala.Enum e in ns.get_enums ())
 					visit_enum (e);
 
 			foreach (Struct s in ns.get_structs ())
