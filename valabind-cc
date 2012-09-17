@@ -16,6 +16,7 @@ show_help () {
   echo "  -x             generate C++ swig code"
   echo "  -X             output C++ instead of SWIG interface"
   echo "  -I[path]       add includepath for SWIGFLAGS and CFLAGS"
+  echo "  -V[path]       add includepath for vapi files"
   echo "  -L[path]       append library path to LDFLAGS"
   echo "  -l[lib]        append to LDFLAGS to link a library"
   echo "  -C             do not compile, just let the .c/.cxx and .i files"
@@ -50,7 +51,7 @@ if [ -z "${SOEXT}" ]; then
   fi
 fi
 if [ -z "${VALABIND_DEBUG}" ]; then
-  NULLPIPE=">/dev/null 2>&1"
+  NULLPIPE=">/dev/null"
 else
   NULLPIPE=""
 fi
@@ -69,7 +70,7 @@ case "$1" in
   TEST=1
   LANG=$2
   ;;
-"--version"|"-V")
+"--version")
   printf "valabind " ; valabind --version
   ${SWIG} -version | grep SWIG
   ${CC} --version | grep ${CC}
@@ -163,6 +164,9 @@ while : ; do
     CFLAGS="${CFLAGS} $1"
     SWIGFLAGS="$1 ${SWIGFLAGS}"
     VALABINDFLAGS="`echo $1|sed -e 's,^-I,-I ,'` ${VALABINDFLAGS}"
+  elif [ "`echo $1 | grep -- '-V'`" ]; then
+    CFLAGS="${CFLAGS} $1"
+    VALABINDFLAGS="`echo $1|sed -e 's,^-V,-V ,'` ${VALABINDFLAGS}"
   elif [ "`echo $1 | grep -- '--vapidir'`" ]; then
     ARG_VAPIDIR="`echo $1|sed -e 's,=, ,'`"
   elif [ "`echo $1 | grep -- '-x'`" ]; then
@@ -220,8 +224,8 @@ elif [ "$TEST" = 1 ]; then
     cd ${DIR}
     MOD=test # hack to fix guile
     echo "%module ${MOD}" > ${MOD}.i
-    eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
-    eval ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
+    eval echo ${SWIG} -O -o ${MOD}_wrap.${EXT} ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
+    eval ${SWIG} -O -o ${MOD}_wrap.${EXT} ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
     if [ ! $? = 0 ]; then rm -rf ${DIR} ; exit 1 ; fi
     eval echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
     eval ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
@@ -232,7 +236,7 @@ elif [ "$TEST" = 1 ]; then
 else
   case "${LANG}" in
   "nodejs"|"node"|"node-ffi")
-    eval echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
+    eval echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
     eval valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
     exit $?
     ;;
