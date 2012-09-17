@@ -172,14 +172,17 @@ public class NodeFFIWriter : ValabindWriter {
 	}
 
 	public override void visit_class (Class c) {
+		bool is_generic = false;
 		add_includes (c);
 
 		notice (">\x1b[1mclass\x1b[0m "+c.get_full_name ());
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
 
 		bind = sep (bind, ",\n")+"\t%s: function(".printf (name);
-		foreach (TypeParameter t in c.get_type_parameters ())
+		foreach (TypeParameter t in c.get_type_parameters ()) {
+			is_generic = true;
 			bind = sep (bind, ", ")+t.name;
+		}
 		bind += ") {return [{";
 
 		foreach (Field f in c.get_fields ())
@@ -196,8 +199,11 @@ public class NodeFFIWriter : ValabindWriter {
 			freefun = CCodeBaseModule.get_ccode_unref_function (c);
 		else
 			freefun = CCodeBaseModule.get_ccode_free_function (c);
-		if (freefun != null && freefun != "")
+		if (freefun != null && freefun != "") {
+			if (is_generic)
+				name = name +"(G)";
 			bind = sep (bind, ",")+"\n\t\tdelete: ['%s', _.void, [_.ref(_.%s)]]".printf (freefun, name);
+		}
 
 		// NOTE if m.accept (this) is used, it might try other functions than visit_method
 		foreach (Method m in c.get_methods ())
@@ -434,7 +440,8 @@ var defaults = {
 
 function bindings(s) {
 	function method(name, ret, args, static, more) {
-		var f = (more == 'variadic' ? ffi.VariadicForeignFunction : ffi.ForeignFunction)(lib.get(name), ret, args);
+		var f = (more == 'variadic' ? ffi.VariadicForeignFunction :
+			ffi.ForeignFunction)(lib.get(name), ret, args);
 		if(static)
 			return f;
 		// HACK types.ref(T)#set doesn't trigger by itself, as a return type.
@@ -543,7 +550,9 @@ bindings({\n"+bind+"\n});
 			try {
 				Pid gcc_pid;
 				int gcc_stdinfd;
-				Process.spawn_async_with_pipes (null, gcc_args, null, SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD, null, out gcc_pid, out gcc_stdinfd);
+				Process.spawn_async_with_pipes (null, gcc_args, null,
+					SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
+					null, out gcc_pid, out gcc_stdinfd);
 				var gcc_stdin = FileStream.fdopen (gcc_stdinfd, "w");
 				if (gcc_stdin == null)
 					throw new SpawnError.IO ("Cannot open gcc's stdin");
