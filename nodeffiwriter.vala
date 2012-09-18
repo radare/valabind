@@ -363,6 +363,7 @@ types.ref = function ReferenceType(T) {
 		return refCacheTo[i];
 	var p = types.ptr(T), r = refCacheTo[refCache.push(T)-1] = Object.create(p);
 	r.indirection = 1;
+	r.size = ref.sizeof.pointer;
 	r.name = Tname(T)+'&';
 	r.ffi_type = ffi.FFI_TYPES.pointer;
 	r.get = function get(buf, offset) {
@@ -444,7 +445,6 @@ function bindings(s) {
 			ffi.ForeignFunction)(lib.get(name), ret, args);
 		if(static)
 			return f;
-		// HACK types.ref(T)#set doesn't trigger by itself, as a return type.
 		if(args[0] && args[0].ffi_type === ffi.FFI_TYPES.pointer)
 			return function() {
 				[].unshift.call(arguments, this._pointer);
