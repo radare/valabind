@@ -13,15 +13,16 @@ BIN=valabind
 SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala girwriter.vala swigwriter.vala cxxwriter.vala
 VAPIS:=$(SRC:%.vala=$(BUILD)/%.vapi)
 CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
+VALA_FILTER=$(filter %.vala,$?)
+TEMPS=$(addprefix --use-fast-vapi=,$(filter-out $(VALA_FILTER:%.vala=$(BUILD)/%.vapi),$(VAPIS))) $(VALA_FILTER) $(patsubst %.vala,$(BUILD)/%.c,$(filter-out $?,$^))
 
 all: $(BIN)
 
 .PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
 
-VALA_FILTER=$(filter %.vala,$?)
 $(BIN): $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	@$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps $(addprefix --use-fast-vapi=,$(filter-out $(VALA_FILTER:%.vala=$(BUILD)/%.vapi),$(VAPIS))) $(VALA_FILTER) $(patsubst %.vala,$(BUILD)/%.c,$(filter-out $?,$^))
+	@$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
