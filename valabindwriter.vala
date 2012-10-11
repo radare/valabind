@@ -73,11 +73,12 @@ public class ValabindWriter : CodeVisitor {
 			warning ("Empty add_package()?");
 			return true;
 		}
-		notice ("Adding dependency package "+pkg);
 
 		// ignore multiple occurences of the same package
 		if (context.has_package (pkg))
 			return true;
+
+		notice ("Adding dependency package "+pkg);
 
 		var package_path = context.get_vapi_path (pkg);
 		if (package_path == null) {
