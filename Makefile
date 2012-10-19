@@ -60,11 +60,9 @@ dist:
 	rm -rf valabind-$(VERSION)/.git
 	tar czvf valabind-$(VERSION).tar.gz valabind-$(VERSION)
 
-clean:
-	rm -rf $(BUILD) $(BIN)
-
-mrproper: clean
+mrproper clean:
 	rm -f config.vala
+	rm -rf $(BUILD) $(BIN)
 
 deinstall: uninstall
 
