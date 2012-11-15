@@ -235,6 +235,11 @@ elif [ "$TEST" = 1 ]; then
   esac
 else
   case "${LANG}" in
+  "ctypes")
+    eval echo valabind --ctypes ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.py -m ${MOD} ${FILES}
+    eval valabind --ctypes ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.py -m ${MOD} ${FILES} ${NULLPIPE}
+    exit $?
+    ;;
   "nodejs"|"node"|"node-ffi")
     eval echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
     eval valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}

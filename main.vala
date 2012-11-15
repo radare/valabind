@@ -8,6 +8,7 @@ private static bool cxxmode;
 private static bool cxxoutput;
 private static bool nodeoutput;
 private static bool swigoutput;
+private static bool ctypesoutput;
 private static bool giroutput;
 private static string modulename;
 private static string? output;
@@ -54,7 +55,9 @@ private const OptionEntry[] options = {
 	{ "swig", 0, 0, OptionArg.NONE,
 	  ref swigoutput, "generate swig interface code", null },
 	{ "node-ffi", 0, 0, OptionArg.NONE,
-	  ref nodeoutput, "generate node-ffi interface code", null },
+	  ref nodeoutput, "generate node-ffi interface", null },
+	{ "ctypes", 0, 0, OptionArg.NONE,
+	  ref ctypesoutput, "generate python ctypes interface", null },
 	{ "gir", 0, 0, OptionArg.NONE,
 	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
 	{ "cxx", 0, 0, OptionArg.NONE,
@@ -96,6 +99,8 @@ int main (string[] args) {
 		writer = new SwigWriter (cxxmode);
 	if (nodeoutput && count++ == 0)
 		writer = new NodeFFIWriter ();
+	if (ctypesoutput && count++ == 0)
+		writer = new CtypesWriter ();
 	if (giroutput && count++ == 0)
 		writer = new GirWriter ();
 	if (cxxoutput && count++ == 0)

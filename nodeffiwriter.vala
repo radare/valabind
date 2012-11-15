@@ -538,43 +538,49 @@ bindings({\n"+bind+"\n});
 		);}
 
 		if (enum_fmt != "") {
-			string enums_exec, enums_out = "";
-			try {
-				FileUtils.close (FileUtils.open_tmp ("vbeXXXXXX", out enums_exec));
-			} catch (FileError e) {
-				error (e.message);
-			}
-			string[] gcc_args = {"gcc", "-x", "c", "-o", enums_exec, "-"};
-			foreach (var i in include_dirs)
-				gcc_args += "-I"+i;
-			try {
-				Pid gcc_pid;
-				int gcc_stdinfd;
-				Process.spawn_async_with_pipes (null, gcc_args, null,
-					SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
-					null, out gcc_pid, out gcc_stdinfd);
-				var gcc_stdin = FileStream.fdopen (gcc_stdinfd, "w");
-				if (gcc_stdin == null)
-					throw new SpawnError.IO ("Cannot open gcc's stdin");
-				foreach (string i in includefiles)
-					gcc_stdin.printf ("#include <%s>\n", i);
-				gcc_stdin.printf ("int main(){printf(\"%s\"%s);return 0;}\n", enum_fmt, enum_vals);
-				gcc_stdin = null;
-				int status;
-				Posix.waitpid (gcc_pid, out status, 0);
-				Process.close_pid (gcc_pid);
-				if (status != 0)
-					throw new SpawnError.FAILED ("gcc exited with status %d", status);
-
-				Process.spawn_sync (null, {enums_exec}, null, 0, null, out enums_out, null, out status);
-				if (status != 0)
-					throw new SpawnError.FAILED ("enums helper exited with status %d", status);
-			} catch (SpawnError e) {
-				FileUtils.unlink (enums_exec);
-				error (e.message);
-			}
-			FileUtils.unlink (enums_exec);
+			string enums_out = get_enums_for (include_dirs);
 			stream.puts (enums_out);
 		}
+
+	}
+
+	// TODO: make it reusable for other backends
+	private string get_enums_for (string[] include_dirs) {
+		string enums_exec, enums_out = "";
+		try {
+			FileUtils.close (FileUtils.open_tmp ("vbeXXXXXX", out enums_exec));
+		} catch (FileError e) {
+			error (e.message);
+		}
+		string[] gcc_args = {"gcc", "-x", "c", "-o", enums_exec, "-"};
+		foreach (var i in include_dirs)
+			gcc_args += "-I"+i;
+		try {
+			Pid gcc_pid;
+			int gcc_stdinfd;
+			Process.spawn_async_with_pipes (null, gcc_args, null,
+					SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
+					null, out gcc_pid, out gcc_stdinfd);
+			var gcc_stdin = FileStream.fdopen (gcc_stdinfd, "w");
+			if (gcc_stdin == null)
+				throw new SpawnError.IO ("Cannot open gcc's stdin");
+			foreach (string i in includefiles)
+				gcc_stdin.printf ("#include <%s>\n", i);
+			gcc_stdin.printf ("int main(){printf(\"%s\"%s);return 0;}\n", enum_fmt, enum_vals);
+			gcc_stdin = null;
+			int status;
+			Posix.waitpid (gcc_pid, out status, 0);
+			Process.close_pid (gcc_pid);
+			if (status != 0)
+				throw new SpawnError.FAILED ("gcc exited with status %d", status);
+			Process.spawn_sync (null, {enums_exec}, null, 0, null, out enums_out, null, out status);
+			if (status != 0)
+				throw new SpawnError.FAILED ("enums helper exited with status %d", status);
+		} catch (SpawnError e) {
+			FileUtils.unlink (enums_exec);
+			error (e.message);
+		}
+		FileUtils.unlink (enums_exec);
+		return enums_out;
 	}
 }
