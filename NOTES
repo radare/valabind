@@ -3,9 +3,7 @@ NOTES
 
 Random notes taken from random .i files out there in the internets:
 
-
 https://svn.apache.org/repos/asf/subversion/trunk/subversion/bindings/swig/
-
 
 /* -----------------------------------------------------------------------
    The following struct members have to be read-only because otherwise
@@ -64,4 +62,3 @@ https://svn.apache.org/repos/asf/subversion/trunk/subversion/bindings/swig/
 %apply const char *NOT_NULL {
   const char *path
 };
-
