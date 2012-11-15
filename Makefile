@@ -10,7 +10,7 @@ RTLIBS=gobject-2.0 glib-2.0
 VALAPKG:=$(shell ./getvv)
 BUILD?=build
 BIN=valabind
-SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala
+SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala utils.vala
 SRC+=girwriter.vala swigwriter.vala cxxwriter.vala ctypeswriter.vala
 VAPIS:=$(SRC:%.vala=$(BUILD)/%.vapi)
 CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
