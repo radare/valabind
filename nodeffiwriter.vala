@@ -178,6 +178,11 @@ public class NodeFFIWriter : ValabindWriter {
 		notice (">\x1b[1mclass\x1b[0m "+c.get_full_name ());
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
 
+		foreach (Struct s in c.get_structs ())
+			s.accept (this);
+		foreach (Class k in c.get_classes ())
+			k.accept (this);
+
 		bind = sep (bind, ",\n")+"\t%s: function(".printf (name);
 		foreach (TypeParameter t in c.get_type_parameters ()) {
 			is_generic = true;
@@ -210,15 +215,14 @@ public class NodeFFIWriter : ValabindWriter {
 			visit_method (m);
 
 		bind = sep (bind, "\n\t")+"}];}";
-
-		foreach (Struct s in c.get_structs ())
-			s.accept (this);
-		foreach (Class k in c.get_classes ())
-			k.accept (this);
 	}
 
 	public override void visit_field (Field f) {
-		bind = sep (bind, ",")+"\n\t\t%s: %s".printf (f.name, type_name (f.variable_type));
+		string name = f.name;
+		// HACK cannot use buffer as a field name with latest ref.
+		if (name == "buffer")
+			name = "buf";
+		bind = sep (bind, ",")+"\n\t\t%s: %s".printf (name, type_name (f.variable_type));
 	}
 
 	public override void visit_method (Method m) {
@@ -364,6 +368,7 @@ types.ref = function ReferenceType(T) {
 	var p = types.ptr(T), r = refCacheTo[refCache.push(T)-1] = Object.create(p);
 	r.indirection = 1;
 	r.size = ref.sizeof.pointer;
+	r.alignment = ref.alignof.pointer;
 	r.name = Tname(T)+'&';
 	r.ffi_type = ffi.FFI_TYPES.pointer;
 	r.get = function get(buf, offset) {
@@ -373,7 +378,11 @@ types.ref = function ReferenceType(T) {
 		return buf.deref();
 	};
 	r.set = function set(buf, offset, val) {
-		return ref.set(buf, offset, ref.ref(val), p);
+		if(!val)
+			return ref.set(buf, offset, null, p);
+		if(!val.buffer)
+			throw new TypeError('valabind ['+r.name+']#set got a bad value');
+		return ref.set(buf, offset, val.buffer, p);
 	};
 	return r;
 };
@@ -385,18 +394,19 @@ types.array = function ArrayType(T, N) {
 	var r = Object.create(T);
 	r.size *= N;
 	r.name = Tname(T)+'['+N+']';
-	function ArrayType(pointer, base) {
-		this._pointer = pointer;
+	function ArrayType(buffer, base) {
+		this.buffer = buffer;
 		this._base = base;
 	}
 	ArrayType.prototype = [];
+	ArrayType.prototype.constructor = ArrayType;
 	for(var i = 0; i < N; i++)
 		Object.defineProperty(ArrayType.prototype, i, {
 			get: function get() {
-				return ref.get(this._pointer, this._base+T.size*i, T);
+				return ref.get(this.buffer, this._base+T.size*i, T);
 			},
 			set: function set(val) {
-				return ref.set(this._pointer, this._base+T.size*i, val, T);
+				return ref.set(this.buffer, this._base+T.size*i, val, T);
 			},
 			enumerable: true
 		});
@@ -445,11 +455,6 @@ function bindings(s) {
 			ffi.ForeignFunction)(lib.get(name), ret, args);
 		if(static)
 			return f;
-		if(args[0] && args[0].ffi_type === ffi.FFI_TYPES.pointer)
-			return function() {
-				[].unshift.call(arguments, this._pointer);
-				return f.apply(null, arguments);
-			};
 		return function() {
 			[].unshift.call(arguments, this);
 			return f.apply(null, arguments);
