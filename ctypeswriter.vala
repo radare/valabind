@@ -1,4 +1,4 @@
-/* Copyleft 2009-2012 -- pancake, eddyb */
+/* Copyleft 2009-2012 -- pancake */
 
 using Vala;
 
@@ -64,22 +64,22 @@ public class CtypesWriter : ValabindWriter {
 
 		// HACK is this required?
 		if (type is EnumValueType)
-			return "long int";
+			return "c_long";
 
 		// HACK needs proper generic support
 		if (type is GenericType)
-			return "void*";
+			return "c_void_p";
 			//return type.to_qualified_string ();
 
 		if (type is PointerType)
-			return type_name ((type as PointerType).base_type, retType, true)+"*";
+			return "POINTER("+type_name ((type as PointerType).base_type, retType, true)+")"; //+"_p";
 
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type, retType);
 			if (!array.fixed_length)
-				return element+"*"; // FIXME should this be element+"[]"?
-			return element+"[%d]".printf (array.length); // FIXME will this work?
+				return element; //+"*"; // FIXME should this be element+"[]"?
+			return "'"+element+"', * %d".printf (array.length); // FIXME will this work?
 		}
 
 		if (!ignoreRef && (type is ReferenceType)) {
@@ -88,7 +88,7 @@ public class CtypesWriter : ValabindWriter {
 			if (unref_type == "char*" || unref_type == "const char*")
 				return unref_type;
 			// FIXME should it be & under C++?
-			return unref_type+"*";
+			return unref_type; //+"_p"; //+"*";
 		}
 
 		string generic = "";
@@ -111,6 +111,7 @@ public class CtypesWriter : ValabindWriter {
 			case "gconstpointer":
 			case "gpointer":
 				return "c_void_p";
+			case "char":
 			case "gchar":
 				return "c_char";
 			case "gint":
@@ -122,10 +123,11 @@ public class CtypesWriter : ValabindWriter {
 			case "ut8":
 			case "uint8":
 			case "guint8":
-				return "c_uchar";
+				return "c_ubyte";
 			case "guint16":
 			case "uint16":
 				return "c_ushort";
+			case "int":
 			case "st32":
 			case "int32":
 			case "gint32":
@@ -154,17 +156,16 @@ public class CtypesWriter : ValabindWriter {
 			// HACK needs proper generic support
 			case "RList":
 				warning ("RList is not yet supported for ctypes");
-				if (generic != "")
-					return "std::vector<"+generic+">";
+				//if (generic != "") return "std::vector<"+generic+">";
 				break;
 		}
 		return _type;
 	}
 
 	public override void visit_constant (Constant c) {
-		var cname = CCodeBaseModule.get_ccode_name (c);
-		classes += "%immutable "+c.name+";\n";
-		classes += "static const char *"+c.name+" = "+cname+";\n";
+		warning ("Constants not yet supported for ctypes");
+		//var cname = CCodeBaseModule.get_ccode_name (c);
+		//classes += c.name+" = "+cname+";\n";
 	}
 
 	public override void visit_enum (Vala.Enum e) {
@@ -175,24 +176,26 @@ public class CtypesWriter : ValabindWriter {
 	public override void visit_struct (Struct s) {
 		add_includes (s);
 
-		// FIXME does SWIG support actual namespaces?
+		// same as class
 		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
 		string cname = CCodeBaseModule.get_ccode_name (s);
 
-		classes += "typedef struct %s {\n".printf (cname);
+		classes += "class %s(Structure):\n".printf (name);
+		classes += "\t_fields_ = [ # %s {\n".printf (name);
 		foreach (Field f in s.get_fields ())
 			f.accept (this);
-		classes += "} %s;\n".printf (name);
+		classes += "\t]\n";
+		classes += "\tdef __init__(self):\n";
 
 		var methods = s.get_methods ();
 		if (methods.size > 0) {
-			classes += "%%extend %s {\n".printf (name);
+			//classes += "%%extend %s {\n".printf (name);
 
 			// NOTE if m.accept (this) is used, it might try other functions than visit_method
 			foreach (Method m in methods)
 				visit_method (m);
 
-			classes += "};\n";
+			//classes += "};\n";
 		}
 	}
 
@@ -200,7 +203,7 @@ public class CtypesWriter : ValabindWriter {
 		add_includes (c);
 
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		//string cname = CCodeBaseModule.get_ccode_name (c);
+		string cname = CCodeBaseModule.get_ccode_name (c);
 
 		classes += "class %s(Structure):\n".printf (name);
 		classes += "	_fields_ = [\n";
@@ -224,8 +227,8 @@ TODO: enum not yet supported
 		var methods = c.get_methods ();
 		if (freefun != null || methods.size > 0) {
 			classes += "	def __init__(self):\n";
-			classes += "		# %s_new = getattr(lib,'%s')\n".printf (name, name);
-			classes += "		# %s_new.restype = c_void_p\n";
+			classes += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
+			classes += "		# %s_new.restype = c_void_p\n".printf (cname);
 			classes += "		# self._o = r_asm_new ()\n";
 
 			// TODO: implement __del__
@@ -257,15 +260,15 @@ TODO: enum not yet supported
 			warning ("Arrays not yet supported in ctypes bindings");
 			if (!array.fixed_length)
 				field = element + "* " + f.name; // FIXME should this be element+"[]"?
-			field = element + " " + f.name + "[%d]".printf (array.length); // FIXME will this work?
+			field = "'%s', %s * %d".printf (f.name, element, array.length);
 		} else {
 			/* HACK to support generics. this is r2 specific */
 			string _type = type.to_string ();
 			if (_type.index_of ("RListIter") != -1) {
-				_type = "RListIter*";
+				_type = "c_void_p"; // XXX RListIter*";
 			} else
 			if (_type.index_of ("RList") != -1) {
-				_type = "RList*";
+				_type = "c_void_p"; // XXX "RList*";
 			} else _type = type_name (type);
 			field = "\"%s\", %s".printf (f.name, _type);
 		}
@@ -289,8 +292,9 @@ TODO: enum not yet supported
 
 		string ret = type_name (m.return_type, true);
 
+		string pyc_args = "";
 		string def_args = "", call_args = "";
-		string applys = "", clears = "";
+		string clears = "";
 		foreach (var foo in m.get_parameters ()) {
 			//DataType? bar = foo.parameter_type;
 			DataType? bar = foo.variable_type;
@@ -308,22 +312,27 @@ TODO: enum not yet supported
 					var_name = "INOUT";
 
 				if (arg_type.index_of ("*") == -1)
-					arg_type += "*";
-				applys += "\t%%apply %s %s { %s %s };\n".printf (arg_type, var_name, arg_type, arg_name);
+					arg_type = "POINTER("+arg_type+")";
+				//applys += "\t%%apply %s %s { %s %s };\n".printf (arg_type, var_name, arg_type, arg_name);
 				clears += "\t%%clear %s %s;\n".printf (arg_type, arg_name);
 			}
 			call_args = sep (call_args, ", ") + arg_name;
 			def_args = sep (def_args, ", ") + arg_type + " " + arg_name;
+			pyc_args = sep (pyc_args, ", ") + arg_type;
 		}
 
 		if (is_constructor) {
 			//externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
-			classes += applys;
+			classes += "\t\t%s = getattr(lib,'%s')\n".printf (cname, cname);
+			classes += "\t\t%s.restype = c_void_p\n".printf (cname);
+			classes += "\t\tself._o = %s ()\n".printf (cname); // TODO: support constructor arguments
+#if 0
 			classes += "\t%s (%s) {\n".printf (classname, def_args);
 			if (context.is_defined ("GOBJECT"))
 				classes += "\t\tg_type_init ();\n";
 			classes += "\t\treturn %s (%s);\n\t}\n".printf (cname, call_args);
+#endif
 			classes += clears;
 		} else {
 			string func = "";
@@ -332,31 +341,14 @@ TODO: enum not yet supported
 				//statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
 			//else {
 			if (!is_static) {
-				if (call_args == "")
-					call_args = "self";
-				else call_args = "self, " + call_args;
+				if (pyc_args == "")
+					pyc_args = "c_void_p";
+				else pyc_args = "c_void_p, " + pyc_args;
 			}
 
-			//externs += "extern %s %s (%s*, %s);\n".printf (ret, cname, classname, def_args);
-			func += applys;
-
-			fbdy += "\t\t%s%s(%s);\n\t}\n".printf ((ret == "void")?"":"return ", cname, call_args);
-
-			if (is_static)
-				func += "\tstatic %s %s(%s) {\n".printf (ret, alias, def_args);
-			else func += "\t%s %s(%s) {\n".printf (ret, alias, def_args);
-			func += fbdy;
-			func += clears;
-
-			// XXX above stuff must be removed CLEAR FUNC //
-			string args = "c_void_p, c_bool";
-			func = "\t\tregister(self,'%s','%s',%s)\n".printf (m.name, cname, args);
-
-			if (!parent_is_class) {
-				statics += func;
-				classes += "\tstatic %s %s(%s);\n".printf (ret, alias, def_args);
-			} else
-				classes += func;
+			ret = (ret=="void")? "None": "'"+ret+"'";
+			func = "\t\tregister(self,'%s','%s','%s',%s)\n".printf (m.name, cname, pyc_args, ret);
+			classes += func;
 		}
 	}
 
@@ -394,7 +386,7 @@ TODO: enum not yet supported
 			"def register (self, name, cname, args, ret):\n"+
 			"	g = globals ()\n"+
 			"	g['self'] = self\n"+
-			"	if (ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
+			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
 			"		last = '.contents'\n"+
 			"		ret = \"POINTER(\"+ret+\")\"\n"+
 			"		ret2 = ''\n"+
