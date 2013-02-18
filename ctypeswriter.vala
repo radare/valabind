@@ -182,7 +182,8 @@ public class CtypesWriter : ValabindWriter {
 			//return type.to_qualified_string ();
 
 		if (type is PointerType)
-			return "POINTER("+type_name ((type as PointerType).base_type, retType, true)+")"; //+"_p";
+			return "POINTER("+type_name ((type as 
+				PointerType).base_type, retType, true)+")";
 
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
@@ -335,9 +336,11 @@ TODO: enum not yet supported
 		var methods = c.get_methods ();
 		if (freefun != null || methods.size > 0) {
 			text = "	def __init__(self):\n";
+/*
 			text += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
 			text += "		# %s_new.restype = c_void_p\n".printf (cname);
 			text += "		# self._o = r_asm_new ()\n";
+*/
 			ctc.cur.append (text);
 
 			// TODO: implement __del__
