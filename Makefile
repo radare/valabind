@@ -1,4 +1,5 @@
-VERSION=0.7.3git
+_VERSION=0.7.3git
+GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 CONTACT=pancake@nopcode.org
 PWD:=$(shell pwd)
 DESTDIR?=
@@ -17,6 +18,12 @@ CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
 VALA_FILTER=$(filter %.vala,$?)
 TEMPS=$(addprefix --use-fast-vapi=,$(filter-out $(VALA_FILTER:%.vala=$(BUILD)/%.vapi),$(VAPIS)))
 TEMPS+=$(VALA_FILTER) $(patsubst %.vala,$(BUILD)/%.c,$(filter-out $?,$^))
+
+ifneq ($(GIT_TIP),)
+VERSION=$(_VERSION)-$(GIT_TIP)
+else
+VERSION=$(_VERSION)
+endif
 
 all: $(BIN)
 
