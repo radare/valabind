@@ -1,11 +1,121 @@
-/* Copyleft 2009-2012 -- pancake */
+/* Copyleft 2009-2013 - pancake */
 
 using Vala;
 
+private class CtypeCompiler {
+	public GLib.SList<CtypeClass> classes;
+	public CtypeClass cur;
+	GLib.SList<CtypeClass> n;
+	private bool sorted = false;
+
+	public string to_string () {
+		var str = "";
+		if (!this.sorted)
+			this.sort ();
+		foreach (var c in this.classes)
+			str += c.to_string ();
+		return str;
+	}
+
+	public CtypeCompiler() {
+		this.cur = null;
+	}
+
+	public bool contains (string c) {
+		foreach (var a in n)
+			if (a.name == c)
+				return true;
+		return false;
+	}
+
+	public void sort () {
+		var debug = "";
+		n = new GLib.SList<CtypeClass>();
+		do {
+			uint count = classes.length ();
+			foreach (var c in classes) {
+				debug += "............ "+c.name+"\n";
+				if (c.is_satisfied (this)) {
+					debug += "----8<------------8<--------\n";
+					n.append (c);
+					classes.remove (c);
+				}
+			}
+			uint count2 = classes.length ();
+			debug += "classes %u -> %u\n".printf (count, count2);
+			foreach (var c in classes) {
+				debug += " - "+c.name+"\n";
+				foreach (var d in c.deps)
+					debug += "   ( "+d+" )\n";
+			}
+			if (count2>0 && count == count2) {
+				stderr.printf ("Cannot compile\n");
+				foreach (var c in classes) {
+					n.append (c);
+					classes.remove (c);
+				}
+				//foreach (var c in classes)
+				//	stderr.printf (" - "+c.name+"\n");
+				Posix.exit (1);
+			}
+		} while (classes.length ()>0);
+		this.classes = n.copy ();
+		this.sorted = true;
+	}
+
+	public void add_class (string name, string text) {
+		if (this.cur != null)
+			this.classes.append (this.cur);
+		this.cur = new CtypeClass (name);
+		this.cur.append (text);
+		this.sorted = false;
+	}
+}
+
+private class CtypeClass {
+	public string name;
+	public string text;
+	public GLib.SList<string> deps;
+
+	public bool is_satisfied (CtypeCompiler c) {
+		foreach (var d in deps)
+			if (!c.contains (d))
+				return false;
+		// stderr.printf ("    *** Yep. "+name+" is satisfied\n");
+		return true;
+	}
+
+	public CtypeClass(string? name) {
+		this.deps = new SList<string>();
+		this.name = name;
+		this.text = "";
+	}
+
+	public void add_dependency (string d) {
+		deps.append (d);
+	}
+
+	public bool depends_on(string d) {
+		foreach (var s in deps)
+			if (s == d)
+				return true;
+		return false;
+	}
+
+	public string to_string() {
+		return this.text;
+	}
+
+	public void append(string s) {
+		this.text += s;
+	}
+}
+
 public class CtypesWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
+	CtypeCompiler ctc = new CtypeCompiler ();
 	string statics = "";
-	string classes = "";
+	string class_body = "";
 	string ?ns_pfx;
 
 	public CtypesWriter () {
@@ -150,7 +260,7 @@ public class CtypesWriter : ValabindWriter {
 			case "gfloat":
 				return "c_float";
 			case "string":
-				return retType ? "const char*" : "c_char_p";
+				return "c_char_p";
 			//case "const gchar*":
 			//	return "const char*";
 			// HACK needs proper generic support
@@ -176,27 +286,26 @@ public class CtypesWriter : ValabindWriter {
 	public override void visit_struct (Struct s) {
 		add_includes (s);
 
-		// same as class
 		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
 		string cname = CCodeBaseModule.get_ccode_name (s);
 
-		classes += "class %s(Structure):\n".printf (name);
-		classes += "\t_fields_ = [ # %s {\n".printf (name);
-		foreach (Field f in s.get_fields ())
-			f.accept (this);
-		classes += "\t]\n";
-		classes += "\tdef __init__(self):\n";
-
+		ctc.add_class (name, "class "+name+"(Structure):\n");
+		var fields = s.get_fields ();
+		if (fields.size > 0) {
+			ctc.cur.append ("\t_fields_ = [ # "+name+" {\n");
+			foreach (Field f in fields)
+				f.accept (this);
+			ctc.cur.append ("\t]\n");
+		}
 		var methods = s.get_methods ();
 		if (methods.size > 0) {
-			//classes += "%%extend %s {\n".printf (name);
-
-			// NOTE if m.accept (this) is used, it might try other functions than visit_method
+			ctc.cur.append ("\tdef __init__(self):\n");
 			foreach (Method m in methods)
 				visit_method (m);
-
-			//classes += "};\n";
 		}
+ctc.cur.append ("\n#\n");
+		// addclass (name, text);
+		// classes += text;
 	}
 
 	public override void visit_class (Class c) {
@@ -205,18 +314,17 @@ public class CtypesWriter : ValabindWriter {
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
 		string cname = CCodeBaseModule.get_ccode_name (c);
 
-		classes += "class %s(Structure):\n".printf (name);
-		classes += "	_fields_ = [\n";
+		var text = "class %s(Structure):\n".printf (name);
+		text += "	_fields_ = [\n";
+		ctc.add_class (name, text);
 		foreach (Field f in c.get_fields ())
 			f.accept (this);
-		classes += "	]\n";
-
+		ctc.cur.append ("	]\n");
 /*
 TODO: enum not yet supported
 		foreach (Vala.Enum e in c.get_enums ())
 			e.accept (this);
 */
-
 		string? freefun = null;
 		if (CCodeBaseModule.is_reference_counting (c))
 			freefun = CCodeBaseModule.get_ccode_unref_function (c);
@@ -226,14 +334,15 @@ TODO: enum not yet supported
 			freefun = null;
 		var methods = c.get_methods ();
 		if (freefun != null || methods.size > 0) {
-			classes += "	def __init__(self):\n";
-			classes += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
-			classes += "		# %s_new.restype = c_void_p\n".printf (cname);
-			classes += "		# self._o = r_asm_new ()\n";
+			text = "	def __init__(self):\n";
+			text += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
+			text += "		# %s_new.restype = c_void_p\n".printf (cname);
+			text += "		# self._o = r_asm_new ()\n";
+			ctc.cur.append (text);
 
 			// TODO: implement __del__
 			//if (freefun != null && freefun != "")
-			//	classes += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (name, freefun);
+			//	text += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (name, freefun);
 
 			// NOTE if m.accept (this) is used, it might try other functions than visit_method
 			foreach (Method m in methods)
@@ -254,6 +363,7 @@ TODO: enum not yet supported
 			return;
 		string field = "";
 		DataType type = f.variable_type;
+		var stype = type.to_string ();
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type);
@@ -263,16 +373,19 @@ TODO: enum not yet supported
 			field = "'%s', %s * %d".printf (f.name, element, array.length);
 		} else {
 			/* HACK to support generics. this is r2 specific */
-			string _type = type.to_string ();
-			if (_type.index_of ("RListIter") != -1) {
-				_type = "c_void_p"; // XXX RListIter*";
+			if (stype.index_of ("RListIter") != -1) {
+				stype = "c_void_p"; // XXX RListIter*";
 			} else
-			if (_type.index_of ("RList") != -1) {
-				_type = "c_void_p"; // XXX "RList*";
-			} else _type = type_name (type);
-			field = "\"%s\", %s".printf (f.name, _type);
+			if (stype.index_of ("RList") != -1) {
+				stype = "c_void_p"; // XXX "RList*";
+			} else stype = type_name (type);
+			field = "\"%s\", %s".printf (f.name, stype);
 		}
-		classes += "\t\t(" + field + "),\n";
+		ctc.cur.append ("\t\t(" + field + "),\n");
+		if (stype[0].isupper () && 
+				!stype.has_prefix ("POINTER") &&
+				stype.index_of (".") == -1)
+			ctc.cur.add_dependency (stype);
 	}
 
 	public override void visit_method (Method m) {
@@ -324,31 +437,28 @@ TODO: enum not yet supported
 		if (is_constructor) {
 			//externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
-			classes += "\t\t%s = getattr(lib,'%s')\n".printf (cname, cname);
-			classes += "\t\t%s.restype = c_void_p\n".printf (cname);
-			classes += "\t\tself._o = %s ()\n".printf (cname); // TODO: support constructor arguments
+			var text = "\t\t%s = getattr(lib,'%s')\n".printf (cname, cname);
+			text += "\t\t%s.restype = c_void_p\n".printf (cname);
+			text += "\t\tself._o = %s ()\n".printf (cname); // TODO: support constructor arguments
 #if 0
-			classes += "\t%s (%s) {\n".printf (classname, def_args);
+			text += "\t%s (%s) {\n".printf (classname, def_args);
 			if (context.is_defined ("GOBJECT"))
-				classes += "\t\tg_type_init ();\n";
-			classes += "\t\treturn %s (%s);\n\t}\n".printf (cname, call_args);
+				text += "\t\tg_type_init ();\n";
+			text += "\t\treturn %s (%s);\n\t}\n".printf (cname, call_args);
 #endif
-			classes += clears;
+			text += clears;
+			ctc.cur.append (text);
 		} else {
-			string func = "";
 			string fbdy = "";
-			//if (is_static)
-				//statics += "extern %s %s (%s);\n".printf (ret, cname, def_args);
-			//else {
 			if (!is_static) {
 				if (pyc_args == "")
 					pyc_args = "c_void_p";
 				else pyc_args = "c_void_p, " + pyc_args;
 			}
-
 			ret = (ret=="void")? "None": "'"+ret+"'";
-			func = "\t\tregister(self,'%s','%s','%s',%s)\n".printf (m.name, cname, pyc_args, ret);
-			classes += func;
+			ctc.cur.append (
+				"\t\tregister(self,'%s','%s','%s',%s)\n".printf (
+				m.name, cname, pyc_args, ret));
 		}
 	}
 
@@ -379,7 +489,9 @@ TODO: enum not yet supported
 		var stream = FileStream.open (file, "w");
 		if (stream == null)
 			error ("Cannot open %s for writing".printf (file));
-		stream.printf ("from ctypes import *\n"+
+		stream.printf (
+			"# this file has been automatically generated by valabind\n"+
+			"from ctypes import *\n"+
 			"from ctypes.util import find_library\n"+
 			"lib = CDLL (find_library ('%s'))\n", modulename);
 		stream.puts (
@@ -396,10 +508,18 @@ TODO: enum not yet supported
 			"	setattr (self,cname, getattr (lib, cname))\n"+
 			"	exec ('self.%s.argtypes = [%s]'%(cname, args))\n"+
 			"	if ret != '':\n"+
+			"		argstr = '' # object self.. what about static (TODO)\n"+
+			"		for i in range (1, len(args.split (','))):\n"+
+			"			if i>1:\n"+
+			"				argstr += ','\n"+
+			"			else:\n"+
+			"				argstr += ' '\n"+
+                        "			argstr += 'x'+str(i)\n"+
 			"		exec ('self.%s.restype = %s'%(cname, ret), g)\n"+
-			"		exec ('self.%s = lambda x: %s(self.%s(self._o, x))%s'%\n"+
-			"			(name, ret2, cname, last),g)\n");
+			"		argstr2 = ','+argstr\n"+
+			"		exec ('self.%s = lambda %s: %s(self.%s(self._o%s))%s'%\n"+
+			"			(name, argstr, ret2, cname, argstr2, last), g)\n");
 		context.root.accept (this);
-		stream.printf ("%s\n", classes);
+		stream.printf (ctc.to_string ());
 	}
 }
