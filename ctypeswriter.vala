@@ -169,7 +169,7 @@ public class CtypesWriter : ValabindWriter {
 	string type_name (DataType type, bool retType=false, bool ignoreRef=false) {
 		if (type == null) {
 			warning ("Cannot resolve type");
-			return "__UNRESOLVED_TYPE_OH_PLEASE_KILL_ME_NOW__";
+			return "__UNRESOLVED_TYPE_OH_PLEASE_KILL_ME__";
 		}
 
 		// HACK is this required?
@@ -210,7 +210,6 @@ public class CtypesWriter : ValabindWriter {
 
 		// HACK find a better way to remove generic type args
 		_type = _type.split ("<", 2)[0];
-
 		_type = _type.replace (ns_pfx, "").replace (".", "");
 		_type = _type.replace ("?","");
 		_type = _type.replace ("unsigned ", "u");
@@ -227,6 +226,7 @@ public class CtypesWriter : ValabindWriter {
 				return "c_char";
 			case "gint":
 				return "c_int";
+			case "uint":
 			case "guint":
 				return "c_uint";
 			case "glong":
@@ -301,10 +301,11 @@ public class CtypesWriter : ValabindWriter {
 		var methods = s.get_methods ();
 		if (methods.size > 0) {
 			ctc.cur.append ("\tdef __init__(self):\n");
+			ctc.cur.append ("\t\tStructure.__init__(self)\n");
 			foreach (Method m in methods)
 				visit_method (m);
 		}
-ctc.cur.append ("\n#\n");
+		ctc.cur.append ("\n#\n");
 		// addclass (name, text);
 		// classes += text;
 	}
@@ -336,6 +337,7 @@ TODO: enum not yet supported
 		var methods = c.get_methods ();
 		if (freefun != null || methods.size > 0) {
 			text = "	def __init__(self):\n";
+			text += "\t\tStructure.__init__(self)\n";
 /*
 			text += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
 			text += "		# %s_new.restype = c_void_p\n".printf (cname);
@@ -399,7 +401,8 @@ TODO: enum not yet supported
 
 		string cname = CCodeBaseModule.get_ccode_name (m), alias = get_alias (m.name);
 		var parent = m.parent_symbol;
-		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod);
+		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
+		bool is_constructor = (m is CreationMethod);
 		bool parent_is_class = parent is Class || parent is Struct;
 
 		// TODO: Implement contractual support
@@ -407,10 +410,11 @@ TODO: enum not yet supported
 		// m.get_postconditions ();
 
 		string ret = type_name (m.return_type, true);
-
 		string pyc_args = "";
-		string def_args = "", call_args = "";
+		string def_args = "";
+		string call_args = "";
 		string clears = "";
+
 		foreach (var foo in m.get_parameters ()) {
 			//DataType? bar = foo.parameter_type;
 			DataType? bar = foo.variable_type;
@@ -438,9 +442,8 @@ TODO: enum not yet supported
 		}
 
 		if (is_constructor) {
-			//externs += "extern %s* %s (%s);\n".printf (classcname, cname, def_args);
 			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
-			var text = "\t\t%s = getattr(lib,'%s')\n".printf (cname, cname);
+			var text = "\t\t%s = lib.%s\n".printf (cname, cname);
 			text += "\t\t%s.restype = c_void_p\n".printf (cname);
 			text += "\t\tself._o = %s ()\n".printf (cname); // TODO: support constructor arguments
 #if 0
@@ -506,9 +509,9 @@ TODO: enum not yet supported
 			"		ret = \"POINTER(\"+ret+\")\"\n"+
 			"		ret2 = ''\n"+
 			"	else:\n"+
-			"		last = ''\n"+
+			"		last = '.value'\n"+
 			"		ret2 = ret\n"+
-			"	setattr (self,cname, getattr (lib, cname))\n"+
+			"	setattr (self, cname, getattr (lib, cname))\n"+
 			"	exec ('self.%s.argtypes = [%s]'%(cname, args))\n"+
 			"	if ret != '':\n"+
 			"		argstr = '' # object self.. what about static (TODO)\n"+
@@ -519,8 +522,10 @@ TODO: enum not yet supported
 			"				argstr += ' '\n"+
                         "			argstr += 'x'+str(i)\n"+
 			"		exec ('self.%s.restype = %s'%(cname, ret), g)\n"+
-			"		argstr2 = ','+argstr\n"+
-			"		exec ('self.%s = lambda %s: %s(self.%s(self._o%s))%s'%\n"+
+			"		argstr2 = '' # object self.. what about static (TODO)\n"+
+			"		if argstr != '':\n"+
+			"			argstr2 = ','+argstr\n"+
+			"		exec ('self.%s = lambda%s: %s(self.%s(self._o%s))%s'%\n"+
 			"			(name, argstr, ret2, cname, argstr2, last), g)\n");
 		context.root.accept (this);
 		stream.printf (ctc.to_string ());

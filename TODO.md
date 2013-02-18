@@ -4,6 +4,9 @@ valabind todo
 0.7.4
 -----
       [.] implement ctypes (dynamic python bindings) t/python/ctypes.py
+        [ ] support for static methods
+        [ ] support for generics
+
 
 beyond
 ------
