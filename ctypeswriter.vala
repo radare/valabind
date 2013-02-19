@@ -114,8 +114,6 @@ private class CtypeClass {
 public class CtypesWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	CtypeCompiler ctc = new CtypeCompiler ();
-	string statics = "";
-	string class_body = "";
 	string ?ns_pfx;
 
 	public CtypesWriter () {
@@ -162,7 +160,8 @@ public class CtypesWriter : ValabindWriter {
 				break;
 		}
 		if (name != oname)
-			warning ("Method %s renamed to %s (don't ask where)".printf (oname, name));
+			warning ("Method %s renamed to %s (don't ask where)"
+				.printf (oname, name));
 		return name;
 	}
 
@@ -285,48 +284,20 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	public override void visit_struct (Struct s) {
-		add_includes (s);
-
 		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		string cname = CCodeBaseModule.get_ccode_name (s);
-
-		ctc.add_class (name, "class "+name+"(Structure):\n");
-		var fields = s.get_fields ();
-		if (fields.size > 0) {
-			ctc.cur.append ("\t_fields_ = [ # "+name+" {\n");
-			foreach (Field f in fields)
-				f.accept (this);
-			ctc.cur.append ("\t]\n");
-		}
-		var methods = s.get_methods ();
-		if (methods.size > 0) {
-			ctc.cur.append ("\tdef __init__(self):\n");
-			ctc.cur.append ("\t\tStructure.__init__(self)\n");
-			foreach (Method m in methods)
-				visit_method (m);
-		}
-		ctc.cur.append ("\n#\n");
-		// addclass (name, text);
-		// classes += text;
+		visit_struct_or_class (s, name, s.get_fields (), s.get_methods ());
 	}
 
 	public override void visit_class (Class c) {
-		add_includes (c);
-
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		string cname = CCodeBaseModule.get_ccode_name (c);
+		visit_struct_or_class (c, name, c.get_fields (), c.get_methods ());
 
-		var text = "class %s(Structure):\n".printf (name);
-		text += "	_fields_ = [\n";
-		ctc.add_class (name, text);
-		foreach (Field f in c.get_fields ())
-			f.accept (this);
-		ctc.cur.append ("	]\n");
-/*
-TODO: enum not yet supported
-		foreach (Vala.Enum e in c.get_enums ())
-			e.accept (this);
-*/
+		/* walk nested structs and classes */
+		foreach (Struct s in c.get_structs ())
+			s.accept (this);
+		foreach (Class k in c.get_classes ())
+			k.accept (this);
+		/* TODO: add support for freefun in destructor 
 		string? freefun = null;
 		if (CCodeBaseModule.is_reference_counting (c))
 			freefun = CCodeBaseModule.get_ccode_unref_function (c);
@@ -335,29 +306,41 @@ TODO: enum not yet supported
 		if (freefun == "")
 			freefun = null;
 		var methods = c.get_methods ();
-		if (freefun != null || methods.size > 0) {
-			text = "	def __init__(self):\n";
-			text += "\t\tStructure.__init__(self)\n";
-/*
-			text += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
-			text += "		# %s_new.restype = c_void_p\n".printf (cname);
-			text += "		# self._o = r_asm_new ()\n";
-*/
-			ctc.cur.append (text);
+		if (freefun != null || methods.size > 0) { ...  */
+	}
 
-			// TODO: implement __del__
-			//if (freefun != null && freefun != "")
-			//	text += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (name, freefun);
-
-			// NOTE if m.accept (this) is used, it might try other functions than visit_method
-			foreach (Method m in methods)
-				visit_method (m);
+	private void visit_struct_or_class (Symbol s, string name,
+			Vala.List<Field> fields, Vala.List<Method> methods) {
+		//string cname = CCodeBaseModule.get_ccode_name (s);
+		add_includes (s);
+		ctc.add_class (name, "class "+name+"(Structure):\n");
+		if (fields.size > 0) {
+			ctc.cur.append ("\t_fields_ = [ # "+name+" {\n");
+			foreach (Field f in fields)
+				f.accept (this);
+			ctc.cur.append ("\t]\n");
+		} else {
+			ctc.cur.append ("\t_fields_ = [\n\t]\n");
 		}
-
-		foreach (Struct s in c.get_structs ())
-			s.accept (this);
-		foreach (Class k in c.get_classes ())
-			k.accept (this);
+		if (methods.size > 0) {
+			ctc.cur.append ("\tdef __init__(self):\n");
+			ctc.cur.append ("\t\tStructure.__init__(self)\n");
+			// TODO: control how many methods and constructors there are
+			// TODO: add support for more than one constructor
+			/* constructors */
+			foreach (Method m in methods)
+				if (m is CreationMethod)
+					visit_method (m);
+			/* methods */
+			ctc.cur.append (
+				"\t\tself.__init_methods__()\n"+
+				"\tdef __init_methods__(self):\n"+
+				"\t\tif not hasattr(self,'_o'):\n"+
+				"\t\t\tself._o = addressof(self)\n");
+			foreach (Method m in methods)
+				if (!(m is CreationMethod))
+					visit_method (m);
+		}
 	}
 
 	public override void visit_field (Field f) {
@@ -399,12 +382,12 @@ TODO: enum not yet supported
 
 		add_includes (m);
 
-		string cname = CCodeBaseModule.get_ccode_name (m), alias = get_alias (m.name);
-		var parent = m.parent_symbol;
+		string cname = CCodeBaseModule.get_ccode_name (m);
+		//string alias = get_alias (m.name);
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
 		bool is_constructor = (m is CreationMethod);
-		bool parent_is_class = parent is Class || parent is Struct;
-
+		//var parent = m.parent_symbol;
+		//bool parent_is_class = parent is Class || parent is Struct;
 		// TODO: Implement contractual support
 		// m.get_preconditions ();
 		// m.get_postconditions ();
@@ -442,11 +425,11 @@ TODO: enum not yet supported
 		}
 
 		if (is_constructor) {
-			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
 			var text = "\t\t%s = lib.%s\n".printf (cname, cname);
 			text += "\t\t%s.restype = c_void_p\n".printf (cname);
 			text += "\t\tself._o = %s ()\n".printf (cname); // TODO: support constructor arguments
 #if 0
+			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
 			text += "\t%s (%s) {\n".printf (classname, def_args);
 			if (context.is_defined ("GOBJECT"))
 				text += "\t\tg_type_init ();\n";
@@ -455,7 +438,6 @@ TODO: enum not yet supported
 			text += clears;
 			ctc.cur.append (text);
 		} else {
-			string fbdy = "";
 			if (!is_static) {
 				if (pyc_args == "")
 					pyc_args = "c_void_p";
@@ -501,13 +483,20 @@ TODO: enum not yet supported
 			"from ctypes.util import find_library\n"+
 			"lib = CDLL (find_library ('%s'))\n", modulename);
 		stream.puts (
+			"def instance (x):\n"+
+			"	try:\n"+
+			"		y = x.contents\n"+
+			"		y.__init_methods__(y)\n"+
+			"	except:\n"+
+			"		pass\n"+
+			"	return x\n"+
 			"def register (self, name, cname, args, ret):\n"+
 			"	g = globals ()\n"+
 			"	g['self'] = self\n"+
 			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
 			"		last = '.contents'\n"+
-			"		ret = \"POINTER(\"+ret+\")\"\n"+
-			"		ret2 = ''\n"+
+			"		ret2 = ' '\n"+
+			"		ret = \"instance(POINTER(\"+ret+\"))\"\n"+
 			"	else:\n"+
 			"		last = '.value'\n"+
 			"		ret2 = ret\n"+
@@ -516,10 +505,7 @@ TODO: enum not yet supported
 			"	if ret != '':\n"+
 			"		argstr = '' # object self.. what about static (TODO)\n"+
 			"		for i in range (1, len(args.split (','))):\n"+
-			"			if i>1:\n"+
-			"				argstr += ','\n"+
-			"			else:\n"+
-			"				argstr += ' '\n"+
+			"			argstr += ',' if i>1 else ' '\n"+
                         "			argstr += 'x'+str(i)\n"+
 			"		exec ('self.%s.restype = %s'%(cname, ret), g)\n"+
 			"		argstr2 = '' # object self.. what about static (TODO)\n"+
