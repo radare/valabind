@@ -302,15 +302,23 @@ public class CtypesWriter : ValabindWriter {
 		if (methods.size > 0) {
 			ctc.cur.append ("\tdef __init__(self):\n");
 			ctc.cur.append ("\t\tStructure.__init__(self)\n");
+			// TODO: control how many methods and constructors there are
+			// TODO: add support for more than one constructor
+			/* constructors */
 			foreach (Method m in methods)
-				visit_method (m);
+				if (m is CreationMethod)
+					visit_method (m);
+			/* methods */
+			ctc.cur.append ("\t\tself.__init_methods__()\n");
+			ctc.cur.append ("\tdef __init_methods__(self):\n");
+			foreach (Method m in methods)
+				if (!(m is CreationMethod))
+					visit_method (m);
 		}
-		ctc.cur.append ("\n#\n");
-		// addclass (name, text);
-		// classes += text;
 	}
 
 	public override void visit_class (Class c) {
+// TODO: same as visit_struct
 		add_includes (c);
 
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
@@ -338,11 +346,6 @@ TODO: enum not yet supported
 		if (freefun != null || methods.size > 0) {
 			text = "	def __init__(self):\n";
 			text += "\t\tStructure.__init__(self)\n";
-/*
-			text += "		# %s_new = getattr(lib,'%s')\n".printf (cname, cname);
-			text += "		# %s_new.restype = c_void_p\n".printf (cname);
-			text += "		# self._o = r_asm_new ()\n";
-*/
 			ctc.cur.append (text);
 
 			// TODO: implement __del__
@@ -351,7 +354,14 @@ TODO: enum not yet supported
 
 			// NOTE if m.accept (this) is used, it might try other functions than visit_method
 			foreach (Method m in methods)
-				visit_method (m);
+				if (m is CreationMethod)
+					visit_method (m);
+			/* methods */
+			ctc.cur.append ("\t\tself.__init_methods__()\n");
+			ctc.cur.append ("\tdef __init_methods__(self):\n");
+			foreach (Method m in methods)
+				if (!(m is CreationMethod))
+					visit_method (m);
 		}
 
 		foreach (Struct s in c.get_structs ())
@@ -501,12 +511,20 @@ TODO: enum not yet supported
 			"from ctypes.util import find_library\n"+
 			"lib = CDLL (find_library ('%s'))\n", modulename);
 		stream.puts (
+			"def instance (x):\n"+
+			"	try:\n"+
+			"		y = x.contents\n"+
+			"		y.__init_methods__(y)\n"+
+			"		y._o = addressof (y)\n"+
+			"	except:\n"+
+			"		pass\n"+
+			"	return x\n"+
 			"def register (self, name, cname, args, ret):\n"+
 			"	g = globals ()\n"+
 			"	g['self'] = self\n"+
 			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
 			"		last = '.contents'\n"+
-			"		ret = \"POINTER(\"+ret+\")\"\n"+
+			"		ret = \"instance(POINTER(\"+ret+\"))\"\n"+
 			"		ret2 = ''\n"+
 			"	else:\n"+
 			"		last = '.value'\n"+
@@ -516,10 +534,7 @@ TODO: enum not yet supported
 			"	if ret != '':\n"+
 			"		argstr = '' # object self.. what about static (TODO)\n"+
 			"		for i in range (1, len(args.split (','))):\n"+
-			"			if i>1:\n"+
-			"				argstr += ','\n"+
-			"			else:\n"+
-			"				argstr += ' '\n"+
+			"			argstr += ',' if i>1 else ' '\n"+
                         "			argstr += 'x'+str(i)\n"+
 			"		exec ('self.%s.restype = %s'%(cname, ret), g)\n"+
 			"		argstr2 = '' # object self.. what about static (TODO)\n"+
