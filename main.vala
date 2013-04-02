@@ -2,6 +2,7 @@
 
 private static string[] files;
 private static string vapidir;
+private static string library;
 private static bool show_version;
 private static bool glibmode;
 private static bool cxxmode;
@@ -42,6 +43,8 @@ private const OptionEntry[] options = {
 	  ref swigoutput, "generate swig interface code", null },
 	{ "node-ffi", 0, 0, OptionArg.NONE,
 	  ref nodeoutput, "generate node-ffi interface", null },
+	{ "library", 'l', 0, OptionArg.STRING,
+	  ref library, "library to link", null },
 	{ "ctypes", 0, 0, OptionArg.NONE,
 	  ref ctypesoutput, "generate python ctypes interface", null },
 	{ "gir", 0, 0, OptionArg.NONE,
@@ -97,6 +100,7 @@ int main (string[] args) {
 		error ("Cannot specify more than one output mode\n");
 
 	writer.modulename = modulename;
+	writer.library = (library != null)? library: modulename;
 	writer.include_dirs = include_dirs;
 	writer.namespaces = namespaces;
 

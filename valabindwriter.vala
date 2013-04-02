@@ -4,6 +4,7 @@ using Vala;
 
 public class ValabindWriter : CodeVisitor {
 	public string modulename;
+	public string library;
 	public bool pkgmode;
 	public string pkgname;
 	[CCode (array_length = false, array_null_terminated = true)]
