@@ -308,6 +308,16 @@ public class CtypesWriter : ValabindWriter {
 		var methods = c.get_methods ();
 		if (freefun != null || methods.size > 0) { ...  */
 	}
+#if 0
+		if (freefun != null || methods.size > 0) {
+			text = "	def __init__(self):\n";
+			text += "\t\tStructure.__init__(self)\n";
+			ctc.cur.append (text);
+
+			// TODO: implement __del__
+			//if (freefun != null && freefun != "")
+			//	text += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (name, freefun);
+#endif
 
 	private void visit_struct_or_class (Symbol s, string name,
 			Vala.List<Field> fields, Vala.List<Method> methods) {
@@ -337,6 +347,12 @@ public class CtypesWriter : ValabindWriter {
 				"\tdef __init_methods__(self):\n"+
 				"\t\tif not hasattr(self,'_o'):\n"+
 				"\t\t\tself._o = addressof(self)\n");
+			foreach (Method m in methods)
+				if (m is CreationMethod)
+					visit_method (m);
+			/* methods */
+			ctc.cur.append ("\t\tself.__init_methods__()\n");
+			ctc.cur.append ("\tdef __init_methods__(self):\n");
 			foreach (Method m in methods)
 				if (!(m is CreationMethod))
 					visit_method (m);
@@ -487,6 +503,7 @@ public class CtypesWriter : ValabindWriter {
 			"	try:\n"+
 			"		y = x.contents\n"+
 			"		y.__init_methods__(y)\n"+
+			"		y._o = addressof (y)\n"+
 			"	except:\n"+
 			"		pass\n"+
 			"	return x\n"+
@@ -495,8 +512,8 @@ public class CtypesWriter : ValabindWriter {
 			"	g['self'] = self\n"+
 			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
 			"		last = '.contents'\n"+
-			"		ret2 = ' '\n"+
 			"		ret = \"instance(POINTER(\"+ret+\"))\"\n"+
+			"		ret2 = ''\n"+
 			"	else:\n"+
 			"		last = '.value'\n"+
 			"		ret2 = ret\n"+

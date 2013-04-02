@@ -20,7 +20,7 @@ public class SwigWriter : ValabindWriter {
 		return base_name+".i";
 	}
 
-	// FIXME duplicate from NodeFFIWriter
+	// FIXME duplicate from NodeFFIWriter and ctypeswriter
 	void add_includes (Symbol s) {
 		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
 			bool include = true;

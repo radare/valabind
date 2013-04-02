@@ -60,7 +60,8 @@ public class ValabindWriter : CodeVisitor {
 		bool found = FileUtils.test (path, FileTest.IS_REGULAR);
 		if (found) {
 			if (!pkgmode)
-				context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, path));
+				context.add_source_file (new SourceFile (
+					context, SourceFileType.PACKAGE, path));
 			source_files.append(path);
 		} else if (!add_package (context, path))
 			error ("Cannot find '%s'".printf (path));
@@ -88,16 +89,20 @@ public class ValabindWriter : CodeVisitor {
 
 		if (pkgmode)
 			add_source_file (package_path);
-		context.add_source_file (new SourceFile (context, SourceFileType.PACKAGE, package_path));
+		context.add_source_file (new SourceFile (context,
+			SourceFileType.PACKAGE, package_path));
 		context.add_package (pkg);
 
-		var deps_filename = Path.build_filename (Path.get_dirname (package_path), "%s.deps".printf (pkg));
+		var deps_filename = Path.build_filename (Path.get_dirname (
+			package_path), "%s.deps".printf (pkg));
 		if (FileUtils.test (deps_filename, FileTest.EXISTS)) {
 			try {
 				string deps_content;
 				size_t deps_len;
 
-				FileUtils.get_contents (deps_filename, out deps_content, out deps_len);
+stdout.printf ("GEt contents\n");
+				FileUtils.get_contents (deps_filename,
+					out deps_content, out deps_len);
 				foreach (string dep in deps_content.split ("\n")) {
 					dep = dep.strip ();
 					if (dep != "") {
