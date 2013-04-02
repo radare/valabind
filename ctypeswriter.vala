@@ -1,4 +1,4 @@
-/* Copyleft 2009-2013 - pancake */
+/* Copyright GPLv3 - 2009-2013 - pancake */
 
 using Vala;
 
@@ -64,9 +64,9 @@ private class CtypeCompiler {
 	}
 
 	public void add_class (string name, string text) {
-		if (this.cur != null)
-			this.classes.append (this.cur);
-		this.cur = new CtypeClass (name);
+		var cc = new CtypeClass (name);
+		this.classes.append (cc);
+		this.cur = cc;
 		this.cur.append (text);
 		this.sorted = false;
 	}
@@ -273,7 +273,7 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	public override void visit_constant (Constant c) {
-		warning ("Constants not yet supported for ctypes");
+		warning ("Constants not yet supported for ctypes ("+c.name+")");
 		//var cname = CCodeBaseModule.get_ccode_name (c);
 		//classes += c.name+" = "+cname+";\n";
 	}
@@ -308,16 +308,20 @@ public class CtypesWriter : ValabindWriter {
 		var methods = c.get_methods ();
 		if (freefun != null || methods.size > 0) { ...  */
 	}
-#if 0
-		if (freefun != null || methods.size > 0) {
-			text = "	def __init__(self):\n";
-			text += "\t\tStructure.__init__(self)\n";
-			ctc.cur.append (text);
 
-			// TODO: implement __del__
-			//if (freefun != null && freefun != "")
-			//	text += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (name, freefun);
-#endif
+	private string get_constructor_args(Vala.List<Method> methods) {
+		foreach (Method m in methods) {
+			if (m is CreationMethod) {
+				var str = "";
+				add_includes (m);
+				foreach (var foo in m.get_parameters ()) {
+					str += ", "+get_alias (foo.name);
+				}
+				return str;
+			}
+		}
+		return "";
+	}
 
 	private void visit_struct_or_class (Symbol s, string name,
 			Vala.List<Field> fields, Vala.List<Method> methods) {
@@ -333,7 +337,8 @@ public class CtypesWriter : ValabindWriter {
 			ctc.cur.append ("\t_fields_ = [\n\t]\n");
 		}
 		if (methods.size > 0) {
-			ctc.cur.append ("\tdef __init__(self):\n");
+			string call_args = get_constructor_args (methods);
+			ctc.cur.append ("\tdef __init__(self"+call_args+"):\n");
 			ctc.cur.append ("\t\tStructure.__init__(self)\n");
 			// TODO: control how many methods and constructors there are
 			// TODO: add support for more than one constructor
@@ -347,12 +352,6 @@ public class CtypesWriter : ValabindWriter {
 				"\tdef __init_methods__(self):\n"+
 				"\t\tif not hasattr(self,'_o'):\n"+
 				"\t\t\tself._o = addressof(self)\n");
-			foreach (Method m in methods)
-				if (m is CreationMethod)
-					visit_method (m);
-			/* methods */
-			ctc.cur.append ("\t\tself.__init_methods__()\n");
-			ctc.cur.append ("\tdef __init_methods__(self):\n");
 			foreach (Method m in methods)
 				if (!(m is CreationMethod))
 					visit_method (m);
@@ -417,8 +416,10 @@ public class CtypesWriter : ValabindWriter {
 		foreach (var foo in m.get_parameters ()) {
 			//DataType? bar = foo.parameter_type;
 			DataType? bar = foo.variable_type;
-			if (bar == null)
+			if (bar == null) {
+				warning ("Unknown datatype "+foo.name+"\n");
 				continue;
+			}
 			string arg_name = get_alias (foo.name);
 			string? arg_type = type_name (bar);
 
@@ -443,7 +444,7 @@ public class CtypesWriter : ValabindWriter {
 		if (is_constructor) {
 			var text = "\t\t%s = lib.%s\n".printf (cname, cname);
 			text += "\t\t%s.restype = c_void_p\n".printf (cname);
-			text += "\t\tself._o = %s ()\n".printf (cname); // TODO: support constructor arguments
+			text += "\t\tself._o = %s (%s)\n".printf (cname, call_args); // TODO: support constructor arguments
 #if 0
 			var classname = parent.get_full_name ().replace (ns_pfx, "").replace (".", "");
 			text += "\t%s (%s) {\n".printf (classname, def_args);
@@ -503,7 +504,6 @@ public class CtypesWriter : ValabindWriter {
 			"	try:\n"+
 			"		y = x.contents\n"+
 			"		y.__init_methods__(y)\n"+
-			"		y._o = addressof (y)\n"+
 			"	except:\n"+
 			"		pass\n"+
 			"	return x\n"+
@@ -512,8 +512,8 @@ public class CtypesWriter : ValabindWriter {
 			"	g['self'] = self\n"+
 			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
 			"		last = '.contents'\n"+
+			"		ret2 = ' '\n"+
 			"		ret = \"instance(POINTER(\"+ret+\"))\"\n"+
-			"		ret2 = ''\n"+
 			"	else:\n"+
 			"		last = '.value'\n"+
 			"		ret2 = ret\n"+
