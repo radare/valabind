@@ -265,9 +265,7 @@ public class CtypesWriter : ValabindWriter {
 			//	return "const char*";
 			// HACK needs proper generic support
 			case "RList":
-				warning ("RList is not yet supported for ctypes");
-				//if (generic != "") return "std::vector<"+generic+">";
-				break;
+				return "RList";
 		}
 		return _type;
 	}
@@ -323,6 +321,8 @@ public class CtypesWriter : ValabindWriter {
 		return "";
 	}
 
+	string wrappers;
+
 	private void visit_struct_or_class (Symbol s, string name,
 			Vala.List<Field> fields, Vala.List<Method> methods) {
 		//string cname = CCodeBaseModule.get_ccode_name (s);
@@ -343,9 +343,15 @@ public class CtypesWriter : ValabindWriter {
 			// TODO: control how many methods and constructors there are
 			// TODO: add support for more than one constructor
 			/* constructors */
+			wrappers = "";
 			foreach (Method m in methods)
 				if (m is CreationMethod)
 					visit_method (m);
+			/* helper function */
+			if (name == "RList")
+				ctc.cur.append (
+					"\tdef to_list(self,type):\n"+
+					"\t\treturn rlist2array(self,type)\n");
 			/* methods */
 			ctc.cur.append (
 				"\t\tself.__init_methods__()\n"+
@@ -355,6 +361,7 @@ public class CtypesWriter : ValabindWriter {
 			foreach (Method m in methods)
 				if (!(m is CreationMethod))
 					visit_method (m);
+			ctc.cur.append (wrappers);
 		}
 	}
 
@@ -460,6 +467,18 @@ public class CtypesWriter : ValabindWriter {
 					pyc_args = "c_void_p";
 				else pyc_args = "c_void_p, " + pyc_args;
 			}
+			if (ret == "RList") {
+				wrappers +="\tdef %s(self%s):\n".printf (m.name,def_args);
+				m.name = "_"+m.name;
+				string gen = "";
+				var type = m.return_type;
+				foreach (DataType t in type.get_type_arguments ())
+					gen = sep (gen, ", ") + type_name (t);
+				ret = "RList<"+gen+">";
+				wrappers +="\t\treturn rlist2array(self.%s(%s),%s)\n".printf (
+						m.name, call_args, gen);
+
+			}
 			ret = (ret=="void")? "None": "'"+ret+"'";
 			ctc.cur.append (
 				"\t\tregister(self,'%s','%s','%s',%s)\n".printf (
@@ -500,6 +519,19 @@ public class CtypesWriter : ValabindWriter {
 			"from ctypes.util import find_library\n"+
 			"lib = CDLL (find_library ('%s'))\n", library);
 		stream.puts (
+			"def rlist2array(x,y):\n"+
+			"	x.__init_methods__()\n"+
+			"	it = x.iterator ()\n"+
+			"	ret = []\n"+
+			"	while True:\n"+
+			"		it.__init_methods__()\n"+
+			"		data = it.get_data ()\n"+
+			"		ds = cast (data, POINTER(y)).contents\n"+
+			"		ret.append (ds)\n"+
+			"		if it.n == None:\n"+
+			"			break\n"+
+			"		it = it.get_next ()\n"+
+			"	return ret\n"+
 			"def instance (x):\n"+
 			"	try:\n"+
 			"		y = x.contents\n"+
@@ -511,6 +543,9 @@ public class CtypesWriter : ValabindWriter {
 			"	g = globals ()\n"+
 			"	g['self'] = self\n"+
 			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
+			"		x = ret.find('<')\n"+
+			"		if x != -1:\n"+
+			"			ret = ret[0:x]\n"+
 			"		last = '.contents'\n"+
 			"		ret2 = ' '\n"+
 			"		ret = \"instance(POINTER(\"+ret+\"))\"\n"+
