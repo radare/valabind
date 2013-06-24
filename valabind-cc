@@ -144,9 +144,10 @@ case "${LANG}" in
   LDFLAGS=`php-config --libs 2>/dev/null`
   ;;
 "lua")
-  if [ -f /usr/include/lua5.1/lua.h ]; then
-    CFLAGS="${CFLAGS} -I/usr/include/lua5.1"
-    LDFLAGS="${LDFLAGS} -llua5.1"
+  LUAPKG=`pkg-config --list-all|awk '/lua-/{print $1;}'`
+  if [ -n "${LUAPKG}" ]; then
+    CFLAGS="${CFLAGS} `pkg-config --cflags ${LUAPKG}`"
+    LDFLAGS="${LDFLAGS} `pkg-config --libs ${LUAPKG}`"
   fi
   ;;
 "go")
