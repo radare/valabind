@@ -1,4 +1,4 @@
-/* Copyleft 2009-2012 -- pancake // nopcode.org */
+/* Copyleft 2009-2013 -- pancake // nopcode.org */
 
 using Vala;
 
@@ -101,7 +101,6 @@ public class ValabindWriter : CodeVisitor {
 				string deps_content;
 				size_t deps_len;
 
-stdout.printf ("GEt contents\n");
 				FileUtils.get_contents (deps_filename,
 					out deps_content, out deps_len);
 				foreach (string dep in deps_content.split ("\n")) {
