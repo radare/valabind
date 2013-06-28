@@ -13,7 +13,7 @@ VALAPKG:=$(shell ./getvv)
 BUILD?=build
 BIN=valabind
 SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala utils.vala
-SRC+=girwriter.vala swigwriter.vala cxxwriter.vala ctypeswriter.vala
+SRC+=girwriter.vala swigwriter.vala cxxwriter.vala ctypeswriter.vala dlangwriter.vala
 VAPIS:=$(SRC:%.vala=$(BUILD)/%.vapi)
 CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
 VALA_FILTER=$(filter %.vala,$?)

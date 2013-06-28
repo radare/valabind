@@ -6,6 +6,7 @@ private static string library;
 private static bool show_version;
 private static bool glibmode;
 private static bool cxxmode;
+private static bool dlangoutput;
 private static bool cxxoutput;
 private static bool nodeoutput;
 private static bool swigoutput;
@@ -51,6 +52,8 @@ private const OptionEntry[] options = {
 	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
 	{ "cxx", 0, 0, OptionArg.NONE,
 	  ref cxxoutput, "generate C++ interface code", null },
+	{ "dlang", 0, 0, OptionArg.NONE,
+	  ref dlangoutput, "generate D bindings", null },
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
 	  ref files, "vala/vapi input files", "FILE FILE .." },
 	{ null }
@@ -92,6 +95,8 @@ int main (string[] args) {
 		writer = new CtypesWriter ();
 	if (giroutput && count++ == 0)
 		writer = new GirWriter ();
+	if (dlangoutput && count++ == 0)
+		writer = new DlangWriter ();
 	if (cxxoutput && count++ == 0)
 		writer = new CxxWriter ();
 	if (count == 0)
