@@ -1,5 +1,4 @@
 /* Copyright GPL3 - 2009-2013 -- pancake // nopcode.org */
-
 private static string[] files;
 private static string vapidir;
 private static string library;
@@ -20,8 +19,12 @@ private static string[] packages;
 private static string[] include_dirs;
 [CCode (array_length = false, array_null_terminated = true)]
 private static string[] namespaces;
+[CCode (array_length = false, array_null_terminated = true)]
+private static string[] defines;
 
 private const OptionEntry[] options = {
+	{ "define", 'D', 0, OptionArg.STRING_ARRAY,
+	  ref defines, "define SYMBOL", "SYMBOL" },
 	{ "pkg", 0, 0, OptionArg.STRING_ARRAY,
 	  ref packages, "include binding for PACKAGE", "PACKAGE..." },
 	{ "vapidir", 'V', 0, OptionArg.STRING,
@@ -114,6 +117,12 @@ int main (string[] args) {
 		foreach (var pkg in packages)
 			writer.add_external_package (pkg);
 
+	if (defines != null) {
+		foreach (string define in defines) {
+			writer.add_define(define);
+		}
+	}
+
 	// TODO: passing more than one source doesnt seems to work :/
 	foreach (var file in files) {
 		if (file.index_of (".vapi") == -1) {
@@ -122,6 +131,7 @@ int main (string[] args) {
 		}
 		writer.add_source_file (file);
 	}
+
 	writer.parse ();
 	if (output == null)
 		output = writer.get_filename (modulename);

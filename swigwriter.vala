@@ -48,7 +48,7 @@ public class SwigWriter : ValabindWriter {
 	string get_alias (string oname) {
 		string name = oname;
 		switch (oname) {
-			case "break":
+		    case "break":
 			case "delete":
 				name = "_"+oname;
 				break;

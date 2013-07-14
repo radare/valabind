@@ -43,6 +43,11 @@ public class ValabindWriter : CodeVisitor {
 		return (context.report.get_errors () == 0);
 	}
 
+	public void add_define (string define) {
+		notice ("Symbol defined "+define);
+		context.add_define(define);
+	}
+
 	public bool add_external_package (string pkg) {
 		notice ("Adding dependency "+pkg);
 		return context.add_external_package (pkg);
