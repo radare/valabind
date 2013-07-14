@@ -1,4 +1,4 @@
-/* Copyleft 2009-2012 -- pancake, eddyb */
+/* Copyleft 2009-2013 -- pancake, eddyb */
 
 using Vala;
 
@@ -48,6 +48,7 @@ public class SwigWriter : ValabindWriter {
 	string get_alias (string oname) {
 		string name = oname;
 		switch (oname) {
+			case "clone":
 			case "break":
 			case "delete":
 				name = "_"+oname;
