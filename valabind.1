@@ -15,6 +15,7 @@
 .Op Fl m Ar modname
 .Op Fl p Ar profile
 .Op Fl N Ar namespace
+.Op Fl D Ar SYMBOL
 .Op Fl -swig
 .Op Fl -node-ffi
 .Op Fl -ctypes
@@ -35,6 +36,8 @@ specify output file name
 specify module name
 .It Fl N Ar NS
 include given namespace for processing
+.It Fl D Ar SYMBOL
+define a preprocessor symbol inside Vala code
 .It Fl p Ar PROFILE
 select Vala profile (posix, gobject, dova)
 .It Fl x
@@ -52,7 +55,7 @@ Standard freedesktop environment variable to point to the share prefix directory
 .
 .Sh HYPER-REFERENCES
 .Bl -tag -width Fl
-.It Vala 
+.It Vala
 http://live.gnome.org/Vala
 .It SWIG
 http://www.swig.org
