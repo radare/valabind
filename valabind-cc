@@ -22,6 +22,7 @@ show_help () {
   echo "  -C             do not compile, just let the .c/.cxx and .i files"
   echo "  -n             do not generate .i/.c/.cxx code, but compile it"
   echo "  -N[nspace]     include namespace in the output"
+  echo "  -D[SYMBOL]       define vala symbol Symbol"
   echo " Environment:"
   echo "  VALABIND_DEBUG if not empty show stderr of commands"
   echo "  PYTHON_CONFIG  path to python-config program (select py2 or py3)"
@@ -190,6 +191,8 @@ while : ; do
     COMPILE=""
   elif [ "`echo $1 | grep -- '-pthread'`" ]; then
     echo ignored $1
+  elif [ "`echo $1 | grep -- '-D'`" ]; then
+    VALABINDFLAGS="`echo $1|sed -e 's,^-D,-D ,'` ${VALABINDFLAGS}"
   else
     FILES="$1 ${FILES}"
   fi
@@ -250,7 +253,7 @@ else
   *)
     if [ "${NOGEN}" = 0 ]; then
       echo valabind --swig ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
-      valabind --swig ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+      ./valabind --swig ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
       eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
       ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
     fi
