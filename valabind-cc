@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyleft valabind 2009-2012, pancake at nopcode.org
+# Copyleft valabind 2009-2013 pancake
 
 LANG=$1
 MOD=$2
@@ -7,7 +7,7 @@ MOD=$2
 show_help () {
   echo "Usage: valabind-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valabind-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-  echo "  lang: python, guile, go, ruby, perl, lua, java, csharp, ..."
+  echo "  lang: ctypes, python, dlang, nodejs, guile, go, ruby, perl, lua, java, csharp, ..."
   echo "  --help,-h      show this help message"
   echo "  --version      show version of valabind"
   echo "  --vapidir=dir  specify path to vapi files"
@@ -83,15 +83,25 @@ esac
 
 SWIG="${SWIG} -small"
 case "${LANG}" in
-"nodejs"|"node"|"node-ffi")
+ctypes)
+  python2 --version >/dev/null 2>&1 || \
+  python --version > /dev/null 2>&1 || \
+  exit 1
+  ;;
+dlang)
+  dmd --help >/dev/null 2>&1 || \
+  ldc2 --help >/dev/null 2>&1 || \
+  exit 1
+  ;;
+nodejs|node|node-ffi)
   node --version >/dev/null 2>&1 || exit 1
   ;;
-"guile")
+guile)
   use_cxx
   CFLAGS="${CFLAGS} `guile-config compile 2>/dev/null`"
   LDFLAGS="${LDFLAGS} `guile-config link 2>/dev/null`"
   ;;
-"python")
+python)
   use_cxx
   LDFLAGS="-L/usr/local/lib -L/usr/pkg/lib"
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
@@ -116,7 +126,7 @@ case "${LANG}" in
   OMOD="_${MOD}"
   # XXX SWIGFLAGS="${SWIGFLAGS} -threads"
   ;;
-"ruby")
+ruby)
   if [ "`ruby --version 2>/dev/null | grep 1.8`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; print "-I" + RbConfig::CONFIG["archdir"];' 2>/dev/null`
   else
@@ -125,13 +135,13 @@ case "${LANG}" in
   fi ; fi
   CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   ;;
-"perl")
+perl)
   LC_ALL=C # fix anoying perl warning
   export LC_ALL
   CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts 2>/dev/null`"
   LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts 2>/dev/null`"
   ;;
-"java")
+java)
   if [ -f /opt/java/include/jni.h ]; then
     CFLAGS="${CFLAGS} -I/opt/java/include -I/opt/java/include/linux"
   else
@@ -139,21 +149,19 @@ case "${LANG}" in
     CFLAGS="${CFLAGS} -I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
   fi ; fi
   ;;
-"php5")
+php5)
   CFLAGS="`php-config --includes 2>/dev/null` `pkg-config --libs libpng 2>/dev/null`"
   LDFLAGS=`php-config --libs 2>/dev/null`
   ;;
-"lua")
+lua)
   SOEXT=so
-  LUAPKG=`pkg-config --list-all|awk '/lua-/{print $1;}'`
+  LUAPKG=`pkg-config --list-all|awk '/lua|lua-/{print $1;}'`
   if [ -n "${LUAPKG}" ]; then
     CFLAGS="${CFLAGS} `pkg-config --cflags ${LUAPKG}`"
     LDFLAGS="${LDFLAGS} `pkg-config --libs ${LUAPKG}`"
   fi
   ;;
-"go")
-  ;;
-"csharp")
+go|csharp)
   ;;
 esac
 
@@ -214,6 +222,16 @@ if [ "$CXXOUT" = 1 ]; then
 #  ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} > /dev/null 2>&1
 elif [ "$TEST" = 1 ]; then
   case "${LANG}" in
+  ctypes)
+    python2 --version >/dev/null 2>&1 || \
+    python --version > /dev/null 2>&1 || \
+    exit 1
+    ;;
+  dlang)
+    dmd --help >/dev/null 2>&1 || \
+    ldc2 --help >/dev/null 2>&1 || \
+    exit 1
+    ;;
   "nodejs"|"node"|"node-ffi")
     exec node --version > /dev/null 2>&1
     ;;
