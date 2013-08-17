@@ -152,6 +152,8 @@ public class CtypesWriter : ValabindWriter {
 		string name = oname;
 		switch (oname) {
 			case "break":
+			case "import":
+			case "from":
 			case "delete":
 				name = "_"+oname;
 				break;
@@ -180,9 +182,12 @@ public class CtypesWriter : ValabindWriter {
 			return "c_void_p";
 			//return type.to_qualified_string ();
 
-		if (type is PointerType)
-			return "POINTER("+type_name ((type as 
-				PointerType).base_type, retType, true)+")";
+		if (type is PointerType) {
+			var tn = type_name ((type as PointerType).base_type, retType, true);
+			if (tn == "void")
+				return "c_void_p";
+			return "POINTER("+tn+")";
+		}
 
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
@@ -237,6 +242,10 @@ public class CtypesWriter : ValabindWriter {
 			case "guint16":
 			case "uint16":
 				return "c_ushort";
+			case "gint16":
+			case "int16":
+			case "short":
+				return "c_short";
 			case "int":
 			case "st32":
 			case "int32":
@@ -468,7 +477,7 @@ public class CtypesWriter : ValabindWriter {
 				else pyc_args = "c_void_p, " + pyc_args;
 			}
 			if (ret == "RList") {
-				wrappers +="\tdef %s(self%s):\n".printf (m.name,def_args);
+				wrappers +="\tdef %s(self%s):\n".printf (m.name, call_args);
 				m.name = "_"+m.name;
 				string gen = "";
 				var type = m.return_type;
@@ -477,7 +486,6 @@ public class CtypesWriter : ValabindWriter {
 				ret = "RList<"+gen+">";
 				wrappers +="\t\treturn rlist2array(self.%s(%s),%s)\n".printf (
 						m.name, call_args, gen);
-
 			}
 			ret = (ret=="void")? "None": "'"+ret+"'";
 			ctc.cur.append (
