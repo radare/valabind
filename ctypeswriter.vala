@@ -29,36 +29,28 @@ private class CtypeCompiler {
 	}
 
 	public void sort () {
-		var debug = "";
+		uint count, count2 = 0;
 		n = new GLib.SList<CtypeClass>();
 		do {
-			uint count = classes.length ();
+			count = classes.length ();
 			foreach (var c in classes) {
-				debug += "............ "+c.name+"\n";
 				if (c.is_satisfied (this)) {
-					debug += "----8<------------8<--------\n";
 					n.append (c);
 					classes.remove (c);
 				}
 			}
-			uint count2 = classes.length ();
-			debug += "classes %u -> %u\n".printf (count, count2);
-			foreach (var c in classes) {
-				debug += " - "+c.name+"\n";
-				foreach (var d in c.deps)
-					debug += "   ( "+d+" )\n";
+			count2 = classes.length ();
+			if (count2>0 && count == count2)
+				error ("Cannot compile\n");
+		} while (count2>0);
+		/* refill */
+		foreach (var c in classes) {
+			if (c.is_satisfied (this)) {
+stderr.printf ("(((REFILL))) %s\n".printf (c.name));
+				n.prepend (c);
+				classes.remove (c);
 			}
-			if (count2>0 && count == count2) {
-				stderr.printf ("Cannot compile\n");
-				foreach (var c in classes) {
-					n.append (c);
-					classes.remove (c);
-				}
-				//foreach (var c in classes)
-				//	stderr.printf (" - "+c.name+"\n");
-				Posix.exit (1);
-			}
-		} while (classes.length ()>0);
+		}
 		this.classes = n.copy ();
 		this.sorted = true;
 	}
@@ -78,10 +70,12 @@ private class CtypeClass {
 	public GLib.SList<string> deps;
 
 	public bool is_satisfied (CtypeCompiler c) {
-		foreach (var d in deps)
+		foreach (var d in deps) {
+stderr.printf ("--> "+d+"\n");
 			if (!c.contains (d))
 				return false;
-		// stderr.printf ("    *** Yep. "+name+" is satisfied\n");
+		}
+		stderr.printf ("    *** Yep. "+name+" is satisfied\n");
 		return true;
 	}
 
@@ -115,6 +109,7 @@ public class CtypesWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	CtypeCompiler ctc = new CtypeCompiler ();
 	string ?ns_pfx;
+	string delegatestr = "";
 
 	public CtypesWriter () {
 	}
@@ -162,8 +157,7 @@ public class CtypesWriter : ValabindWriter {
 				break;
 		}
 		if (name != oname)
-			warning ("Method %s renamed to %s (don't ask where)"
-				.printf (oname, name));
+			warning ("Method %s renamed to %s".printf (oname, name));
 		return name;
 	}
 
@@ -280,7 +274,7 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	public override void visit_constant (Constant c) {
-		warning ("Constants not yet supported for ctypes ("+c.name+")");
+		warning ("Constants not yet supported on ctypes ("+c.name+")");
 		//var cname = CCodeBaseModule.get_ccode_name (c);
 		//classes += c.name+" = "+cname+";\n";
 	}
@@ -292,12 +286,12 @@ public class CtypesWriter : ValabindWriter {
 
 	public override void visit_struct (Struct s) {
 		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		visit_struct_or_class (s, name, s.get_fields (), s.get_methods ());
+		visit_struct_or_class (s, name, s.get_fields (), s.get_methods (), null);
 	}
 
 	public override void visit_class (Class c) {
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		visit_struct_or_class (c, name, c.get_fields (), c.get_methods ());
+		visit_struct_or_class (c, name, c.get_fields (), c.get_methods (), c.get_delegates ());
 
 		/* walk nested structs and classes */
 		foreach (Struct s in c.get_structs ())
@@ -331,14 +325,18 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	string wrappers;
+int n = 0;
 
 	private void visit_struct_or_class (Symbol s, string name,
-			Vala.List<Field> fields, Vala.List<Method> methods) {
+			Vala.List<Field> fields, Vala.List<Method> methods,
+			Vala.List<Delegate>? delegates) {
 		//string cname = CCodeBaseModule.get_ccode_name (s);
 		add_includes (s);
-		ctc.add_class (name, "class "+name+"(Structure):\n");
+		ctc.add_class (name, "class "+name+"(Structure): #"+n.to_string()+"\n");
+stderr.printf ("--> "+name+" ("+n.to_string()+")\n");
+n++;
 		if (fields.size > 0) {
-			ctc.cur.append ("\t_fields_ = [ # "+name+" {\n");
+			ctc.cur.append ("\t_fields_ = [");
 			foreach (Field f in fields)
 				f.accept (this);
 			ctc.cur.append ("\t]\n");
@@ -361,6 +359,10 @@ public class CtypesWriter : ValabindWriter {
 				ctc.cur.append (
 					"\tdef to_list(self,type):\n"+
 					"\t\treturn rlist2array(self,type)\n");
+			/* delegates */
+			if (delegates != null)
+				foreach (Delegate d in delegates)
+					visit_delegate (d);
 			/* methods */
 			ctc.cur.append (
 				"\t\tself.__init_methods__()\n"+
@@ -403,14 +405,28 @@ public class CtypesWriter : ValabindWriter {
 		ctc.cur.append ("\t\t(" + field + "),\n");
 		if (stype[0].isupper () && 
 				!stype.has_prefix ("POINTER") &&
-				stype.index_of (".") == -1)
+				stype.index_of (".") == -1) {
+//stderr.printf ("ADD DEP : "+field+"  "+stype+"\n");
 			ctc.cur.add_dependency (stype);
+		}
+	}
+
+	public override void visit_delegate (Delegate d) {
+		string cname = CCodeBaseModule.get_ccode_name (d);
+
+		string args = "";
+		foreach (var p in d.get_parameters ()) {
+			DataType? bar = p.variable_type;
+			string? arg_type = type_name (bar);
+			args += ", "+arg_type;
+		}
+		var cn = d.parent_symbol.get_full_name ().replace (ns_pfx, "").replace (".", "");
+		this.delegatestr += cname + " = CFUNCTYPE ("+cn+args+")\n";
 	}
 
 	public override void visit_method (Method m) {
 		if (m.is_private_symbol ())
 			return;
-
 		add_includes (m);
 
 		string cname = CCodeBaseModule.get_ccode_name (m);
@@ -428,6 +444,7 @@ public class CtypesWriter : ValabindWriter {
 		string def_args = "";
 		string call_args = "";
 		string clears = "";
+
 
 		foreach (var foo in m.get_parameters ()) {
 			//DataType? bar = foo.parameter_type;
@@ -575,5 +592,6 @@ public class CtypesWriter : ValabindWriter {
 			"			(name, argstr, ret2, cname, argstr2, last), g)\n");
 		context.root.accept (this);
 		stream.printf (ctc.to_string ());
+		stream.puts (delegatestr);
 	}
 }
