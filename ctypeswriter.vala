@@ -336,7 +336,7 @@ int n = 0;
 stderr.printf ("--> "+name+" ("+n.to_string()+")\n");
 n++;
 		if (fields.size > 0) {
-			ctc.cur.append ("\t_fields_ = [");
+			ctc.cur.append ("\t_fields_ = [\n");
 			foreach (Field f in fields)
 				f.accept (this);
 			ctc.cur.append ("\t]\n");
@@ -565,34 +565,41 @@ n++;
 			"		pass\n"+
 			"	return x\n"+
 			"def register (self, name, cname, args, ret):\n"+
-			"	g = globals ()\n"+
-			"	g['self'] = self\n"+
 			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
 			"		x = ret.find('<')\n"+
 			"		if x != -1:\n"+
 			"			ret = ret[0:x]\n"+
 			"		last = '.contents'\n"+
 			"		ret2 = ' '\n"+
-			"		ret = \"instance(POINTER(\"+ret+\"))\"\n"+
+			"		ret = 'instance(POINTER('+ret+'))'\n"+
 			"	else:\n"+
 			"		last = '.value'\n"+
 			"		ret2 = ret\n"+
 			"	setattr (self, cname, getattr (lib, cname))\n"+
-			"	exec ('self.%s.argtypes = [%s]'%(cname, args))\n"+
+			"	args_array = []\n"+
+			"	if len(args)>0:\n"+
+			"		args_array = args.replace (' ','').split (',')\n"+
+			"		for i in range (0,len(args_array)):\n"+
+			"			args_array[i] = eval (args_array[i])\n"+
+			"	setattr (getattr (self, cname), 'argtypes', args_array)\n"+
 			"	if ret != '':\n"+
 			"		argstr = '' # object self.. what about static (TODO)\n"+
 			"		for i in range (1, len(args.split (','))):\n"+
 			"			argstr += ',' if i>1 else ' '\n"+
-                        "			argstr += 'x'+str(i)\n"+
-			"		exec ('self.%s.restype = %s'%(cname, ret), g)\n"+
+			"			argstr += 'x'+str(i)\n"+
+			"		if ret != None:\n"+
+			"			setattr (getattr (self, cname), 'restype', eval(ret))\n"+
+			"		else:\n"+
+			"			setattr (getattr (self, cname), 'restype', None)\n"+
 			"		argstr2 = '' # object self.. what about static (TODO)\n"+
 			"		if argstr != '':\n"+
 			"			argstr2 = ','+argstr\n"+
 			"		if ret2 == None:\n"+
 			"			ret2 = ''\n"+
 			"			last = ''\n"+
-			"		exec ('self.%s = lambda%s: %s(self.%s(self._o%s))%s'%\n"+
-			"			(name, argstr, ret2, cname, argstr2, last), g)\n");
+			"		env = dict(globals().items() + [('self', self)])\n"+
+			"		setattr (self, name, eval ('lambda%s: %s(self.%s(self._o%s))%s'%\n"+
+			"			(argstr, ret2, cname, argstr2, last), env))\n");
 		context.root.accept (this);
 		stream.printf (ctc.to_string ());
 		stream.puts (delegatestr);
