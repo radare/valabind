@@ -588,6 +588,9 @@ n++;
 			"		argstr2 = '' # object self.. what about static (TODO)\n"+
 			"		if argstr != '':\n"+
 			"			argstr2 = ','+argstr\n"+
+			"		if ret2 == None:\n"+
+			"			ret2 = ''\n"+
+			"			last = ''\n"+
 			"		exec ('self.%s = lambda%s: %s(self.%s(self._o%s))%s'%\n"+
 			"			(name, argstr, ret2, cname, argstr2, last), g)\n");
 		context.root.accept (this);
