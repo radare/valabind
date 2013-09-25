@@ -149,7 +149,7 @@ public class CtypesWriter : ValabindWriter {
 			case "break":
 			case "import":
 			case "from":
-			case "delete":
+			case "del":
 				name = "_"+oname;
 				break;
 			case "continue":
@@ -363,16 +363,15 @@ n++;
 			if (delegates != null)
 				foreach (Delegate d in delegates)
 					visit_delegate (d);
+
+			ctc.cur.append ("\n\t_o = AddressHolder()\n\n");
+
 			/* methods */
-			ctc.cur.append (
-				"\t\tself.__init_methods__()\n"+
-				"\tdef __init_methods__(self):\n"+
-				"\t\tif not hasattr(self,'_o'):\n"+
-				"\t\t\tself._o = addressof(self)\n");
 			foreach (Method m in methods)
 				if (!(m is CreationMethod))
 					visit_method (m);
 			ctc.cur.append (wrappers);
+			ctc.cur.append ("\n");
 		}
 	}
 
@@ -506,8 +505,8 @@ n++;
 			}
 			ret = (ret=="void")? "None": "'"+ret+"'";
 			ctc.cur.append (
-				"\t\tregister(self,'%s','%s','%s',%s)\n".printf (
-				m.name, cname, pyc_args, ret));
+				"\t%s, %s = register('%s','%s',%s)\n".printf (
+				get_alias(m.name), cname, cname, pyc_args, ret));
 		}
 	}
 
@@ -545,11 +544,9 @@ n++;
 			"lib = CDLL (find_library ('%s'))\n", library);
 		stream.puts (
 			"def rlist2array(x,y):\n"+
-			"	x.__init_methods__()\n"+
 			"	it = x.iterator ()\n"+
 			"	ret = []\n"+
 			"	while True:\n"+
-			"		it.__init_methods__()\n"+
 			"		data = it.get_data ()\n"+
 			"		ds = cast (data, POINTER(y)).contents\n"+
 			"		ret.append (ds)\n"+
@@ -557,49 +554,67 @@ n++;
 			"			break\n"+
 			"		it = it.get_next ()\n"+
 			"	return ret\n"+
-			"def instance (x):\n"+
-			"	try:\n"+
-			"		y = x.contents\n"+
-			"		y.__init_methods__(y)\n"+
-			"	except:\n"+
-			"		pass\n"+
-			"	return x\n"+
-			"def register (self, name, cname, args, ret):\n"+
-			"	if (ret and ret!='' and ret[0]>='A' and ret[0]<='Z'):\n"+
-			"		x = ret.find('<')\n"+
-			"		if x != -1:\n"+
-			"			ret = ret[0:x]\n"+
-			"		last = '.contents'\n"+
-			"		ret2 = ' '\n"+
-			"		ret = 'instance(POINTER('+ret+'))'\n"+
-			"	else:\n"+
-			"		last = '.value'\n"+
-			"		ret2 = ret\n"+
-			"	setattr (self, cname, getattr (lib, cname))\n"+
-			"	args_array = []\n"+
-			"	if len(args)>0:\n"+
-			"		args_array = args.replace (' ','').split (',')\n"+
-			"		for i in range (0,len(args_array)):\n"+
-			"			args_array[i] = eval (args_array[i])\n"+
-			"	setattr (getattr (self, cname), 'argtypes', args_array)\n"+
-			"	if ret != '':\n"+
-			"		argstr = '' # object self.. what about static (TODO)\n"+
-			"		for i in range (1, len(args.split (','))):\n"+
-			"			argstr += ',' if i>1 else ' '\n"+
-			"			argstr += 'x'+str(i)\n"+
-			"		if ret != None:\n"+
-			"			setattr (getattr (self, cname), 'restype', eval(ret))\n"+
+			"\n"+
+			"class AddressHolder(object):\n"+
+			"	def __get__(self, obj, type_):\n"+
+			"		if getattr(obj, '_address', None) is None:\n"+
+			"			obj._address = addressof(obj)\n"+
+			"		return obj._address\n"+
+			"\n"+
+			"	def __set__(self, obj, value):\n"+
+			"		obj._address = value\n"+
+			"\n"+
+			"class WrappedRMethod(object):\n"+
+			"	def __init__(self, cname, args, ret):\n"+
+			"		self.cname = cname\n"+
+			"		self.args = args\n"+
+			"		self.ret = ret\n"+
+			"		self.args_set = False\n"+
+			"		self.method = getattr(lib, cname)\n"+
+			"\n"+
+			"	def __call__(self, *a):\n"+
+			"		if not self.args_set:\n"+
+			"			if self.args:\n"+
+			"				self.method.argtypes = [eval(x.strip()) for x in self.args.split(',')]\n"+
+			"			self.method.restype = eval(self.ret) if self.ret else None\n"+
+			"			self.args_set = True\n"+
+			"		return self.method(*a)\n"+
+			"\n"+
+			"class WrappedApiMethod(object):\n"+
+			"	def __init__(self, method, ret2, last):\n"+
+			"		self.method = method\n"+
+			"		self._o = None\n"+
+			"		self.ret2 = ret2\n"+
+			"		self.last = last\n"+
+			"\n"+
+			"	def __call__(self, *a):\n"+
+			"		result = self.method(self._o, *a)\n"+
+			"		if self.ret2:\n"+
+			"			result = eval(self.ret2)(result)\n"+
+			"		if self.last:\n"+
+			"			return getattr(result, self.last)\n"+
+			"		return result\n"+
+			"\n"+
+			"	def __get__(self, obj, type_):\n"+
+			"		self._o = obj._o\n"+
+			"		return self\n"+
+			"\n"+
+			"def register(cname, args, ret):\n"+
+			"	ret2 = last = None\n"+
+			"	if ret:\n"+
+			"		if ret[0]>='A' and ret[0]<='Z':\n"+
+			"			x = ret.find('<')\n"+
+			"			if x != -1:\n"+
+			"				ret = ret[0:x]\n"+
+			"			last = 'contents'\n"+
+			"			ret = 'POINTER('+ret+')'\n"+
 			"		else:\n"+
-			"			setattr (getattr (self, cname), 'restype', None)\n"+
-			"		argstr2 = '' # object self.. what about static (TODO)\n"+
-			"		if argstr != '':\n"+
-			"			argstr2 = ','+argstr\n"+
-			"		if ret2 == None:\n"+
-			"			ret2 = ''\n"+
-			"			last = ''\n"+
-			"		env = dict(globals().items() + [('self', self)])\n"+
-			"		setattr (self, name, eval ('lambda%s: %s(self.%s(self._o%s))%s'%\n"+
-			"			(argstr, ret2, cname, argstr2, last), env))\n");
+			"			last = 'value'\n"+
+			"			ret2 = ret\n"+
+			"			\n"+
+			"	method = WrappedRMethod(cname, args, ret)\n"+
+			"	wrapped_method = WrappedApiMethod(method, ret2, last)\n"+
+			"	return wrapped_method, method\n\n");
 		context.root.accept (this);
 		stream.printf (ctc.to_string ());
 		stream.puts (delegatestr);
