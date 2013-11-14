@@ -120,9 +120,15 @@ public class SwigWriter : ValabindWriter {
 			case "gchar":
 				return "char";
 			case "gint":
+			case "st32":
+			case "int32":
+			case "gint32":
 				return "int";
 			case "uint":
 			case "guint":
+			case "ut32":
+			case "uint32":
+			case "guint32":
 				return "unsigned int";
 			case "glong":
 				return "long";
@@ -133,14 +139,6 @@ public class SwigWriter : ValabindWriter {
 			case "guint16":
 			case "uint16":
 				return "unsigned short";
-			case "st32":
-			case "int32":
-			case "gint32":
-				return "int";
-			case "ut32":
-			case "uint32":
-			case "guint32":
-				return "unsigned int";
 			case "st64":
 			case "int64":
 			case "gint64":
