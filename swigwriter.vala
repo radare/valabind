@@ -121,6 +121,7 @@ public class SwigWriter : ValabindWriter {
 				return "char";
 			case "gint":
 				return "int";
+			case "uint":
 			case "guint":
 				return "unsigned int";
 			case "glong":
