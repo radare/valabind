@@ -51,10 +51,10 @@ install_dirs:
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
 
 install: install_dirs
-	cp $(BIN).1 $(DESTDIR)$(MANDIR)/man1
-	cp $(BIN)-cc.1 $(DESTDIR)$(MANDIR)/man1
-	cp $(BIN) $(DESTDIR)$(PREFIX)/bin
-	cp $(BIN)-cc $(DESTDIR)$(PREFIX)/bin
+	cp -a $(BIN).1 $(DESTDIR)$(MANDIR)/man1
+	cp -a $(BIN)-cc.1 $(DESTDIR)$(MANDIR)/man1
+	cp -a $(BIN) $(DESTDIR)$(PREFIX)/bin
+	cp -a $(BIN)-cc $(DESTDIR)$(PREFIX)/bin
 
 symstall: install_dirs
 	chmod +x $(PWD)/$(BIN)-cc
