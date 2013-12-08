@@ -26,6 +26,9 @@ else
 VERSION=$(_VERSION)
 endif
 
+INSTALL_MAN?=install -m0644
+INSTALL_PROGRAM?=install -m0755
+
 all: $(BIN)
 
 .PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
@@ -51,10 +54,10 @@ install_dirs:
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
 
 install: install_dirs
-	cp $(BIN).1 $(DESTDIR)$(MANDIR)/man1
-	cp $(BIN)-cc.1 $(DESTDIR)$(MANDIR)/man1
-	cp $(BIN) $(DESTDIR)$(PREFIX)/bin
-	cp $(BIN)-cc $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL_MAN) $(BIN).1 $(DESTDIR)$(MANDIR)/man1
+	$(INSTALL_MAN) $(BIN)-cc.1 $(DESTDIR)$(MANDIR)/man1
+	$(INSTALL_PROGRAM) $(BIN) $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL_PROGRAM) $(BIN)-cc $(DESTDIR)$(PREFIX)/bin
 
 symstall: install_dirs
 	chmod +x $(PWD)/$(BIN)-cc
@@ -66,7 +69,7 @@ symstall: install_dirs
 dist:
 	rm -rf valabind-$(VERSION)
 	git clone . valabind-$(VERSION)
-	cd valabind-$(VERSION) && $(MAKE) config.vala #c
+	cd valabind-$(VERSION) && $(MAKE) config.vala
 	rm -rf valabind-$(VERSION)/.git
 	tar czvf valabind-$(VERSION).tar.gz valabind-$(VERSION)
 
