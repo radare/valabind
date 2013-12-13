@@ -7,7 +7,8 @@ MOD=$2
 show_help () {
   echo "Usage: valabind-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valabind-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-  echo "  lang: ctypes, python, dlang, nodejs, guile, go, ruby, perl, lua, java, csharp, ..."
+  echo "  lang: ctypes, python, dlang, nodejs, ocaml, guile, go, ruby,"
+  echo "        perl, lua, java, csharp, ..."
   echo "  --help,-h      show this help message"
   echo "  --version      show version of valabind"
   echo "  --vapidir=dir  specify path to vapi files"
@@ -27,7 +28,7 @@ show_help () {
   echo "  VALABIND_DEBUG if not empty show stderr of commands"
   echo "  PYTHON_CONFIG  path to python-config program (select py2 or py3)"
   echo "  SWIGFLAGS      extra flags to be passed to swig"
-  echo "  SOEXT          force specific extension for shared library (so, dll, dylib)"
+  echo "  SOEXT          force extension for shared library (so, dll, dylib)"
   echo "  SWIG           path to swig program"
   exit 0
 }
@@ -96,6 +97,12 @@ dlang)
   ;;
 nodejs|node|node-ffi)
   node --version >/dev/null 2>&1 || exit 1
+  ;;
+ocaml)
+  use_cxx
+  OCAMLPATH=`ocamlc -where`
+  CFLAGS="${CFLAGS} -I${OCAMLPATH}/"
+  LDFLAGS="${LDFLAGS} -L${OCAMLPATH}"
   ;;
 guile)
   use_cxx
