@@ -7,7 +7,8 @@ DESTDIR?=
 PREFIX?=/usr
 MANDIR?=$(PREFIX)/share/man
 CC?=gcc
-VALAC?=valac -g --cc="$(CC)"
+VALAFLAGS:=$(foreach w,$(CPPFLAGS) $(CFLAGS) $(LDFLAGS),-X $(w))
+VALAC?=valac -g --cc="$(CC)" $(VALAFLAGS)
 RTLIBS=gobject-2.0 glib-2.0
 VALAPKG:=$(shell ./getvv)
 BUILD?=build
@@ -35,7 +36,7 @@ all: $(BIN)
 
 $(BIN): $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	@$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
+	$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
@@ -76,6 +77,7 @@ dist:
 mrproper clean:
 	rm -f config.vala
 	rm -rf $(BUILD) $(BIN)
+	rm -rf *.c
 
 deinstall: uninstall
 
