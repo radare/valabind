@@ -76,6 +76,7 @@ dist:
 mrproper clean:
 	rm -f config.vala
 	rm -rf $(BUILD) $(BIN)
+	rm -rf *.c
 
 deinstall: uninstall
 
