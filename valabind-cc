@@ -113,7 +113,7 @@ guile)
   ;;
 python)
   use_cxx
-  LDFLAGS="-L/usr/local/lib -L/usr/pkg/lib"
+  LDFLAGS="${LDFLAGS} -L/usr/local/lib -L/usr/pkg/lib"
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
     CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
     LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
@@ -161,7 +161,7 @@ java)
   ;;
 php5)
   CFLAGS="`php-config --includes 2>/dev/null` `pkg-config --libs libpng 2>/dev/null`"
-  LDFLAGS=`php-config --libs 2>/dev/null`
+  LDFLAGS="${LDFLAGS} `php-config --libs 2>/dev/null`"
   ;;
 lua)
   SOEXT=so
