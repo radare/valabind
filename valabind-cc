@@ -130,8 +130,8 @@ python)
       echo "No valid PYTHON_CONFIG command found" >&2
       exit 1
     fi
-    CFLAGS="${CFLAGS} `$PYCFG --cflags | sed -e 's,-arch .*,,g'`"
-    LDFLAGS="${LDFLAGS} `$PYCFG --ldflags`"
+    CFLAGS="${CFLAGS} `$PYCFG --cflags | sed -e 's,-arch [^ ]*,,g'`"
+    LDFLAGS="${LDFLAGS} `$PYCFG --ldflags| sed -e 's,-arch [^ ]*,,g'`"
   fi
   OMOD="_${MOD}"
   # XXX SWIGFLAGS="${SWIGFLAGS} -threads"
@@ -148,8 +148,9 @@ ruby)
 perl)
   LC_ALL=C # fix anoying perl warning
   export LC_ALL
-  CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts 2>/dev/null`"
-  LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts 2>/dev/null`"
+  CFLAGS="${CFLAGS} `perl -MExtUtils::Embed -e ccopts 2>/dev/null | sed -e 's,-arch [^ ]*,,g'`"
+
+  LDFLAGS="${LDFLAGS} `perl -MExtUtils::Embed -e ldopts 2>/dev/null | sed -e 's,-arch [^ ]*,,g'`"
   ;;
 java)
   if [ -n "$JAVA_HOME" ]; then
