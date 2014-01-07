@@ -142,6 +142,12 @@ ruby)
   else
   if [ "`ruby --version 2>/dev/null | grep 1.9`" ]; then
     RB_CFLAGS=`ruby -e 'require "mkmf"; a=RbConfig::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + RbConfig::CONFIG["arch"];'`
+  else
+  if [ "`ruby --version 2>/dev/null | grep 2.0`" ]; then
+    RB_CFLAGS=`ruby -e 'require "mkmf"; a=RbConfig::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + RbConfig::CONFIG["arch"];'`
+  else
+  if [ "`ruby --version 2>/dev/null | grep 2.1`" ]; then
+    RB_CFLAGS=`ruby -e 'require "mkmf"; a=RbConfig::CONFIG["rubyhdrdir"]; print "-I#{a} -I#{a}/" + RbConfig::CONFIG["arch"];'`
   fi ; fi
   CFLAGS="${CFLAGS} ${RB_CFLAGS}"
   ;;
