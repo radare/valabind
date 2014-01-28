@@ -92,12 +92,18 @@ int main (string[] args) {
 	int count = 0;
 	if (swigoutput && count++ == 0)
 		writer = new SwigWriter (cxxmode);
-	if (nodeoutput && count++ == 0)
+	if (nodeoutput && count++ == 0) {
+		writer.add_define ("VALABIND_NODEJS");
 		writer = new NodeFFIWriter ();
-	if (ctypesoutput && count++ == 0)
+	}
+	if (ctypesoutput && count++ == 0) {
 		writer = new CtypesWriter ();
-	if (giroutput && count++ == 0)
+		writer.add_define ("VALABIND_CTYPES");
+	}
+	if (giroutput && count++ == 0) {
+		writer.add_define ("VALABIND_GIR");
 		writer = new GirWriter ();
+	}
 	if (dlangoutput && count++ == 0)
 		writer = new DlangWriter ();
 	if (cxxoutput && count++ == 0)
@@ -106,7 +112,6 @@ int main (string[] args) {
 		error ("No output mode specified. Try --help\n");
 	else if (count > 1)
 		error ("Cannot specify more than one output mode\n");
-
 	writer.modulename = modulename;
 	writer.library = (library != null)? library: modulename;
 	writer.include_dirs = include_dirs;
@@ -119,7 +124,7 @@ int main (string[] args) {
 
 	if (defines != null) {
 		foreach (string define in defines) {
-			writer.add_define(define);
+			writer.add_define (define);
 		}
 	}
 
