@@ -1,4 +1,4 @@
-/* Copyright GPLv3 - 2009-2013 - pancake */
+/* Copyright GPLv3 - 2009-2014 - pancake */
 
 using Vala;
 
@@ -37,16 +37,17 @@ private class CtypeCompiler {
 				if (c.is_satisfied (this)) {
 					n.append (c);
 					classes.remove (c);
+				} else {
+					warning ("UNSATISFIED "+c.name);
 				}
 			}
 			count2 = classes.length ();
-			if (count2>0 && count == count2)
+			if (count2>0 && count == count2) // detect infinite loop
 				error ("Cannot compile\n");
 		} while (count2>0);
 		/* refill */
 		foreach (var c in classes) {
 			if (c.is_satisfied (this)) {
-stderr.printf ("(((REFILL))) %s\n".printf (c.name));
 				n.prepend (c);
 				classes.remove (c);
 			}
@@ -71,7 +72,11 @@ private class CtypeClass {
 
 	public bool is_satisfied (CtypeCompiler c) {
 		foreach (var d in deps) {
-stderr.printf ("--> "+d+"\n");
+			if (d == this.name) {
+				stderr.printf ("==> "+d+"\n");
+		//		break;
+			}
+			stderr.printf ("--> "+d+"\n");
 			if (!c.contains (d))
 				return false;
 		}
@@ -85,8 +90,21 @@ stderr.printf ("--> "+d+"\n");
 		this.text = "";
 	}
 
+	public bool contains(SList<string> a, string b) {
+		if (b == this.name) {
+			error ("Classes with self dependencies are not supported");
+		//	return true;
+		}
+		foreach (var i in a) {
+			if (i == b)
+				return true;
+		}
+		return false;
+	}
+
 	public void add_dependency (string d) {
-		deps.append (d);
+		if (!this.contains (deps, d))
+			deps.append (d);
 	}
 
 	public bool depends_on(string d) {
