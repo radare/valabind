@@ -409,6 +409,7 @@ n++;
 			if (!array.fixed_length)
 				field = element + "* " + f.name; // FIXME should this be element+"[]"?
 			field = "'%s', %s * %d".printf (f.name, element, array.length);
+            stype = element;
 		} else {
 			/* HACK to support generics. this is r2 specific */
 			if (stype.index_of ("RListIter") != -1) {
