@@ -1,4 +1,4 @@
-_VERSION=0.7.4
+_VERSION=0.8.0
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 CONTACT=pancake@nopcode.org
@@ -22,7 +22,12 @@ TEMPS=$(addprefix --use-fast-vapi=,$(filter-out $(VALA_FILTER:%.vala=$(BUILD)/%.
 TEMPS+=$(VALA_FILTER) $(patsubst %.vala,$(BUILD)/%.c,$(filter-out $?,$^))
 
 ifneq ($(GIT_TIP),)
-VERSION=$(_VERSION)-$(GIT_TIP)
+SGIT_TIP=$(shell echo ${GIT_TIP} | sed -e s,${_VERSION},,)
+else
+SGIT_TIP=$(GIT_TIP)
+endif
+ifneq ($(SGIT_TIP),)
+VERSION=$(_VERSION)-$(SGIT_TIP)
 else
 VERSION=$(_VERSION)
 endif
@@ -68,6 +73,9 @@ symstall: install_dirs
 	ln -fs $(PWD)/$(BIN)-cc $(DESTDIR)$(PREFIX)/bin
 
 dist:
+	$(MAKE) shot GIT_TIP=
+
+shot:
 	rm -rf valabind-$(VERSION)
 	git clone . valabind-$(VERSION)
 	cd valabind-$(VERSION) && $(MAKE) config.vala
