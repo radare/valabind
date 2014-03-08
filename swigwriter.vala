@@ -119,6 +119,9 @@ public class SwigWriter : ValabindWriter {
 				return "void*";
 			case "gchar":
 				return "char";
+			/* Hack to bypass namespace rules in r2-bindings */
+			case "SDBSdb":
+				return "Sdb";
 			case "gint":
 			case "st32":
 			case "int32":
