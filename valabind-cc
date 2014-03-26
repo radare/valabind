@@ -292,7 +292,9 @@ else
       ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
     fi
     if [ -n "${COMPILE}" ]; then
-      eval echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} ${NULLPIPE}
+      # Damn Python flags!
+      CFLAGS="`echo ${CFLAGS} | sed -e 's,-mno[^\ ]*,,g' -e 's,-f[^\ ]*,,g'`"
+      echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
       ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
     fi
   esac
