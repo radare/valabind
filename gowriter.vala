@@ -50,6 +50,8 @@ public class GoWriter : ValabindWriter {
 	string vectors = "";
 	string nspace;
 
+	bool needs_unsafe = false;  // set to true if the 'unsafe' package needs to be imported because a void* pointer was encountered
+
 	string _indent = ""; // TODO(wb): removeme
 	void debug(string s) {
 		notice(_indent + s);
@@ -189,7 +191,7 @@ public class GoWriter : ValabindWriter {
 				return "std::vector<"+iter_type+">";
 			break;
 		default:
-			type = "_"+type;
+			type = type;
 			break;
 		}
 		return type;
@@ -247,41 +249,95 @@ public class GoWriter : ValabindWriter {
 		dedent();
 	}
 
-	public void walk_field (Field f) {
+	private string cleanup_name(string name) {
+		if (name.length == 0) {
+			return "";
+		} else if (name.length == 1) {
+			return name.up();
+		} else {
+			return name.substring(0, 1).up() + name.substring(1, name.length - 1);
+		}
+	}
+
+	// here, we use explicit accessors and mutators to fixup accessibility.
+	public void walk_field (string class_name, Field f) {
 		debug("walk_field(name: %s)".printf(f.name));
 		indent();
-		/*
+
 		// TODO(wb): handle visibility
+		if (f.access != SymbolAccessibility.PUBLIC) {
+			debug("private.");
+			return;
+		}
+
+		//if (CCodeBaseModule.get_ccode_array_length (f))
+		//	print ("---> array without length\n");
+
 		if (f.get_ctype () == null) {
 			//warning (
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		} else {
-			warning ("Type for %s\n".printf (
-				CCodeBaseModule.get_ccode_name (f)));
+			debug("type: %s".printf(CCodeBaseModule.get_ccode_name(f)));
 		}
+
 		string type = f.variable_type.to_string ();
 		string name = f.name;
-		if (type != "G") {
-			if (type.index_of ("<") == -1) {
-				type = get_ctype (type);
-				if (f.variable_type is ArrayType) {
-					ArrayType array = f.variable_type as ArrayType;
-					int sz = array.length;
-					defs += "  %s %s[];\n".printf (name, type); // sz
-				} else {
-					defs += "  %s %s;\n".printf (name, type);
-				}
+
+		if (type == "G") {
+			// TODO
+			// error, dont support generics
+			error("We don't support generics");
+			return;
+		}
+
+		if (type.index_of ("<") != -1) {
+			// TODO
+			// error, dont support generics
+			error("We don't support generics (2)");
+			return;
+		}
+
+		// TODO: rename to camelCase
+
+		type = get_ctype (type);
+		type = type.replace("*", "").strip();
+		string maybe_pointer_sym = "";
+		string maybe_array_sym = "";
+		if (f.variable_type is PointerType) {
+			debug("pointer");
+			debug(type);
+			if (type == "void") {
+				type = "unsafe.Pointer";
+				this.needs_unsafe = true;
+				maybe_pointer_sym = "";
 			} else {
-				// TODO(wb): handle this (generic?)
+				maybe_pointer_sym = "*";
 			}
 		} else {
-			// TODO(wb): handle this (generic)
+			debug("value");
+			debug(type);
 		}
-		//if (f.access == Accessibility.PRIVATE)
-		//	print ("---> field is private XXX\n");
-		//if (CCodeBaseModule.get_ccode_array_length (f))
-		//	print ("---> array without length\n");
-		*/
+
+		if (f.variable_type is ArrayType) {
+			maybe_array_sym = "[]";
+		}
+
+		if (name == "type") {
+			name = "_type";
+		}
+
+		// TODO: pointers
+
+		defs += "func (c %s) Get%s() %s%s%s {\n".printf(class_name, cleanup_name(name), maybe_array_sym, maybe_pointer_sym, type);
+		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
+
+		defs += "}\n";
+
+		defs += "func (c %s) Set%s(a %s%s%s) {\n".printf(class_name, cleanup_name(name), maybe_array_sym, maybe_pointer_sym, type);
+		defs += "    c.%s = a\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
+		defs += "    return\n";
+		defs += "}\n";
+
 		dedent();
 	}
 
@@ -291,12 +347,10 @@ public class GoWriter : ValabindWriter {
 		debug("walk_struct(pfx: %s, name: %s)".printf(pfx, s.name));
 		indent();
 
-		// TODO(wb): handle visibility
-		defs += "type %s%s struct {\n".printf(pfx, CCodeBaseModule.get_ccode_name(s));
+		defs += "type %s%s C.%s\n".printf(pfx, s.name, CCodeBaseModule.get_ccode_name(s));
 		foreach (var f in s.get_fields()) {
-			walk_field(f);
+			walk_field(s.name == null ? "" : s.name, f);
 		}
-		defs += "}\n";
 
 		dedent();
 	}
@@ -549,9 +603,12 @@ public class GoWriter : ValabindWriter {
 
 		nspace = ns.name;
 		process_includes (ns);
+		/*
+		// TODO: needed?
 		foreach (var f in ns.get_fields ()) {
 			walk_field (f);
 		}
+		*/
 		foreach (var e in ns.get_enums ()) {
 			walk_enum (e);
 		}
@@ -574,21 +631,25 @@ public class GoWriter : ValabindWriter {
 		if (stream == null)
 			error ("Cannot open %s for writing".printf (file));
 
+		// before the `pre` stuff because we need `includefiles` to be populated.
 		context.accept (this);
 
 		var pre  = "package %s\n".printf(modulename);
 		pre += "\n";
-		pre += "// cgo LDFLAGS: -l%s\n".printf(modulename);  // TODO(wb): not correct, how2get library name?
+		pre += "// #cgo LDFLAGS: -l%s\n".printf(modulename);  // TODO(wb): how2get library name?
 		foreach (var inc in includefiles) {
 			pre += "// #include \"%s\"\n".printf(inc);
 		}
-		pre += "import \"C\"";
+		pre += "import \"C\"\n";
+		if (this.needs_unsafe) {
+			pre += "import \"unsafe\"\n";
+		}
 
 		stream.printf ("/* valabind autogenerated Go bindings for %s */\n".printf (modulename));
 		stream.printf ("%s\n", pre);
-		stream.printf ("%s\n", defs);
 		stream.printf ("%s\n", enums);
 		stream.printf ("%s\n", statics);
+		stream.printf ("%s\n", defs);
 		stream.printf ("%s\n", extends);
 	}
 }
