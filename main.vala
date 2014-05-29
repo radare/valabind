@@ -11,6 +11,7 @@ private static bool nodeoutput;
 private static bool swigoutput;
 private static bool ctypesoutput;
 private static bool giroutput;
+private static bool gooutput;
 private static string modulename;
 private static string? output;
 [CCode (array_length = false, array_null_terminated = true)]
@@ -57,6 +58,8 @@ private const OptionEntry[] options = {
 	  ref cxxoutput, "generate C++ interface code", null },
 	{ "dlang", 0, 0, OptionArg.NONE,
 	  ref dlangoutput, "generate D bindings", null },
+	{ "go", 0, 0, OptionArg.NONE,
+	  ref gooutput, "generate Go bindings", null },
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
 	  ref files, "vala/vapi input files", "FILE FILE .." },
 	{ null }
@@ -108,6 +111,8 @@ int main (string[] args) {
 		writer = new DlangWriter ();
 	if (cxxoutput && count++ == 0)
 		writer = new CxxWriter ();
+	if (gooutput && count++ == 0)
+		writer = new GoWriter ();
 	if (count == 0)
 		error ("No output mode specified. Try --help\n");
 	else if (count > 1)
