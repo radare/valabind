@@ -191,7 +191,6 @@ public class GoWriter : ValabindWriter {
 				return "std::vector<"+iter_type+">";
 			break;
 		default:
-			type = type;
 			break;
 		}
 		return type;
@@ -259,6 +258,44 @@ public class GoWriter : ValabindWriter {
 		}
 	}
 
+	private string get_golang_type(DataType type) {
+		if (type.to_string()== "G") {
+			// TODO
+			// error, dont support generics
+			warning("We don't support generics");
+			//return;
+		}
+
+		if (type.to_string().index_of ("<") != -1) {
+			// TODO
+			// error, dont support generics
+			warning("We don't support generics (2)");
+			//return;
+		}
+
+		// TODO: rename to camelCase
+
+		string typename = get_ctype (type.to_string());
+		typename = typename.replace("*", "").strip();  // we can typecheck to determine if this is a pointer, so throw away '*'
+		string maybe_pointer_sym = "";  // if `type` is a pointer, then this will contain the appropriate '*'
+		string maybe_array_sym = "";  // if `type` is an array, then this will contain the appropriate "[]"
+		if (type is PointerType) {
+			if (typename == "void") {
+				typename = "unsafe.Pointer";  // go specific hack type for void *
+				this.needs_unsafe = true;
+				maybe_pointer_sym = "";
+			} else {
+				maybe_pointer_sym = "*";
+			}
+		}
+
+		if (type is ArrayType) {
+			maybe_array_sym = "[]";
+		}
+
+		return "%s%s%s".printf(maybe_array_sym, maybe_pointer_sym, typename);
+	}
+
 	// here, we use explicit accessors and mutators to fixup accessibility.
 	public void walk_field (string class_name, Field f) {
 		debug("walk_field(name: %s)".printf(f.name));
@@ -280,53 +317,20 @@ public class GoWriter : ValabindWriter {
 			debug("type: %s".printf(CCodeBaseModule.get_ccode_name(f)));
 		}
 
-		string type = f.variable_type.to_string ();
 		string name = f.name;
 
-		if (type == "G") {
-			// TODO
-			// error, dont support generics
-			error("We don't support generics");
-			return;
-		}
-
-		if (type.index_of ("<") != -1) {
-			// TODO
-			// error, dont support generics
-			error("We don't support generics (2)");
-			return;
-		}
-
+		// TODO: handle generics. ATM, type of `public G data` becomes `func ... GetData() void`
 		// TODO: rename to camelCase
-
-		type = get_ctype (type);
-		type = type.replace("*", "").strip();  // we can typecheck to determine if this is a pointer, so throw away '*'
-		string maybe_pointer_sym = "";  // if `type` is a pointer, then this will contain the appropriate '*'
-		string maybe_array_sym = "";  // if `type` is an array, then this will contain the appropriate "[]"
-		if (f.variable_type is PointerType) {
-			if (type == "void") {
-				type = "unsafe.Pointer";  // go specific hack type for void *
-				this.needs_unsafe = true;
-				maybe_pointer_sym = "";
-			} else {
-				maybe_pointer_sym = "*";
-			}
-		}
-
-		if (f.variable_type is ArrayType) {
-			maybe_array_sym = "[]";
-		}
 
 		if (name == "type") {
 			name = "_type";  // go specific hack, see http://golang.org/cmd/cgo:/"Go references to C"
 		}
 
-		defs += "func (c %s) Get%s() %s%s%s {\n".printf(class_name, cleanup_name(name), maybe_array_sym, maybe_pointer_sym, type);
+		defs += "func (c %s) Get%s() %s {\n".printf(class_name, cleanup_name(name), get_golang_type(f.variable_type));
 		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
-
 		defs += "}\n";
 
-		defs += "func (c %s) Set%s(a %s%s%s) {\n".printf(class_name, cleanup_name(name), maybe_array_sym, maybe_pointer_sym, type);
+		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, cleanup_name(name), get_golang_type(f.variable_type));
 		defs += "    c.%s = a\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "    return\n";
 		defs += "}\n";
@@ -344,6 +348,7 @@ public class GoWriter : ValabindWriter {
 		foreach (var f in s.get_fields()) {
 			walk_field(s.name == null ? "" : s.name, f);
 		}
+		defs += "\n";
 
 		dedent();
 	}
@@ -514,17 +519,23 @@ public class GoWriter : ValabindWriter {
 	public void walk_class (string pfx, Class c) {
 		debug("walk_class(pfx: %s, name: %s)".printf(pfx, c.name));
 		indent();
-		/*
 		foreach (var k in c.get_structs ()) {
 			walk_struct (c.name, k);
 		}
-		foreach (var k in c.get_classes ())
+		foreach (var k in c.get_classes ()) {
 			walk_class (c.name, k);
+		}
 		classname = pfx+c.name;
-		classcname = "_"+CCodeBaseModule.get_ccode_name (c);
+		classcname = CCodeBaseModule.get_ccode_name (c);
 
 		process_includes (c);
 
+		defs += "type %s C.%s\n".printf(classname, classcname);
+		foreach (var f in c.get_fields()) {
+			walk_field(classname, f);
+		}
+
+		/*
 		bool has_constructor = false;
 		foreach (var m in c.get_methods ())
 			if (m is CreationMethod) {
@@ -574,6 +585,7 @@ public class GoWriter : ValabindWriter {
 		extends += "};\n";
 		classname = "";
 		*/
+		defs += "\n";
 		dedent();
 	}
 
@@ -596,23 +608,12 @@ public class GoWriter : ValabindWriter {
 
 		nspace = ns.name;
 		process_includes (ns);
-		/*
-		// TODO: needed?
-		foreach (var f in ns.get_fields ()) {
-			walk_field (f);
-		}
-		*/
 		foreach (var e in ns.get_enums ()) {
 			walk_enum (e);
 		}
 		foreach (var c in ns.get_structs ()) {
 			walk_struct(ns.name == modulename ? ns.name : "", c);
 		}
-		/*
-		foreach (var m in ns.get_methods ()) {
-			walk_method (m);
-		}
-		*/
 		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ()) {
 			walk_class (classprefix, c); //ns.name, c);
