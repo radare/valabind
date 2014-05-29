@@ -300,22 +300,17 @@ public class GoWriter : ValabindWriter {
 		// TODO: rename to camelCase
 
 		type = get_ctype (type);
-		type = type.replace("*", "").strip();
-		string maybe_pointer_sym = "";
-		string maybe_array_sym = "";
+		type = type.replace("*", "").strip();  // we can typecheck to determine if this is a pointer, so throw away '*'
+		string maybe_pointer_sym = "";  // if `type` is a pointer, then this will contain the appropriate '*'
+		string maybe_array_sym = "";  // if `type` is an array, then this will contain the appropriate "[]"
 		if (f.variable_type is PointerType) {
-			debug("pointer");
-			debug(type);
 			if (type == "void") {
-				type = "unsafe.Pointer";
+				type = "unsafe.Pointer";  // go specific hack type for void *
 				this.needs_unsafe = true;
 				maybe_pointer_sym = "";
 			} else {
 				maybe_pointer_sym = "*";
 			}
-		} else {
-			debug("value");
-			debug(type);
 		}
 
 		if (f.variable_type is ArrayType) {
@@ -323,10 +318,8 @@ public class GoWriter : ValabindWriter {
 		}
 
 		if (name == "type") {
-			name = "_type";
+			name = "_type";  // go specific hack, see http://golang.org/cmd/cgo:/"Go references to C"
 		}
-
-		// TODO: pointers
 
 		defs += "func (c %s) Get%s() %s%s%s {\n".printf(class_name, cleanup_name(name), maybe_array_sym, maybe_pointer_sym, type);
 		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
@@ -615,9 +608,11 @@ public class GoWriter : ValabindWriter {
 		foreach (var c in ns.get_structs ()) {
 			walk_struct(ns.name == modulename ? ns.name : "", c);
 		}
+		/*
 		foreach (var m in ns.get_methods ()) {
 			walk_method (m);
 		}
+		*/
 		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ()) {
 			walk_class (classprefix, c); //ns.name, c);
