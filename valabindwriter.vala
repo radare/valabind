@@ -14,6 +14,9 @@ public class ValabindWriter : CodeVisitor {
 	protected CodeContext context = new CodeContext ();
 	protected string vapidir;
 	protected GLib.List<string> source_files = new GLib.List<string> ();
+	protected GLib.List<string> packages = new GLib.List<string> ();
+	protected GLib.List<string> defines = new GLib.List<string> ();
+	protected bool glibmode;
 
 	public ValabindWriter () {
 	}
@@ -21,6 +24,7 @@ public class ValabindWriter : CodeVisitor {
 	public void init (string vapidir, bool glibmode) {
 		CodeContext.push (context);
 		this.vapidir = vapidir;
+		this.glibmode = glibmode;
 		context.vapi_directories = { vapidir };
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
@@ -45,11 +49,13 @@ public class ValabindWriter : CodeVisitor {
 
 	public void add_define (string define) {
 		notice ("Symbol defined "+define);
+		this.defines.append(define);
 		context.add_define(define);
 	}
 
 	public bool add_external_package (string pkg) {
 		notice ("Adding dependency "+pkg);
+		this.packages.append(pkg);
 		return context.add_external_package (pkg);
 	}
 
