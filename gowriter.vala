@@ -258,7 +258,8 @@ public class GoWriter : ValabindWriter {
 		}
 	}
 
-	private string get_golang_type(DataType type) {
+	// given a DataType symbol, return a string that contains the Go source code for that type.
+	private string get_go_type(DataType type) {
 		if (type.to_string()== "G") {
 			// TODO
 			// error, dont support generics
@@ -272,8 +273,6 @@ public class GoWriter : ValabindWriter {
 			warning("We don't support generics (2)");
 			//return;
 		}
-
-		// TODO: rename to camelCase
 
 		string typename = get_ctype (type.to_string());
 		typename = typename.replace("*", "").strip();  // we can typecheck to determine if this is a pointer, so throw away '*'
@@ -304,6 +303,7 @@ public class GoWriter : ValabindWriter {
 		// TODO(wb): handle visibility
 		if (f.access != SymbolAccessibility.PUBLIC) {
 			debug("private.");
+			dedent();
 			return;
 		}
 
@@ -326,11 +326,13 @@ public class GoWriter : ValabindWriter {
 			name = "_type";  // go specific hack, see http://golang.org/cmd/cgo:/"Go references to C"
 		}
 
-		defs += "func (c %s) Get%s() %s {\n".printf(class_name, cleanup_name(name), get_golang_type(f.variable_type));
+		// TODO: C-string conversions
+
+		defs += "func (c %s) Get%s() %s {\n".printf(class_name, cleanup_name(name), get_go_type(f.variable_type));
 		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "}\n";
 
-		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, cleanup_name(name), get_golang_type(f.variable_type));
+		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, cleanup_name(name), get_go_type(f.variable_type));
 		defs += "    c.%s = a\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "    return\n";
 		defs += "}\n";
@@ -372,9 +374,112 @@ public class GoWriter : ValabindWriter {
 		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
+	public void walk_function(string nsname, Method f) {
+		string cname = CCodeBaseModule.get_ccode_name(f);
+		debug("walk_function(ns: %s, name: %s)".printf(nsname, cname));
+		indent();
+
+
+		string alias = get_alias (f.name);
+		string ret;
+		string def_args = "";
+		string cdef_args = "";
+		string call_args = "";
+		bool void_return;
+		if ((f.binding & MemberBinding.STATIC) == 0) {
+			warning("non-static method where function expected");
+		}
+		if (f is CreationMethod) {
+			warning("constructor where function expected");
+		}
+		if (f.is_private_symbol ()) {
+			debug("private.");
+			dedent();
+			return;
+		}
+
+		ret = f.return_type.to_string ();
+		// TODO: generics
+		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (f.return_type));
+		if (ret == null) {
+			error ("Cannot resolve return type for %s\n".printf (cname));
+		}
+		void_return = (ret == "void");
+
+		string pfx = "";
+		string cpfx = "";
+
+		bool first = true;
+		foreach (var p in f.get_parameters ()) {
+			string arg_name = p.name;
+			DataType? arg_type = p.variable_type;
+			if (arg_type == null) {
+				warning("failed to resolve parameter type");
+				continue;
+			}
+			string? type_name = get_ctype (CCodeBaseModule.get_ccode_name (arg_type));
+
+			if (first) {
+				first = false;
+			} else {
+				cpfx = ", ";
+				pfx = ", ";
+			}
+
+			string maybe_pointer_sym = "";
+			if (p.direction != ParameterDirection.IN) {
+				// TODO: exploit multiple return values?
+				var var_name = "";
+				if (p.direction == ParameterDirection.OUT) {
+					if (type_name != "string") {
+						maybe_pointer_sym = "*";
+					}
+				} else if (p.direction == ParameterDirection.REF) {
+					if (type_name != "string") {
+						maybe_pointer_sym = "*";
+					}
+				}
+			}
+
+			// TODO: consider special handling of `uint8  *buf, int len`?
+
+			if (type_name == "string") {
+				// what about array of char *?  I think we have to let the caller deal with it
+				// hopefully overflows don't happen here?
+				call_args += "%sC.CString(%s)".printf (pfx, arg_name);
+				def_args += "%s%s %sstring".printf (pfx, arg_name, maybe_pointer_sym);
+			} else {
+				call_args += "%s%s".printf (pfx, arg_name);
+				def_args += "%s%s %s%s".printf (pfx, arg_name, maybe_pointer_sym, get_go_type(arg_type));
+			}
+		}
+
+		if ( ! void_return) {
+			defs += "func (_ %s) %s(%s) %s {\n".printf (nsname, cleanup_name(f.name), def_args, get_go_type(f.return_type));
+			if (ret == "string") {
+				// we have to let the caller deal with array of char *
+				// what happens if there are embedded nulls?
+				defs += "    return C.GoString(%s(%s))\n".printf (cname, call_args);
+			} else {
+				// what about void*?
+				defs += "    return %s(%s)\n".printf (cname, call_args);
+			}
+		} else {
+			defs += "func (_ %s) %s(%s) {\n".printf (nsname, cleanup_name(f.name), def_args);
+			defs += "    %s(%s)\n".printf (cname, call_args);
+		}
+		defs += "}\n";
+
+		dedent();
+	}
+
 	public void walk_method (Method m) {
 		debug("walk_method(name: %s)".printf(m.name));
 		indent();
+
+
+		// TODO: "unowned"/static methods
+
 		/*
 		bool first = true;
 		string cname = CCodeBaseModule.get_ccode_name (m);
@@ -609,10 +714,35 @@ public class GoWriter : ValabindWriter {
 		nspace = ns.name;
 		process_includes (ns);
 		foreach (var e in ns.get_enums ()) {
+			// enums will float to the top-level "namespace" in Go, since we aren't doing namespaces.
 			walk_enum (e);
 		}
 		foreach (var c in ns.get_structs ()) {
 			walk_struct(ns.name == modulename ? ns.name : "", c);
+		}
+		if (ns.get_methods().size > 0) {
+			// Go only does namespacing through file system paths, whish is probably not appropriate/feasible here
+			//  so we fake it by creating a new type, and one instance of it,
+			//  and attach the functions to it.
+			// Note, this doesn't work for nested namespaces, but its better than nothing.
+			//
+			// for example:
+			//   namespace N { public static void fn1(); }
+			//
+			// becomes:
+			//   type nsimptN int
+			//   func (_ nsimpN) Fn1() { fn1() }
+			//   var N nsimpN
+			//
+			// so a user can do:
+			//   import "/some/path/test"
+			//   test.N.Fn()
+			string fake_ns_name = "nsimp%s".printf(ns.name);
+			defs += "type %s int\n".printf(fake_ns_name);
+			foreach (var m in ns.get_methods()) {
+				walk_function(fake_ns_name, m);
+			}
+			defs += "var %s %s\n".printf(ns.name, fake_ns_name);
 		}
 		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ()) {
