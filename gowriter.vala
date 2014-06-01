@@ -249,7 +249,6 @@ public class GoWriter : ValabindWriter {
 	}
 
 	private string cleanup_underscores(string name) {
-		debug("cleanup underscores: %s".printf(name));
 		if (name.length == 0) {
 			return "";
 		} else if (name.length == 1) {
@@ -298,7 +297,7 @@ public class GoWriter : ValabindWriter {
 	}
 
 	// see tests t/go/camelcase.vapi
-	private string cleanup_name(string name) {
+	private string camelcase(string name) {
 		if (name.length == 0) {
 			return "";
 		} else if (name.length == 1) {
@@ -378,11 +377,11 @@ public class GoWriter : ValabindWriter {
 
 		// TODO: C-string conversions
 
-		defs += "func (c %s) Get%s() %s {\n".printf(class_name, cleanup_name(name), get_go_type(f.variable_type));
+		defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(name), get_go_type(f.variable_type));
 		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "}\n";
 
-		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, cleanup_name(name), get_go_type(f.variable_type));
+		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(name), get_go_type(f.variable_type));
 		defs += "    c.%s = a\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "    return\n";
 		defs += "}\n";
@@ -506,7 +505,7 @@ public class GoWriter : ValabindWriter {
 		}
 
 		if ( ! void_return) {
-			defs += "func (_ %s) %s(%s) %s {\n".printf (nsname, cleanup_name(f.name), def_args, get_go_type(f.return_type));
+			defs += "func (_ %s) %s(%s) %s {\n".printf (nsname, camelcase(f.name), def_args, get_go_type(f.return_type));
 			if (ret == "string") {
 				// we have to let the caller deal with array of char *
 				// what happens if there are embedded nulls?
@@ -516,7 +515,7 @@ public class GoWriter : ValabindWriter {
 				defs += "    return %s(%s)\n".printf (cname, call_args);
 			}
 		} else {
-			defs += "func (_ %s) %s(%s) {\n".printf (nsname, cleanup_name(f.name), def_args);
+			defs += "func (_ %s) %s(%s) {\n".printf (nsname, camelcase(f.name), def_args);
 			defs += "    %s(%s)\n".printf (cname, call_args);
 		}
 		defs += "}\n";
