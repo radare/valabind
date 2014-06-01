@@ -174,14 +174,6 @@ public class GoWriter : ValabindWriter {
 		return false;
 	}
 
-
-	// what we need is a method `find_namespace_roots` because
-	//  i can't seem to figure out how to access them from the source_file.
-	// namespaces don't appear to have parent links.
-	// so maybe do an `accept_namespaces` and use this to build a
-	//  a tree (because you can traverse down).
-	// need to be careful of checking values of namespaces/instances/names.
-
 	public override void visit_source_file (SourceFile source) {
 		if (is_target_file (source.filename)) {
 			/*
@@ -279,7 +271,7 @@ public class GoWriter : ValabindWriter {
 
 	// given a DataType symbol, return a string that contains the Go source code for that type.
 	private string get_go_type(DataType type) {
-		if (type.to_string()== "G") {
+		if (type.to_string() == "G") {
 			// TODO
 			// error, dont support generics
 			warning("We don't support generics");
@@ -314,6 +306,22 @@ public class GoWriter : ValabindWriter {
 		return "%s%s%s".printf(maybe_array_sym, maybe_pointer_sym, typename);
 	}
 
+	private bool is_string(CodeNode t) {
+		if (t is DataType) {
+			DataType a = t as DataType;
+			return a.to_string() == "string";
+		} else if (t is Field) {
+			Field a = t as Field;
+			return a.variable_type.to_string() == "string";
+		} else if (t is Vala.Parameter) {
+			Vala.Parameter a = t as Vala.Parameter;
+			return a.variable_type.to_string() == "string";
+		} else {
+			warning("unexpected type to is_string");
+			return false;
+		}
+	}
+
 	// here, we use explicit accessors and mutators to fixup accessibility.
 	public void walk_field (string class_name, Field f, bool is_static=false) {
 		debug("walk_field(name: %s)".printf(f.name));
@@ -331,7 +339,8 @@ public class GoWriter : ValabindWriter {
 
 		// TODO: handle generics. ATM, type of `public G data` becomes `func ... GetData() void`
 
-		if (get_go_type(f.variable_type) == "string") {
+		// TODO: make this a function `is_string`
+		if (is_string(f)) {
 			defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
 			defs += "    return C.GoString(c.%s)\n".printf(name);
 			defs += "}\n";
@@ -448,11 +457,11 @@ public class GoWriter : ValabindWriter {
 				// TODO: exploit multiple return values?
 				var var_name = "";
 				if (p.direction == ParameterDirection.OUT) {
-					if (type_name != "string") {
+					if (! is_string(p)) {
 						maybe_pointer_sym = "*";
 					}
 				} else if (p.direction == ParameterDirection.REF) {
-					if (type_name != "string") {
+					if (! is_string(p)) {
 						maybe_pointer_sym = "*";
 					}
 				}
@@ -460,7 +469,7 @@ public class GoWriter : ValabindWriter {
 
 			// TODO: consider special handling of `uint8  *buf, int len`?
 
-			if (type_name == "string") {
+			if (is_string(p)) {
 				// what about array of char *?  I think we have to let the caller deal with it
 				// hopefully overflows don't happen here?
 				call_args += "%sC.CString(%s)".printf (pfx, arg_name);
@@ -473,7 +482,7 @@ public class GoWriter : ValabindWriter {
 
 		if ( ! void_return) {
 			defs += "func (_ %s) %s(%s) %s {\n".printf (nsname, camelcase(f.name), def_args, get_go_type(f.return_type));
-			if (ret == "string") {
+			if (is_string(f.return_type)) {
 				// we have to let the caller deal with array of char *
 				// what happens if there are embedded nulls?
 				defs += "    return C.GoString(%s(%s))\n".printf (cname, call_args);
