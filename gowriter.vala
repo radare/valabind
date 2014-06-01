@@ -248,13 +248,63 @@ public class GoWriter : ValabindWriter {
 		dedent();
 	}
 
+	private string cleanup_underscores(string name) {
+		debug("cleanup underscores: %s".printf(name));
+		if (name.length == 0) {
+			return "";
+		} else if (name.length == 1) {
+			// accept trailing '_'
+			return name;
+		} else if (name.index_of("_") == -1) {
+			return name;
+		} else {  // there is a '_' here somewhere
+			int i = name.index_of("_");
+			if (i == name.length - 1) {
+				// accept trailing '_'
+				return name;
+			}
+			// there must be at least one more character
+
+			// everything before the '_'
+			string before = "";
+			if (i != 0) {
+				before = name.substring(0, i);
+			}
+
+			// find next non-'_' character uppercase, or all '_' if thats all thats left
+			string next;
+			int j = i + 1;
+			while (true) {
+				if (name[j] != '_') {
+					next = name.substring(j, 1).up();
+					break;
+				}
+				j++;
+				if (j == name.length) {  // only '_' remain
+					next = name.substring(i, j - i);  // so catch them all
+					break;
+				}
+			}
+			debug("next: %s".printf(next));
+
+			if (j >= name.length - 2) {
+				return before + next;
+			} else {
+				debug("else: %s".printf(name.substring(j + 1)));
+				// recurse over everything afterwards
+				return before + next + cleanup_underscores(name.substring(j + 1));
+			}
+		}
+	}
+
+	// see tests t/go/camelcase.vapi
 	private string cleanup_name(string name) {
 		if (name.length == 0) {
 			return "";
 		} else if (name.length == 1) {
 			return name.up();
 		} else {
-			return name.substring(0, 1).up() + name.substring(1, name.length - 1);
+			return name.substring(0, 1).up() + cleanup_underscores(name.substring(1, name.length - 1));
 		}
 	}
 
@@ -374,6 +424,7 @@ public class GoWriter : ValabindWriter {
 		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
+	// see tests t/go/namespace_functions.vapi
 	public void walk_function(string nsname, Method f) {
 		string cname = CCodeBaseModule.get_ccode_name(f);
 		debug("walk_function(ns: %s, name: %s)".printf(nsname, cname));
@@ -635,61 +686,52 @@ public class GoWriter : ValabindWriter {
 
 		process_includes (c);
 
+		bool has_constructor = false;
+		foreach (var m in c.get_methods ()) {
+			if (m is CreationMethod) {
+				has_constructor = true;
+				break;
+			}
+		}
+		bool has_destructor = !c.is_compact;
+
+		if (defined_classes.lookup (classname)) {
+			debug("already defined");
+			dedent();
+			return;
+		}
+		defined_classes.insert (classname, true);
+
 		defs += "type %s C.%s\n".printf(classname, classcname);
 		foreach (var f in c.get_fields()) {
 			walk_field(classname, f);
 		}
 
-		/*
-		bool has_constructor = false;
-		foreach (var m in c.get_methods ())
-			if (m is CreationMethod) {
-				has_constructor = true;
-				break;
-			}
-		//bool is_static = (c.static_constructor != null);
-		bool has_destructor = !c.is_compact;
-		//stdout.printf ("class %s %s\n",
-		//	classname, c.is_compact.to_string () );
-
-//		if (context.profile == Profile.GOBJECT)
-//			classname = "%s_%s".printf (nspace, classname);
-
-		if (defined_classes.lookup (classname))
-			return;
-		defined_classes.insert (classname, true);
-
-		//extends += "struct %s {\n".printf (classcname);
-		// TODO: add fields here
-		//extends += "}\n";
-
-		defs += "struct %s {\n".printf (classcname);
-		foreach (var f in c.get_fields ())
-			walk_field (f);
-		defs += "}\n";
-
-		extends += "class %s {\n".printf (classname);
-		extends += "  %s *self;\n".printf (classcname);
-		//extends += " public:\n";
-		foreach (var e in c.get_enums ())
+		foreach (var e in c.get_enums ()) {
 			walk_enum (e);
-		//c.static_destructor!=null?"true":"false");
+		}
+
 		if (has_destructor && has_constructor) {
 			if (CCodeBaseModule.is_reference_counting (c)) {
 				string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
-				if (freefun != null && freefun != "")
-					extends += "  ~this() { %s (o); }\n".printf (freefun);
+				if (freefun != null && freefun != "") {
+					// TODO: add finalizer
+//					extends += "  ~this() { %s (o); }\n".printf (freefun);
+				}
 			} else {
 				string? freefun = CCodeBaseModule.get_ccode_free_function (c);
-				if (freefun != null)
-					extends += "  ~this() { %s (o); }\n".printf (freefun);
+				if (freefun != null) {
+					// TODO: add finalizer
+//					extends += "  ~this() { %s (o); }\n".printf (freefun);
+				}
 			}
 		}
-		foreach (var m in c.get_methods ())
+		foreach (var m in c.get_methods ()) {
 			walk_method (m);
-		extends += "};\n";
-		classname = "";
-		*/
+		}
+
+		defs += "};\n";
+		//classname = "";
 		defs += "\n";
 		dedent();
 	}
