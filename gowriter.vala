@@ -330,7 +330,6 @@ public class GoWriter : ValabindWriter {
 		string name = get_alias(cname);
 
 		// TODO: handle generics. ATM, type of `public G data` becomes `func ... GetData() void`
-		// TODO: C-string conversions
 
 		if (get_go_type(f.variable_type) == "string") {
 			defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
@@ -382,6 +381,7 @@ public class GoWriter : ValabindWriter {
 			enums += "    %s%s = C.%s%s\n".printf(pfx, v.name, pfx, v.name);
 		}
 		enums += ")\n";
+		enums += "type %s int".printf(e.name);
 
 		dedent();
 	}
