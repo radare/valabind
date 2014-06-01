@@ -332,14 +332,26 @@ public class GoWriter : ValabindWriter {
 		// TODO: handle generics. ATM, type of `public G data` becomes `func ... GetData() void`
 		// TODO: C-string conversions
 
-		defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
-		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
-		defs += "}\n";
+		if (get_go_type(f.variable_type) == "string") {
+			defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			defs += "    return C.GoString(c.%s)\n".printf(name);
+			defs += "}\n";
 
-		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
-		defs += "    c.%s = a\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
-		defs += "    return\n";
-		defs += "}\n";
+			defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			defs += "    c.%s = C.CString(a)\n".printf(name);
+			defs += "    return\n";
+			defs += "}\n";
+		} else {
+			defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			defs += "    return c.%s\n".printf(name);
+			defs += "}\n";
+
+			defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			defs += "    c.%s = a\n".printf(name);
+			defs += "    return\n";
+			defs += "}\n";
+		}
+
 
 		dedent();
 	}
