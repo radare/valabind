@@ -3,42 +3,6 @@
 using Vala;
 
 
-// TODO: later
-/*
-public class RootNamespaceFinder : ValabindWriter {
-	private GLib.List<Namespace> root_namespaces = new GLib.List<Namespace>();
-	private bool has_processed = false;
-
-	public RootNamespaceFinder() {
-
-	}
-
-
-	private void walk_namespace(Namespace ns) {
-
-	}
-
-	public override void visit_namespace(Namespace ns) {
-
-	}
-
-	private void process() {
-
-
-		this.has_processed = true;
-	}
-
-	public GLib.List<Namespace> get_namespace_roots() {
-		if ( ! this.has_processed) {
-			this.process();
-		}
-
-		return this.root_namespaces;
-	}
-}
-*/
-
-
 public class GoWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	string classname = "";
@@ -71,7 +35,7 @@ public class GoWriter : ValabindWriter {
 	}
 
 	string get_alias (string name) {
-		string oname = name;
+		string nname;
 		switch (name) {
 		case "break":  // see: http://golang.org/ref/spec:/Identifiers
 		case "while":
@@ -96,14 +60,20 @@ public class GoWriter : ValabindWriter {
 		case "select":
 		case "struct":
 		case "switch":
-		case "type":
 		case "var":
-			return "X"+name;
+			nname = "X" + name;
+			break;
+		case "type":
+			nname = "_type";  // go specific hack for struct names, see http://golang.org/cmd/cgo:/"Go references to C"
+			break;
+		default:
+			nname = name;
+			break;
 		}
-		if (name != oname)
-			warning ("%s.%s method renamed to %s.%s".printf (
-				classname, oname, classname, name));
-		return name;
+		if (name != nname) {
+			warning ("%s symbol renamed to %s".printf(name, nname));
+		}
+		return nname;
 	}
 
 	string get_ctype (string _type) {
@@ -345,7 +315,7 @@ public class GoWriter : ValabindWriter {
 	}
 
 	// here, we use explicit accessors and mutators to fixup accessibility.
-	public void walk_field (string class_name, Field f) {
+	public void walk_field (string class_name, Field f, bool is_static=false) {
 		debug("walk_field(name: %s)".printf(f.name));
 		indent();
 
@@ -356,32 +326,17 @@ public class GoWriter : ValabindWriter {
 			return;
 		}
 
-		//if (CCodeBaseModule.get_ccode_array_length (f))
-		//	print ("---> array without length\n");
-
-		if (f.get_ctype () == null) {
-			//warning (
-			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
-		} else {
-			debug("type: %s".printf(CCodeBaseModule.get_ccode_name(f)));
-		}
-
-		string name = f.name;
+		string cname = CCodeBaseModule.get_ccode_name(f);
+		string name = get_alias(cname);
 
 		// TODO: handle generics. ATM, type of `public G data` becomes `func ... GetData() void`
-		// TODO: rename to camelCase
-
-		if (name == "type") {
-			name = "_type";  // go specific hack, see http://golang.org/cmd/cgo:/"Go references to C"
-		}
-
 		// TODO: C-string conversions
 
-		defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(name), get_go_type(f.variable_type));
+		defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
 		defs += "    return c.%s\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "}\n";
 
-		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(name), get_go_type(f.variable_type));
+		defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
 		defs += "    c.%s = a\n".printf(name);  // TODO: may need to cast this using `C.*`, but this would require resolving cname for type
 		defs += "    return\n";
 		defs += "}\n";
@@ -729,7 +684,6 @@ public class GoWriter : ValabindWriter {
 			walk_method (m);
 		}
 
-		defs += "};\n";
 		//classname = "";
 		defs += "\n";
 		dedent();
@@ -758,10 +712,10 @@ public class GoWriter : ValabindWriter {
 			// enums will float to the top-level "namespace" in Go, since we aren't doing namespaces.
 			walk_enum (e);
 		}
-		foreach (var c in ns.get_structs ()) {
+		foreach (var c in ns.get_structs()) {
 			walk_struct(ns.name == modulename ? ns.name : "", c);
 		}
-		if (ns.get_methods().size > 0) {
+		if (ns.get_methods().size + ns.get_fields().size > 0) {
 			// Go only does namespacing through file system paths, whish is probably not appropriate/feasible here
 			//  so we fake it by creating a new type, and one instance of it,
 			//  and attach the functions to it.
@@ -780,10 +734,14 @@ public class GoWriter : ValabindWriter {
 			//   test.N.Fn()
 			string fake_ns_name = "nsimp%s".printf(ns.name);
 			defs += "type %s int\n".printf(fake_ns_name);
+			foreach (var c in ns.get_fields()) {
+				walk_field(fake_ns_name, c);
+			}
 			foreach (var m in ns.get_methods()) {
 				walk_function(fake_ns_name, m);
 			}
 			defs += "var %s %s\n".printf(ns.name, fake_ns_name);
+			defs += "\n";
 		}
 		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ()) {
