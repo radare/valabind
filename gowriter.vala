@@ -77,19 +77,23 @@ public class GenericClassFinder : ValabindWriter {
 		c.accept_children (this);
 	}
 
+	// `.write` is the method that actually does things in a ValabindWriter
 	public override void write(string file) {
 		context.accept (this);
 	}
 
 	// careful, the return object is mutable
+	// you probably want to call this after `.write`
 	// TODO: should use @get
-	public GLib.HashTable<string, GLib.HashTable<unowned string, string>> get_generic_classes() {
+	public GLib.HashTable<string, GLib.HashTable<unowned string, string>> get_generic_class_instances() {
 		return this.generic_classes;
 	}
 }
 
 public class GoSrcWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
+	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
+	GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes = new GLib.HashTable<string, GLib.HashTable<unowned string, string>> (GLib.str_hash, GLib.str_equal);
 	string classname = "";
 	string classcname;
 	string defs = "";
@@ -100,8 +104,7 @@ public class GoSrcWriter : ValabindWriter {
 
 	bool needs_unsafe = false;  // set to true if the 'unsafe' package needs to be imported because a void* pointer was encountered
 
-	public GoSrcWriter () {
-	}
+	public GoSrcWriter () {}
 
 	string _indent = ""; // TODO(wb): removeme
 	void debug(string s) {
@@ -114,11 +117,11 @@ public class GoSrcWriter : ValabindWriter {
 		_indent = _indent.substring(0, _indent.length - 2);
 	}
 
-	public override string get_filename (string base_name) {
-		return base_name+".go";
+	public void set_generic_class_instances(GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes) {
+		this.generic_classes = generic_classes;
 	}
 
-	string get_alias (string name) {
+	private string get_alias (string name) {
 		string nname;
 		switch (name) {
 		case "break":  // see: http://golang.org/ref/spec:/Identifiers
@@ -160,7 +163,7 @@ public class GoSrcWriter : ValabindWriter {
 		return nname;
 	}
 
-	string get_ctype (string _type) {
+	private string get_ctype (string _type) {
 		string type = _type;
 		string? iter_type = null;
 		if (type == "null")
@@ -185,7 +188,7 @@ public class GoSrcWriter : ValabindWriter {
 		case "gconstpointer":
 		case "gpointer":
 		case "void*":
-	 		return "void*";
+			return "void*";
 		case "gsize":
 			return "size_t";
 		case "gdouble":
@@ -210,11 +213,11 @@ public class GoSrcWriter : ValabindWriter {
 		case "int[]":
 		case "int":
 		case "gint":
-	 		return "int";
+			return "int";
 		case "guint":
-	 		return "uint";
+			return "uint";
 		case "glong":
-	 		return "long";
+			return "long";
 		case "st64":
 		case "int64":
 		case "gint64":
@@ -251,7 +254,7 @@ public class GoSrcWriter : ValabindWriter {
 		return type;
 	}
 
-	bool is_target_file (string path) {
+	private bool is_target_file (string path) {
 		foreach (var file in source_files)
 			if (file == path)
 				return true;
@@ -264,7 +267,7 @@ public class GoSrcWriter : ValabindWriter {
 		}
 	}
 
-	public void process_includes (Symbol s) {
+	private void process_includes (Symbol s) {
 		debug("process_includes(sym: %s)".printf(s.name));
 		indent();
 		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
@@ -277,7 +280,6 @@ public class GoSrcWriter : ValabindWriter {
 				}
 			}
 			if (include) {
-				debug("...adding it");
 				includefiles.prepend (foo);
 			}
 		}
@@ -287,7 +289,7 @@ public class GoSrcWriter : ValabindWriter {
 	// converts symbol names with underscores to camelCase.
 	// this function should not be called directly. See `camelcase`.
 	// allows trailing '_' characters.
-	private string cleanup_underscores(string name) {
+	private static string cleanup_underscores(string name) {
 		if (name.length == 0) {
 			return "";
 		} else if (name.length == 1) {
@@ -334,7 +336,7 @@ public class GoSrcWriter : ValabindWriter {
 	}
 
 	// see tests t/go/camelcase.vapi
-	private string camelcase(string name) {
+	private static string camelcase(string name) {
 		if (name.length == 0) {
 			return "";
 		} else if (name.length == 1) {
@@ -404,7 +406,8 @@ public class GoSrcWriter : ValabindWriter {
 	}
 
 	// here, we use explicit accessors and mutators to fixup accessibility.
-	public void walk_field (string class_name, Field f, bool is_static=false) {
+	private string walk_field (string class_name, Field f, bool is_static=false) {
+		string ret = "";
 		debug("walk_field(name: %s)".printf(f.name));
 		indent();
 
@@ -412,7 +415,7 @@ public class GoSrcWriter : ValabindWriter {
 		if (f.access != SymbolAccessibility.PUBLIC) {
 			debug("private.");
 			dedent();
-			return;
+			return ret;
 		}
 
 		string cname = CCodeBaseModule.get_ccode_name(f);
@@ -422,64 +425,63 @@ public class GoSrcWriter : ValabindWriter {
 
 		// TODO: make this a function `is_string`
 		if (is_string(f)) {
-			defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
-			defs += "    return C.GoString(c.%s)\n".printf(name);
-			defs += "}\n";
+			ret += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "    return C.GoString(c.%s)\n".printf(name);
+			ret += "}\n";
 
-			defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
-			defs += "    c.%s = C.CString(a)\n".printf(name);
-			defs += "    return\n";
-			defs += "}\n";
+			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "    c.%s = C.CString(a)\n".printf(name);
+			ret += "    return\n";
+			ret += "}\n";
 		} else {
-			defs += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
-			defs += "    return c.%s\n".printf(name);
-			defs += "}\n";
+			ret += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "    return c.%s\n".printf(name);
+			ret += "}\n";
 
-			defs += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
-			defs += "    c.%s = a\n".printf(name);
-			defs += "    return\n";
-			defs += "}\n";
+			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "    c.%s = a\n".printf(name);
+			ret += "    return\n";
+			ret += "}\n";
 		}
 
-
 		dedent();
+		return ret;
 	}
 
-	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
-
-	public void walk_struct (string pfx, Struct s) {
+	private string walk_struct (string pfx, Struct s) {
+		string ret = "";
 		debug("walk_struct(pfx: %s, name: %s)".printf(pfx, s.name));
 		indent();
 
-		defs += "type %s%s C.%s\n".printf(pfx, s.name, CCodeBaseModule.get_ccode_name(s));
+		ret += "type %s%s C.%s\n".printf(pfx, s.name, CCodeBaseModule.get_ccode_name(s));
 		foreach (var f in s.get_fields()) {
-			walk_field(s.name == null ? "" : s.name, f);
+			ret += walk_field(s.name == null ? "" : s.name, f);
 		}
-		defs += "\n";
+		ret += "\n";
 
 		dedent();
+		return ret;
 	}
 
-	public void walk_enum (Vala.Enum e) {
+	private string walk_enum (Vala.Enum e) {
+		string ret = "";
 		var pfx = CCodeBaseModule.get_ccode_prefix(e);
 		debug("walk_enum(pfx: %s, name: %s)".printf(pfx, e.name));
 		indent();
 
-		enums += "const (\n";
+		ret += "const (\n";
 		foreach (var v in e.get_values()) {
 			debug("enum(name: %s)".printf(v.name));
-			enums += "    %s%s = C.%s%s\n".printf(pfx, v.name, pfx, v.name);
+			ret += "    %s%s = C.%s%s\n".printf(pfx, v.name, pfx, v.name);
 		}
-		enums += ")\n";
-		enums += "type %s int".printf(e.name);
+		ret += ")\n";
+		ret += "type %s int".printf(e.name);
 
 		dedent();
+		return ret;
 	}
 
 	inline bool is_generic(string type) {
-		if (type.index_of ("<") != -1 && type.index_of (">") != -1) {
-			debug("is_generic: yes: %s".printf(type));
-		}
 		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
@@ -581,12 +583,12 @@ public class GoSrcWriter : ValabindWriter {
 	}
 
 	// see tests t/go/namespace_functions.vapi
-	public void walk_function(string nsname, Method f) {
+	private string walk_function(string nsname, Method f) {
+		string ret = "";
 		string cname = CCodeBaseModule.get_ccode_name(f);
 		debug("walk_function(ns: %s, name: %s)".printf(nsname, cname));
 		indent();
 
-		string ret;
 		bool void_return;
 		if (f is CreationMethod) {
 			warning("constructor where function expected");
@@ -594,45 +596,46 @@ public class GoSrcWriter : ValabindWriter {
 		if (f.is_private_symbol ()) {
 			debug("private.");
 			dedent();
-			return;
+			return ret;
 		}
 
-		ret = f.return_type.to_string ();
+		string return_value_type_name = f.return_type.to_string ();
 		// TODO: generics
-		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (f.return_type));
-		if (ret == null) {
+		return_value_type_name = get_ctype (is_generic (return_value_type_name)?  return_value_type_name : CCodeBaseModule.get_ccode_name (f.return_type));
+		if (return_value_type_name == null) {
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		}
-		void_return = (ret == "void");
+		void_return = (return_value_type_name == "void");
 
 		string def_args = get_function_declaration_parameters(f);
 		string call_args = get_function_call_parameters(f);
 		if ( ! void_return) {
-			defs += "func (_ %s) %s(%s) %s {\n".printf (nsname, camelcase(f.name), def_args, get_go_type(f.return_type));
+			ret += "func (_ %s) %s(%s) %s {\n".printf (nsname, camelcase(f.name), def_args, get_go_type(f.return_type));
 			if (is_string(f.return_type)) {
 				// we have to let the caller deal with array of char *
 				// what happens if there are embedded nulls?
-				defs += "    return C.GoString(%s(%s))\n".printf (cname, call_args);
+				ret += "    return C.GoString(%s(%s))\n".printf (cname, call_args);
 			} else {
 				// what about void*?
-				defs += "    return %s(%s)\n".printf (cname, call_args);
+				ret += "    return %s(%s)\n".printf (cname, call_args);
 			}
 		} else {
-			defs += "func (_ %s) %s(%s) {\n".printf (nsname, camelcase(f.name), def_args);
-			defs += "    %s(%s)\n".printf (cname, call_args);
+			ret += "func (_ %s) %s(%s) {\n".printf (nsname, camelcase(f.name), def_args);
+			ret += "    %s(%s)\n".printf (cname, call_args);
 		}
-		defs += "}\n";
+		ret += "}\n";
 
 		dedent();
+		return ret;
 	}
 
-	public void walk_method (string classname, Method m) {
+	private string walk_method (string classname, Method m) {
+		string ret = "";
 		string cname = CCodeBaseModule.get_ccode_name(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
 		indent();
 
 		// TODO: "unowned"/static methods
-		string ret;
 		bool void_return;
 		if (m is CreationMethod) {
 			warning("constructor where function expected");
@@ -640,80 +643,81 @@ public class GoSrcWriter : ValabindWriter {
 		if (m.is_private_symbol ()) {
 			debug("private.");
 			dedent();
-			return;
+			return ret;
 		}
 
-		ret = m.return_type.to_string ();
+		string return_value_type_name = m.return_type.to_string ();
 		// TODO: generics
-		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (m.return_type));
-		if (ret == null) {
+		return_value_type_name = get_ctype (is_generic (return_value_type_name)?  return_value_type_name : CCodeBaseModule.get_ccode_name (m.return_type));
+		if (return_value_type_name == null) {
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		}
-		void_return = (ret == "void");
+		void_return = (return_value_type_name == "void");
 
 		string def_args = get_function_declaration_parameters(m);
 		string call_args = get_function_call_parameters(m);
 
-		defs += "func (this *%s) %s(".printf(classname, camelcase(m.name));
+		ret += "func (this *%s) %s(".printf(classname, camelcase(m.name));
 		if (def_args != "") {
-			defs += "%s".printf(def_args);
+			ret += "%s".printf(def_args);
 		}
-		defs += ") ";
+		ret += ") ";
 		if ( ! void_return) {
-			defs += "%s ".printf(get_go_type(m.return_type));
+			ret += "%s ".printf(get_go_type(m.return_type));
 		}
-		defs += "{\n";
-		defs += "    ";
+		ret += "{\n";
+		ret += "    ";
 		if ( ! void_return) {
-			defs += "return ";
+			ret += "return ";
 			if (is_string(m.return_type)) {
 				// TODO: use wrap_type function
-				defs += "C.GoString(";
+				ret += "C.GoString(";
 			}
 
-			defs += "%s(this".printf(cname);
+			ret += "%s(this".printf(cname);
 			if (call_args != "") {
-				defs += ", %s".printf(call_args);
+				ret += ", %s".printf(call_args);
 			}
-			defs += ")";
+			ret += ")";
 
 			if (is_string(m.return_type)) {
-				defs += ")";
+				ret += ")";
 			}
-			defs += "\n";
+			ret += "\n";
 		} else {
-			defs += "%s(this".printf(cname);
+			ret += "%s(this".printf(cname);
 			if (call_args != "") {
-				defs += ", %s".printf(call_args);
+				ret += ", %s".printf(call_args);
 			}
-			defs += ")\n";
+			ret += ")\n";
 		}
-		defs += "}\n";
+		ret += "}\n";
 
 		dedent();
+		return ret;
 	}
 
-	public void walk_constructor(string classname, Method m, string free_function) {
+	private string walk_constructor(string classname, Method m, string free_function) {
+		string ret = "";
 		string cname = CCodeBaseModule.get_ccode_name(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
 		indent();
 
 		// TODO: "unowned"/static methods
-		string ret;
 		bool void_return;
 		if (m.is_private_symbol ()) {
 			debug("private.");
 			dedent();
-			return;
+			return ret;
 		}
 
-		ret = m.return_type.to_string ();
+		string return_value_type_name = m.return_type.to_string ();
 		// TODO: generics
-		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (m.return_type));
-		if (ret == null) {
+		return_value_type_name = get_ctype (is_generic (return_value_type_name)?  return_value_type_name : CCodeBaseModule.get_ccode_name (m.return_type));
+		if (return_value_type_name == null) {
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		}
-		void_return = (ret == "void");
+		void_return = (return_value_type_name == "void");
 
 		string def_args = get_function_declaration_parameters(m);
 		string call_args = get_function_call_parameters(m);
@@ -722,47 +726,38 @@ public class GoSrcWriter : ValabindWriter {
 		if (m.name != ".new") {
 			postfix = camelcase(m.name);
 		}
-		defs += "func New%s%s(".printf(classname, postfix);
+		ret += "func New%s%s(".printf(classname, postfix);
 		if (def_args != "") {
-			defs += "%s".printf(def_args);
+			ret += "%s".printf(def_args);
 		}
-		defs += ") *%s {\n".printf(classname);
+		ret += ") *%s {\n".printf(classname);
 
-		defs += "    var ret *%s\n".printf(classname);
-		defs += "    ret = C.%s(".printf(CCodeBaseModule.get_ccode_name(m));
+		ret += "    var ret *%s\n".printf(classname);
+		ret += "    ret = C.%s(".printf(CCodeBaseModule.get_ccode_name(m));
 		if (call_args != "") {
-			defs += "%s".printf(call_args);
+			ret += "%s".printf(call_args);
 		}
-		defs += ")\n";
+		ret += ")\n";
 		if (free_function != "") {
-			defs += "    var finalizer = func(r *%s) {\n".printf(classname);
-			defs += "        C.%s(r)\n".printf(free_function);
-			defs += "    }\n";
-			defs += "    SetFinalizer(ret, finalizer)\n";
+			ret += "    var finalizer = func(r *%s) {\n".printf(classname);
+			ret += "        C.%s(r)\n".printf(free_function);
+			ret += "    }\n";
+			ret += "    SetFinalizer(ret, finalizer)\n";
 		}
-		defs += "    return ret\n";
-		defs += "}\n";
+		ret += "    return ret\n";
+		ret += "}\n";
 
 		dedent();
+		return ret;
 	}
 
-	public void walk_class (string pfx, Class c) {
-		debug("walk_class(pfx: %s, name: %s)".printf(pfx, c.name));
-
-		if (c is GenericType) {
-			var d = c as GenericType;
-			warning("generic!!!!");
-			warning("%s".printf(d.to_qualified_string()));
-		} else {
-			warning("not generic");
-		}
-
-		indent();
+	private string get_class_src(string pfx, Class c) {
+		string ret = "";
 		foreach (var k in c.get_structs ()) {
-			walk_struct (c.name, k);
+			ret += walk_struct (c.name, k);
 		}
 		foreach (var k in c.get_classes ()) {
-			walk_class (c.name, k);
+			ret += walk_class (c.name, k);
 		}
 		classname = pfx+c.name;
 		classcname = CCodeBaseModule.get_ccode_name (c);
@@ -771,7 +766,7 @@ public class GoSrcWriter : ValabindWriter {
 		if (defined_classes.lookup (classname)) {
 			debug("already defined");
 			dedent();
-			return;
+			return ret;
 		}
 		defined_classes.insert (classname, true);
 
@@ -782,34 +777,19 @@ public class GoSrcWriter : ValabindWriter {
 				break;
 			}
 		}
-		bool has_destructor = !c.is_compact;
 
-		defs += "type %s C.%s\n".printf(classname, classcname);
+		ret += "type %s C.%s\n".printf(classname, classcname);
 		foreach (var f in c.get_fields()) {
-			walk_field(classname, f);
+			ret += walk_field(classname, f);
 		}
 
 		foreach (var e in c.get_enums ()) {
-			walk_enum (e);
-		}
-
-		if (has_destructor && has_constructor) {
-			if (CCodeBaseModule.is_reference_counting (c)) {
-				string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
-				if (freefun != null && freefun != "") {
-					// TODO: add finalizer
-				}
-			} else {
-				string? freefun = CCodeBaseModule.get_ccode_free_function (c);
-				if (freefun != null) {
-					// TODO: add finalizer
-				}
-			}
+			ret += walk_enum (e);
 		}
 
 		foreach (var m in c.get_methods ()) {
 			if ( ! (m is CreationMethod)) {
-				walk_method (classname, m);
+				ret += walk_method (classname, m);
 			} else {
 				string free_function = "";
 				if (CCodeBaseModule.is_reference_counting (c)) {
@@ -823,12 +803,41 @@ public class GoSrcWriter : ValabindWriter {
 						free_function = freefun;
 					}
 				}
-				walk_constructor(classname, m, free_function);
+				ret += walk_constructor(classname, m, free_function);
 			}
 		}
 
-		defs += "\n";
+		ret += "\n";
 		dedent();
+		return ret;
+	}
+
+	private string walk_class (string pfx, Class c) {
+		string ret = "";
+		debug("walk_class(pfx: %s, name: %s)".printf(pfx, c.name));
+
+		indent();
+
+		if (this.generic_classes.contains(c.name)) {
+			debug("generic class");
+			indent();
+
+			unowned GLib.HashTable<unowned string, string> specializations;
+			specializations = this.generic_classes.lookup(c.name);
+			specializations.foreach((k, v) => {
+				debug("specialization: %s".printf(k));
+				indent();
+
+				// stuff
+
+				dedent();
+			});
+			dedent();
+		}
+
+		ret += get_class_src(pfx, c);
+		dedent();
+		return ret;
 	}
 
 
@@ -836,10 +845,12 @@ public class GoSrcWriter : ValabindWriter {
 	//  directory hierarchy, but thats for code organization.
 	// we eat namespaces here, as they don't generate anything besides their children.
 	public override void visit_namespace (Namespace ns) {
+		string ret = "";
 		debug("walk_namespace(name: %s)".printf(ns.name));
 		indent();
-		if (ns.name == "")
+		if (ns.name == "") {
 			return;
+		}
 
 		classname = "";
 		SourceReference? sr = ns.source_reference;
@@ -852,10 +863,10 @@ public class GoSrcWriter : ValabindWriter {
 		process_includes (ns);
 		foreach (var e in ns.get_enums ()) {
 			// enums will float to the top-level "namespace" in Go, since we aren't doing namespaces.
-			walk_enum (e);
+			ret += walk_enum (e);
 		}
 		foreach (var c in ns.get_structs()) {
-			walk_struct(ns.name == modulename ? ns.name : "", c);
+			ret += walk_struct(ns.name == modulename ? ns.name : "", c);
 		}
 		if (ns.get_methods().size + ns.get_fields().size > 0) {
 			// Go only does namespacing through file system paths, whish is
@@ -876,28 +887,30 @@ public class GoSrcWriter : ValabindWriter {
 			//   import "/some/path/test"
 			//   test.N.Fn()
 			string fake_ns_name = "nsimp%s".printf(ns.name);
-			defs += "type %s int\n".printf(fake_ns_name);
+			ret += "type %s int\n".printf(fake_ns_name);
 			foreach (var c in ns.get_fields()) {
-				walk_field(fake_ns_name, c);
+				ret += walk_field(fake_ns_name, c);
 			}
 			foreach (var m in ns.get_methods()) {
-				walk_function(fake_ns_name, m);
+				ret += walk_function(fake_ns_name, m);
 			}
-			defs += "var %s %s\n".printf(ns.name, fake_ns_name);
-			defs += "\n";
+			ret += "var %s %s\n".printf(ns.name, fake_ns_name);
+			ret += "\n";
 		}
 		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ()) {
-			walk_class (classprefix, c); //ns.name, c);
+			ret += walk_class (classprefix, c); //ns.name, c);
 		}
 
 		dedent();
+		defs += ret;
 	}
 
 	public override void write (string file) {
 		var stream = FileStream.open (file, "w");
-		if (stream == null)
+		if (stream == null) {
 			error ("Cannot open %s for writing".printf (file));
+		}
 
 		// before the `pre` stuff because we need `includefiles` to be populated.
 		context.accept (this);
@@ -925,6 +938,10 @@ public class GoSrcWriter : ValabindWriter {
 public class GoWriter : ValabindWriter {
 	public GoWriter() {}
 
+	public override string get_filename (string base_name) {
+		return base_name + ".go";
+	}
+
 	private void clone_writer_config(ValabindWriter w) {
 		w.modulename = this.modulename;
 		w.library = this.library;
@@ -944,15 +961,14 @@ public class GoWriter : ValabindWriter {
 	}
 
 	public override void write (string file) {
-		var g = new GoSrcWriter();
-		this.clone_writer_config(g);
-
-		warning("a");
 		var f = new GenericClassFinder();
 		this.clone_writer_config(f);
 		f.parse();
 		f.write(file);
-		warning("b");
+
+		var g = new GoSrcWriter();
+		this.clone_writer_config(g);
+		g.set_generic_class_instances(f.get_generic_class_instances());
 
 		g.parse();
 		g.write(file);
