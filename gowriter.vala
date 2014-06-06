@@ -3,7 +3,92 @@
 using Vala;
 
 
-public class GoWriter : ValabindWriter {
+// walks all the datatypes and collects instances of generic classes
+// we need this because i cannot figure out how to fetch the "is_generic" attribute
+//   from a Vala.Class node object.
+// this way, we have to inspect all instances of objects to find what's actually used,
+//   and then parse the type name (which includes the <...> specializer).
+public class GenericClassFinder : ValabindWriter {
+	// see: http://stackoverflow.com/questions/24072692/how-can-i-use-a-hashmap-of-string-in-vala
+	GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes = new GLib.HashTable<string, GLib.HashTable<unowned string, string>> (GLib.str_hash, GLib.str_equal);
+
+	inline bool is_generic(DataType d) {
+		return (d.to_string().index_of ("<") != -1 && d.to_string().index_of (">") != -1);
+	}
+
+	inline bool is_glib(DataType d) {
+		return d.to_string().index_of("GLib.") != -1;
+	}
+
+	// the base class name, no namespace
+	inline string get_class_name(DataType d) {
+		string s = d.to_string();
+		return s.substring(0, s.index_of_char('<'));
+	}
+
+	// `s` should not contain a specializer (<...>)
+	inline string strip_namespace(string s) {
+		int i1 = s.last_index_of_char('.') + 1;
+		return s.substring(i1);
+	}
+
+	// the thing in <>
+	inline string get_specializer_name(DataType d) {
+		string s = d.to_string();
+		int i1 = s.index_of_char('<') + 1;
+		int i2 = s.index_of_char('>');
+		return s.substring(i1, i2 - i1);
+	}
+
+	public override void visit_data_type(DataType d) {
+		if (is_generic(d) && ( ! is_glib(d))) {
+			string c = strip_namespace(get_class_name(d));
+			string s = get_specializer_name(d);
+
+			unowned GLib.HashTable<unowned string, string>? inner_set = generic_classes[c];
+
+			if (inner_set == null) {
+				var v = new GLib.HashTable<unowned string, string> (GLib.str_hash, GLib.str_equal);
+				inner_set = v;
+				generic_classes.insert ((owned) c, (owned) v);
+			}
+
+			inner_set.replace(s, (owned) s);
+		}
+	}
+
+	public override void visit_method(Method m) {
+		m.accept_children (this);
+	}
+
+	public override void visit_field(Field f) {
+		f.accept_children (this);
+	}
+
+	public override void visit_source_file (SourceFile source) {
+		source.accept_children (this);
+	}
+
+	public override void visit_namespace(Namespace ns) {
+		ns.accept_children (this);
+	}
+
+	public override void visit_class(Class c) {
+		c.accept_children (this);
+	}
+
+	public override void write(string file) {
+		context.accept (this);
+	}
+
+	// careful, the return object is mutable
+	// TODO: should use @get
+	public GLib.HashTable<string, GLib.HashTable<unowned string, string>> get_generic_classes() {
+		return this.generic_classes;
+	}
+}
+
+public class GoSrcWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	string classname = "";
 	string classcname;
@@ -15,6 +100,9 @@ public class GoWriter : ValabindWriter {
 
 	bool needs_unsafe = false;  // set to true if the 'unsafe' package needs to be imported because a void* pointer was encountered
 
+	public GoSrcWriter () {
+	}
+
 	string _indent = ""; // TODO(wb): removeme
 	void debug(string s) {
 		notice(_indent + s);
@@ -24,9 +112,6 @@ public class GoWriter : ValabindWriter {
 	}
 	void dedent() {
 		_indent = _indent.substring(0, _indent.length - 2);
-	}
-
-	public GoWriter () {
 	}
 
 	public override string get_filename (string base_name) {
@@ -84,6 +169,7 @@ public class GoWriter : ValabindWriter {
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
 		if (is_generic (type)) {
+			debug("generic: %s".printf(type));
 			int ptr = type.index_of ("<");
 			iter_type = (ptr==-1)?type:type[ptr:type.length];
 			iter_type = iter_type.replace ("<", "");
@@ -166,7 +252,6 @@ public class GoWriter : ValabindWriter {
 	}
 
 	bool is_target_file (string path) {
-		// FIXME implement the new method with use_namespace instead
 		foreach (var file in source_files)
 			if (file == path)
 				return true;
@@ -175,16 +260,6 @@ public class GoWriter : ValabindWriter {
 
 	public override void visit_source_file (SourceFile source) {
 		if (is_target_file (source.filename)) {
-			/*
-			foreach (var c in source.get_nodes()) {
-				debug(c.to_string());
-				indent();
-				foreach (var at in c.attributes) {
-					debug("name: %s".printf(at.name));
-				}
-				dedent();
-			}
-			*/
 			source.accept_children (this);
 		}
 	}
@@ -209,6 +284,9 @@ public class GoWriter : ValabindWriter {
 		dedent();
 	}
 
+	// converts symbol names with underscores to camelCase.
+	// this function should not be called directly. See `camelcase`.
+	// allows trailing '_' characters.
 	private string cleanup_underscores(string name) {
 		if (name.length == 0) {
 			return "";
@@ -245,12 +323,10 @@ public class GoWriter : ValabindWriter {
 					break;
 				}
 			}
-			debug("next: %s".printf(next));
 
 			if (j >= name.length - 2) {
 				return before + next;
 			} else {
-				debug("else: %s".printf(name.substring(j + 1)));
 				// do rest of string
 				return before + next + cleanup_underscores(name.substring(j + 1));
 			}
@@ -268,12 +344,14 @@ public class GoWriter : ValabindWriter {
 		}
 	}
 
-	// given a DataType symbol, return a string that contains the Go source code for that type.
+	// given a DataType symbol, return a string that contains the Go source code for
+	// a type specifier of that type.
 	private string get_go_type(DataType type) {
 		if (type.to_string() == "G") {
 			// TODO
 			// error, dont support generics
 			warning("We don't support generics");
+			debug("generic1: %s".printf(type.to_string()));
 			//return;
 		}
 
@@ -281,13 +359,17 @@ public class GoWriter : ValabindWriter {
 			// TODO
 			// error, dont support generics
 			warning("We don't support generics (2)");
+			debug("generic2: %s".printf(type.to_string()));
 			//return;
 		}
 
 		string typename = get_ctype (type.to_string());
-		typename = typename.replace("*", "").strip();  // we can typecheck to determine if this is a pointer, so throw away '*'
-		string maybe_pointer_sym = "";  // if `type` is a pointer, then this will contain the appropriate '*'
-		string maybe_array_sym = "";  // if `type` is an array, then this will contain the appropriate "[]"
+		// we can typecheck to determine if this is a pointer, so throw away '*'
+		typename = typename.replace("*", "").strip();
+		// if `type` is a pointer, then this will contain the appropriate '*'
+		string maybe_pointer_sym = "";
+		// if `type` is an array, then this will contain the appropriate "[]"
+		string maybe_array_sym = "";
 		if (type is PointerType) {
 			if (typename == "void") {
 				typename = "unsafe.Pointer";  // go specific hack type for void *
@@ -395,9 +477,13 @@ public class GoWriter : ValabindWriter {
 	}
 
 	inline bool is_generic(string type) {
+		if (type.index_of ("<") != -1 && type.index_of (">") != -1) {
+			debug("is_generic: yes: %s".printf(type));
+		}
 		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
+	// BUG: doesn't support '...' parameters
 	private string get_function_declaration_parameters(Method f) {
 		string def_args = "";
 		string pfx = "";
@@ -445,6 +531,7 @@ public class GoWriter : ValabindWriter {
 		return def_args;
 	}
 
+	// BUG: doesn't support '...' parameters
 	// the duplication here is annoying. theres really only about a one line difference
 	private string get_function_call_parameters(Method f) {
 		string call_args = "";
@@ -493,23 +580,6 @@ public class GoWriter : ValabindWriter {
 		return call_args;
 	}
 
-	private string get_function_declaration_return_value(Method f) {
-		var ret = f.return_type.to_string ();
-		// TODO: generics
-		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (f.return_type));
-		if (ret == null) {
-			error ("Cannot resolve return type (3)\n");
-			return "";
-		}
-		var void_return = (ret == "void");
-
-		if ( ! void_return) {
-			return get_go_type(f.return_type);
-		} else {
-			return "";
-		}
-	}
-
 	// see tests t/go/namespace_functions.vapi
 	public void walk_function(string nsname, Method f) {
 		string cname = CCodeBaseModule.get_ccode_name(f);
@@ -518,9 +588,6 @@ public class GoWriter : ValabindWriter {
 
 		string ret;
 		bool void_return;
-		if ((f.binding & MemberBinding.STATIC) == 0) {
-			warning("non-static method where function expected");
-		}
 		if (f is CreationMethod) {
 			warning("constructor where function expected");
 		}
@@ -567,9 +634,6 @@ public class GoWriter : ValabindWriter {
 		// TODO: "unowned"/static methods
 		string ret;
 		bool void_return;
-		if ((m.binding & MemberBinding.STATIC) == 0) {
-			warning("non-static method where function expected");
-		}
 		if (m is CreationMethod) {
 			warning("constructor where function expected");
 		}
@@ -637,12 +701,6 @@ public class GoWriter : ValabindWriter {
 		// TODO: "unowned"/static methods
 		string ret;
 		bool void_return;
-		if ((m.binding & MemberBinding.STATIC) == 0) {
-			warning("non-static method where function expected");
-		}
-		if (m is CreationMethod) {
-			warning("constructor where function expected");
-		}
 		if (m.is_private_symbol ()) {
 			debug("private.");
 			dedent();
@@ -690,6 +748,15 @@ public class GoWriter : ValabindWriter {
 
 	public void walk_class (string pfx, Class c) {
 		debug("walk_class(pfx: %s, name: %s)".printf(pfx, c.name));
+
+		if (c is GenericType) {
+			var d = c as GenericType;
+			warning("generic!!!!");
+			warning("%s".printf(d.to_qualified_string()));
+		} else {
+			warning("not generic");
+		}
+
 		indent();
 		foreach (var k in c.get_structs ()) {
 			walk_struct (c.name, k);
@@ -791,7 +858,8 @@ public class GoWriter : ValabindWriter {
 			walk_struct(ns.name == modulename ? ns.name : "", c);
 		}
 		if (ns.get_methods().size + ns.get_fields().size > 0) {
-			// Go only does namespacing through file system paths, whish is probably not appropriate/feasible here
+			// Go only does namespacing through file system paths, whish is
+			//  probably not appropriate/feasible here
 			//  so we fake it by creating a new type, and one instance of it,
 			//  and attach the functions to it.
 			// Note, this doesn't work for nested namespaces, but its better than nothing.
@@ -853,4 +921,42 @@ public class GoWriter : ValabindWriter {
 		stream.printf ("%s\n", extends);
 	}
 }
+
+public class GoWriter : ValabindWriter {
+	public GoWriter() {}
+
+	private void clone_writer_config(ValabindWriter w) {
+		w.modulename = this.modulename;
+		w.library = this.library;
+		w.include_dirs = this.include_dirs;
+		w.namespaces = this.namespaces;
+
+		w.init(this.vapidir, this.glibmode);
+		foreach (var pkg in this.packages) {
+			w.add_external_package(pkg);
+		}
+		foreach (var def in this.defines) {
+			w.add_define(def);
+		}
+		foreach (var f in this.source_files) {
+			w.add_source_file(f);
+		}
+	}
+
+	public override void write (string file) {
+		var g = new GoSrcWriter();
+		this.clone_writer_config(g);
+
+		warning("a");
+		var f = new GenericClassFinder();
+		this.clone_writer_config(f);
+		f.parse();
+		f.write(file);
+		warning("b");
+
+		g.parse();
+		g.write(file);
+	}
+}
+
 
