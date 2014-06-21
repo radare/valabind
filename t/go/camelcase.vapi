@@ -7,7 +7,7 @@ namespace Test {
 		public static void fn_fn2();  // --> FnFn2
 		public static void fn_fn3_();  // --> FnFn3_
 		public static void fn_fn4_a();  // --> FnFn4A
-		public static void fn__fn5();  // --> FnFn5
 		public static void fn6__();  // --> Fn6__
+		public static void fn_f7();  // --> FnF7
 	}
 }

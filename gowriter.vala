@@ -312,9 +312,11 @@ public class GoSrcWriter : ValabindWriter {
 			}
 
 			// find next non-'_' character uppercase, or all '_' if thats all thats left
+			// j will be the index of this character
 			string next;
 			int j = i + 1;
 			while (true) {
+				before = name.substring(0, i);
 				if (name[j] != '_') {
 					next = name.substring(j, 1).up();
 					break;
@@ -326,7 +328,7 @@ public class GoSrcWriter : ValabindWriter {
 				}
 			}
 
-			if (j >= name.length - 2) {
+			if (j >= name.length - 1) {
 				return before + next;
 			} else {
 				// do rest of string
@@ -724,6 +726,7 @@ public class GoSrcWriter : ValabindWriter {
 
 		string postfix = "";
 		if (m.name != ".new") {
+			debug("camelcase: %s".printf(m.name));
 			postfix = camelcase(m.name);
 		}
 		ret += "func New%s%s(".printf(classname, postfix);
