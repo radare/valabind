@@ -487,9 +487,14 @@ public class GoSrcWriter : ValabindWriter {
 		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
-	// BUG: doesn't support '...' parameters
-	private string get_function_declaration_parameters(Method f) {
-		string def_args = "";
+	// is_string: if the parameter is a string
+	// arg_name: the C symbol parameter name
+	// maybe_pointer_sym: might contain a '*' if needed for the Go symbol. Useful for `out` parameters.
+	// arg_type: the parameter type in all its glory
+	delegate string parameter_visitor(bool is_string, string arg_name, string maybe_pointer_sym, DataType? arg_type);
+
+	private string get_function_parameters(Method f, parameter_visitor v) {
+		string args = "";
 		string pfx = "";
 
 		bool first = true;
@@ -522,66 +527,38 @@ public class GoSrcWriter : ValabindWriter {
 			}
 
 			// TODO: consider special handling of `uint8  *buf, int len`?
-
-			if (is_string(p)) {
-				// what about array of char *?  I think we have to let the caller deal with it
-				// hopefully overflows don't happen here?
-				def_args += "%s%s %sstring".printf (pfx, arg_name, maybe_pointer_sym);
-			} else {
-				def_args += "%s%s %s%s".printf (pfx, arg_name, maybe_pointer_sym, get_go_type(arg_type));
-			}
+			args += "%s%s".printf(pfx, v(is_string(p), arg_name, maybe_pointer_sym, arg_type));
 		}
 
-		return def_args;
+		return args;
 	}
 
 	// BUG: doesn't support '...' parameters
-	// the duplication here is annoying. theres really only about a one line difference
-	private string get_function_call_parameters(Method f) {
-		string call_args = "";
-		string pfx = "";
-
-		bool first = true;
-		foreach (var p in f.get_parameters ()) {
-			string arg_name = p.name;
-			DataType? arg_type = p.variable_type;
-			if (arg_type == null) {
-				warning("failed to resolve parameter type");
-				continue;
-			}
-
-			if (first) {
-				first = false;
-			} else {
-				pfx = ", ";
-			}
-
-			string maybe_pointer_sym = "";
-			if (p.direction != ParameterDirection.IN) {
-				// TODO: exploit multiple return values?
-				if (p.direction == ParameterDirection.OUT) {
-					if (! is_string(p)) {
-						maybe_pointer_sym = "*";
-					}
-				} else if (p.direction == ParameterDirection.REF) {
-					if (! is_string(p)) {
-						maybe_pointer_sym = "*";
-					}
-				}
-			}
-
-			// TODO: consider special handling of `uint8  *buf, int len`?
-
-			if (is_string(p)) {
+	private string get_function_declaration_parameters(Method f) {
+		parameter_visitor formatter = (is_string, arg_name, maybe_pointer_sym, arg_type) => {
+			if (is_string) {
 				// what about array of char *?  I think we have to let the caller deal with it
 				// hopefully overflows don't happen here?
-				call_args += "%sC.CString(%s)".printf (pfx, arg_name);
+				return "%s %sstring".printf (arg_name, maybe_pointer_sym);
 			} else {
-				call_args += "%s%s".printf (pfx, arg_name);
+				return "%s %s%s".printf (arg_name, maybe_pointer_sym, get_go_type(arg_type));
 			}
-		}
+		};
+		return get_function_parameters(f, formatter);
+	}
 
-		return call_args;
+	// BUG: doesn't support '...' parameters
+	private string get_function_call_parameters(Method f) {
+		parameter_visitor formatter = (is_string, arg_name, maybe_pointer_sym, arg_type) => {
+			if (is_string) {
+				// what about array of char *?  I think we have to let the caller deal with it
+				// hopefully overflows don't happen here?
+				return "C.CString(%s)".printf (arg_name);
+			} else {
+				return "%s".printf (arg_name);
+			}
+		};
+		return get_function_parameters(f, formatter);
 	}
 
 	// see tests t/go/namespace_functions.vapi
@@ -830,6 +807,10 @@ public class GoSrcWriter : ValabindWriter {
 			debug("generic class");
 			indent();
 
+			foreach (var t in c.get_type_parameters()) {
+				debug("tp: %s".printf(t.name));
+			}
+
 			unowned GLib.HashTable<unowned string, string> specializations;
 			specializations = this.generic_classes.lookup(c.name);
 			specializations.foreach((k, v) => {
@@ -837,13 +818,17 @@ public class GoSrcWriter : ValabindWriter {
 				indent();
 
 				// stuff
+				ret += "// type %s_%s\n".printf(c.name, camelcase(v));
+
 
 				dedent();
 			});
 			dedent();
+			ret += get_class_src(pfx, c);
+		} else {
+			ret += get_class_src(pfx, c);
 		}
 
-		ret += get_class_src(pfx, c);
 		dedent();
 		return ret;
 	}
