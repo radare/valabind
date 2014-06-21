@@ -793,15 +793,21 @@ public class GoSrcWriter : ValabindWriter {
 			if ( ! (m is CreationMethod)) {
 				ret += walk_method (classname, m);
 			} else {
+				debug("constructor: %s::%s".printf(classname, m.name));
 				string free_function = "";
 				if (CCodeBaseModule.is_reference_counting (c)) {
 					string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 					if (freefun != null && freefun != "") {
+						debug("destructor (unref): %s".printf(freefun));
 						free_function = freefun;
 					}
 				} else {
+					// BUG?: this method always seems to return a free function (default: ${cprefix}_free)
+					//   even if there is no `free_function` defined in the `CCode` block
+					// see test in t/go/classes.vapi
 					string? freefun = CCodeBaseModule.get_ccode_free_function (c);
 					if (freefun != null) {
+						debug("destructor (free): %s".printf(freefun));
 						free_function = freefun;
 					}
 				}

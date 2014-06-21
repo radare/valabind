@@ -15,4 +15,18 @@ namespace Test {
 		public string f4(string p1);
 		public void *f5(void *p1);
 	}
+
+	// has no free function
+	[Compact]
+	[CCode (cprefix="b_", cname="B")]
+	public class BB {
+		public BB();
+	}
+
+	// has unusually named free function
+	[Compact]
+	[CCode (cprefix="c_", cname="C", free_function="free_at_last")]
+	public class CC {
+		public CC();
+	}
 }
