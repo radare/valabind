@@ -739,10 +739,9 @@ public class GoSrcWriter : ValabindWriter {
 		}
 		ret += ")\n";
 		if (free_function != "") {
-			ret += "    var finalizer = func(r *%s) {\n".printf(classname);
+			ret += "    SetFinalizer(ret, func(r *%s) {\n".printf(classname);
 			ret += "        C.%s(r)\n".printf(free_function);
-			ret += "    }\n";
-			ret += "    SetFinalizer(ret, finalizer)\n";
+			ret += "    })\n";
 		}
 		ret += "    return ret\n";
 		ret += "}\n";
