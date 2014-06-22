@@ -50,9 +50,7 @@ public class GenericClassFinder : ValabindWriter {
 			}
 
 			GLib.List<DataType> args = new GLib.List<DataType>();
-			stdout.printf("generic: %s\n".printf(d.to_string()));
 			foreach (var t in d.get_type_arguments()) {
-				stdout.printf(">>%s\n".printf(t.to_string()));
 				args.append(t);
 			}
 
@@ -218,8 +216,29 @@ public class GoNamer {
 		return "New%s%s".printf(get_class_name(c), postfix);
 	}
 
-	public string get_class_name(Class c) {
+	private string mangle_datatype(DataType d) {
+		string ret = d.data_type.name;  // i think should unify with get_type_declaration?
 
+		bool has_parameters = false;
+		foreach(var p in d.get_type_arguments()) {
+			has_parameters = true;
+			break;
+		}
+
+		if (has_parameters) {
+			foreach(var dd in d.get_type_arguments()) {
+				ret += "_";
+				ret += mangle_datatype(dd);
+			}
+		}
+		return ret;
+	}
+
+	// get the name of a class. If its a generic class, then
+	//   we use the set of specializations in our local context
+	//   to mangle the name.
+	// this must keep in sync with get_specialized_type_declaration
+	public string get_class_name(Class c) {
 		bool has_specializations = false;
 		foreach(var s in ordered_specializations) {
 			has_specializations = true;
@@ -230,13 +249,19 @@ public class GoNamer {
 		if (has_specializations) {
 			foreach(DataType d in ordered_specializations) {
 				postfix += "_";
-				postfix += get_type_declaration(d);
+				postfix += mangle_datatype(d);
 			}
 		}
 
 		return "%s%s%s".printf(this.pfx, camelcase(c.name), postfix);
 	}
 
+	// get the name of an already specialized generic class. That is,
+	//  turning something like vapi: List<int> into go: List_int.
+	// this must be kept in sync with get_class_name
+	public string get_specialized_type_declaration(DataType d) {
+		return mangle_datatype(d);
+	}
 	public string get_class_cname(Class c) {
 		return CCodeBaseModule.get_ccode_name(c);
 	}
@@ -265,8 +290,6 @@ public class GoNamer {
 			error ("Cannot resolve type");
 		}
 		if (is_generic (type)) {
-			// TODO: fix things so we don't need this
-			debug("generic: %s".printf(type));
 			int ptr = type.index_of ("<");
 			iter_type = (ptr==-1)?type:type[ptr:type.length];
 			iter_type = iter_type.replace ("<", "");
@@ -275,9 +298,7 @@ public class GoNamer {
 		}
 		type = type.replace ("?","");
 
-		// TODO(wb): need to do this.
 		switch (type) {
-		case "G": /* generic type :: TODO: review */
 		case "gconstpointer":
 		case "gpointer":
 		case "void*":
@@ -302,7 +323,7 @@ public class GoNamer {
 		case "const gchar*":
 			return "string"; // XXX lost const?
 		case "void":
-			return "void";
+			return "void"
 		case "int[]":
 		case "int":
 		case "gint":
@@ -322,14 +343,14 @@ public class GoNamer {
 		/* XXX swig does not support unsigned char* */
 		case "uint8*":
 		case "guint8*":
-			return "byte*";
+			return "byte*"
 		case "guint16":
 		case "uint16":
 			return "ushort";
 		case "ut32":
 		case "uint32":
 		case "guint32":
-			return "unsigned int";
+			return "unsigned int"
 		case "bool": // no conversion needed
 		case "gboolean":
 			return "bool"; // XXX bool?
@@ -345,19 +366,15 @@ public class GoNamer {
 		string basic_name = type.to_string();
 
 		if (specializations.lookup(basic_name) != null) {
-			stdout.printf("generic that we can specialize: %s\n".printf(basic_name));
+			// replace type specializations (things like "public G member1;"
+			// NOTE: doesn't support some complex specializations, like public List<G> member1;"
 			DataType dt = specializations.lookup(basic_name);
 			basic_name = dt.to_string();
-			stdout.printf("  --> %s\n".printf(basic_name));
-
-			// TODO: need to handled nested generic things
-
 		} else if (type.to_string().index_of ("<") != -1) {
-			warning("Unresolvable generic: %s".printf(type.to_string()));
-			//return;
+			basic_name = get_specialized_type_declaration(type);
 		}
 
-		string typename = get_ctype (basic_name);
+		string typename = get_ctype (basic_name); // TODO: why are we using ctype here?
 		// we can typecheck to determine if this is a pointer, so throw away '*'
 		typename = typename.replace("*", "").strip();
 		// if `type` is a pointer, then this will contain the appropriate '*'
@@ -851,7 +868,12 @@ public class GoSrcWriter : ValabindWriter {
 					vv.delete_link(vv.nth(0));  // pop(0)
 				}
 
-				ret += "// %s\n".printf(c.to_string());
+				ret += "// %s<".printf(c.name);
+				foreach(var t in v.copy()) {
+					ret += t.to_string();
+					ret += ", ";
+				}
+				ret += ">\n";
 				ret += get_class_src(namer, c);
 
 				dedent();
