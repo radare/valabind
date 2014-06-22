@@ -169,12 +169,16 @@ public class GoNamer {
 		if (n == "type") {
 			return "_type";
 		} else {
-			return "type";
+			return n;
 		}
 	}
 
 	public string get_method_name(Method m) {
 		return camelcase(m.name);
+	}
+
+	public string get_method_cname(Method m) {
+		return CCodeBaseModule.get_ccode_name(m);
 	}
 
 	public string get_parameter_name(Vala.Parameter p) {
@@ -186,6 +190,10 @@ public class GoNamer {
 	}
 
 	public string get_enum_value_name(Vala.EnumValue v) {
+		return v.name;
+	}
+
+	public string get_enum_value_cname(Vala.EnumValue v) {
 		return v.name;
 	}
 
@@ -201,62 +209,40 @@ public class GoNamer {
 		return "%s%s".printf(this.pfx, camelcase(c.name));
 	}
 
+	public string get_class_cname(Class c) {
+		return CCodeBaseModule.get_ccode_name(c);
+	}
+
 	public string get_struct_name(Struct s) {
 		return "%s%s".printf(this.pfx, camelcase(s.name));
+	}
+
+	public string get_struct_cname(Struct s) {
+		return CCodeBaseModule.get_ccode_name(s);
 	}
 
 	public string get_namespace_name(Namespace ns) {
 		return ns.name;
 	}
-}
 
-
-public class GoSrcWriter : ValabindWriter {
-	public GLib.List<string> includefiles = new GLib.List<string> ();
-	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
-	GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes = new GLib.HashTable<string, GLib.HashTable<unowned string, string>> (GLib.str_hash, GLib.str_equal);
-	string classname = "";
-	string classcname;
-	string defs = "";
-	string statics = "";
-	string extends = "";
-	string enums = "";
-	string nspace;
-
-	bool needs_unsafe = false;  // set to true if the 'unsafe' package needs to be imported because a void* pointer was encountered
-
-	public GoSrcWriter () {}
-
-	string _indent = ""; // TODO(wb): removeme
-	void debug(string s) {
-		notice(_indent + s);
-	}
-	void indent() {
-		_indent = _indent + "  ";
-	}
-	void dedent() {
-		_indent = _indent.substring(0, _indent.length - 2);
-	}
-
-	public void set_generic_class_instances(GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes) {
-		this.generic_classes = generic_classes;
+	inline bool is_generic(string type) {
+		// TODO: fix things so we don't need this
+		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
 	}
 
 	private string get_ctype (string _type) {
 		string type = _type;
 		string? iter_type = null;
-		if (type == "null")
+		if (type == "null") {
 			error ("Cannot resolve type");
-		if (type.has_prefix (nspace))
-			type = type.substring (nspace.length) + "*";
-		type = type.replace (".", "");
+		}
 		if (is_generic (type)) {
+			// TODO: fix things so we don't need this
 			debug("generic: %s".printf(type));
 			int ptr = type.index_of ("<");
 			iter_type = (ptr==-1)?type:type[ptr:type.length];
 			iter_type = iter_type.replace ("<", "");
 			iter_type = iter_type.replace (">", "");
-			iter_type = iter_type.replace (nspace, "");
 			type = type.split ("<", 2)[0];
 		}
 		type = type.replace ("?","");
@@ -319,18 +305,101 @@ public class GoSrcWriter : ValabindWriter {
 		case "bool": // no conversion needed
 		case "gboolean":
 			return "bool"; // XXX bool?
-		case "RFList":
-			if (iter_type != null)
-				return "std::vector<"+iter_type+">";
-			break;
-		case "RList":
-			if (iter_type != null)
-				return "std::vector<"+iter_type+">";
-			break;
 		default:
 			break;
 		}
 		return type;
+	}
+
+	// given a DataType symbol, return a string that contains the Go source code for
+	// a type specifier of that type.
+	private string get_type_declaration(DataType type) {
+		if (type.to_string() == "G") {
+			// TODO
+			// error, dont support generics
+			warning("We don't support generics yet");
+			debug("generic1: %s".printf(type.to_string()));
+			//return;
+		}
+
+		if (type.to_string().index_of ("<") != -1) {
+			// TODO
+			// error, dont support generics
+			warning("We don't support generics (2)");
+			debug("generic2: %s".printf(type.to_string()));
+			//return;
+		}
+
+		string typename = get_ctype (type.to_string());
+		// we can typecheck to determine if this is a pointer, so throw away '*'
+		typename = typename.replace("*", "").strip();
+		// if `type` is a pointer, then this will contain the appropriate '*'
+		string maybe_pointer_sym = "";
+		// if `type` is an array, then this will contain the appropriate "[]"
+		string maybe_array_sym = "";
+		if (type is PointerType) {
+			// I suspect we don't support pointer-to-pointer
+			if (typename == "void") {
+				typename = "unsafe.Pointer";  // go specific hack type for void *
+				// TODO: need to re-enable this somehow
+				// this.needs_unsafe = true;
+				maybe_pointer_sym = "";
+			} else {
+				maybe_pointer_sym = "*";
+			}
+		}
+
+		if (type is ArrayType) {
+			maybe_array_sym = "[]";
+		}
+
+		return "%s%s%s".printf(maybe_array_sym, maybe_pointer_sym, typename);
+	}
+
+	public string get_field_type_declaration(Field f) {
+		return get_type_declaration(f.variable_type);
+	}
+
+	public string get_parameter_type_declaration(Vala.Parameter p) {
+		return get_type_declaration(p.variable_type);
+	}
+
+	public string get_method_return_type_declaration(Method m) {
+		return get_type_declaration(m.return_type);
+
+	}
+}
+
+
+public class GoSrcWriter : ValabindWriter {
+	public GLib.List<string> includefiles = new GLib.List<string> ();
+	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
+	GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes = new GLib.HashTable<string, GLib.HashTable<unowned string, string>> (GLib.str_hash, GLib.str_equal);
+	string classname = "";
+	string classcname;
+	string defs = "";
+	string statics = "";
+	string extends = "";
+	string enums = "";
+	string nspace;
+
+	bool needs_unsafe = false;  // set to true if the 'unsafe' package needs to be imported because a void* pointer was encountered
+
+	public GoSrcWriter () {}
+
+	string _indent = ""; // TODO(wb): removeme
+	void debug(string s) {
+		notice(_indent + s);
+	}
+	void indent() {
+		_indent = _indent + "  ";
+	}
+	void dedent() {
+		_indent = _indent.substring(0, _indent.length - 2);
+	}
+
+	public void set_generic_class_instances(GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes) {
+		this.generic_classes = generic_classes;
 	}
 
 	private bool is_target_file (string path) {
@@ -365,49 +434,6 @@ public class GoSrcWriter : ValabindWriter {
 		dedent();
 	}
 
-	// given a DataType symbol, return a string that contains the Go source code for
-	// a type specifier of that type.
-	private string get_go_type(DataType type) {
-		if (type.to_string() == "G") {
-			// TODO
-			// error, dont support generics
-			warning("We don't support generics");
-			debug("generic1: %s".printf(type.to_string()));
-			//return;
-		}
-
-		if (type.to_string().index_of ("<") != -1) {
-			// TODO
-			// error, dont support generics
-			warning("We don't support generics (2)");
-			debug("generic2: %s".printf(type.to_string()));
-			//return;
-		}
-
-		string typename = get_ctype (type.to_string());
-		// we can typecheck to determine if this is a pointer, so throw away '*'
-		typename = typename.replace("*", "").strip();
-		// if `type` is a pointer, then this will contain the appropriate '*'
-		string maybe_pointer_sym = "";
-		// if `type` is an array, then this will contain the appropriate "[]"
-		string maybe_array_sym = "";
-		if (type is PointerType) {
-			if (typename == "void") {
-				typename = "unsafe.Pointer";  // go specific hack type for void *
-				this.needs_unsafe = true;
-				maybe_pointer_sym = "";
-			} else {
-				maybe_pointer_sym = "*";
-			}
-		}
-
-		if (type is ArrayType) {
-			maybe_array_sym = "[]";
-		}
-
-		return "%s%s%s".printf(maybe_array_sym, maybe_pointer_sym, typename);
-	}
-
 	private bool is_string(CodeNode t) {
 		if (t is DataType) {
 			DataType a = t as DataType;
@@ -430,7 +456,7 @@ public class GoSrcWriter : ValabindWriter {
 		debug("walk_field(name: %s)".printf(f.name));
 		indent();
 
-		if (f.access != SymbolAccessibility.PUBLIC) {
+		if (f.is_private_symbol()) {
 			debug("private.");
 			dedent();
 			return ret;
@@ -440,21 +466,21 @@ public class GoSrcWriter : ValabindWriter {
 
 		// TODO: make this a function `is_string`
 		if (is_string(f)) {
-			ret += "func (c %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    return C.GoString(c.%s)\n".printf(namer.get_field_cname(f));
+			ret += "func (s %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "    return C.GoString(s.%s)\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "func (c %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    c.%s = C.CString(a)\n".printf(namer.get_field_cname(f));
+			ret += "func (s %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "    s.%s = C.CString(a)\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
 		} else {
-			ret += "func (c %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    return c.%s\n".printf(namer.get_field_cname(f));
+			ret += "func (s %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "    return s.%s\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "func (c %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    c.%s = a\n".printf(namer.get_field_cname(f));
+			ret += "func (s %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "    s.%s = a\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
 		}
@@ -480,7 +506,7 @@ public class GoSrcWriter : ValabindWriter {
 		debug("walk_struct(name: %s)".printf(s.name));
 		indent();
 
-		ret += "type %s C.%s\n".printf(namer.get_struct_name(s), CCodeBaseModule.get_ccode_name(s));
+		ret += "type %s C.%s\n".printf(namer.get_struct_name(s), namer.get_struct_cname(s));
 		foreach (var f in s.get_fields()) {
 			ret += walk_struct_field(namer, s, f);
 		}
@@ -499,7 +525,7 @@ public class GoSrcWriter : ValabindWriter {
 		ret += "const (\n";
 		foreach (var v in e.get_values()) {
 			debug("enum(name: %s)".printf(v.name));
-			ret += "    %s%s = C.%s%s\n".printf(pfx, namer.get_enum_value_name(v), pfx, v.name);
+			ret += "    %s%s = C.%s%s\n".printf(pfx, namer.get_enum_value_name(v), pfx, namer.get_enum_value_cname(v));
 		}
 		ret += ")\n";
 		ret += "type %s int".printf(namer.get_enum_name(e));
@@ -508,27 +534,17 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	inline bool is_generic(string type) {
-		return (type.index_of ("<") != -1 && type.index_of (">") != -1);
-	}
-
 	// is_string: if the parameter is a string
 	// arg_name: the C symbol parameter name
 	// maybe_pointer_sym: might contain a '*' if needed for the Go symbol. Useful for `out` parameters.
 	// arg_type: the parameter type in all its glory
-	delegate string parameter_visitor(bool is_string, string arg_name, string maybe_pointer_sym, DataType? arg_type);
+	delegate string parameter_visitor(bool is_string, string maybe_pointer_sym, Vala.Parameter p);
 
 	private string get_function_parameters(GoNamer namer, Method f, parameter_visitor v) {
 		string args = "";
 
 		bool first = true;
 		foreach (var p in f.get_parameters ()) {
-			DataType? arg_type = p.variable_type;
-			if (arg_type == null) {
-				warning("failed to resolve parameter type");
-				continue;
-			}
-
 			string maybe_pointer_sym = "";
 			if (p.direction != ParameterDirection.IN) {
 				// TODO: exploit multiple return values?
@@ -550,7 +566,7 @@ public class GoSrcWriter : ValabindWriter {
 			}
 
 			// TODO: consider special handling of `uint8  *buf, int len`?
-			args += v(is_string(p), namer.get_parameter_name(p), maybe_pointer_sym, arg_type);
+			args += v(is_string(p), maybe_pointer_sym, p);
 		}
 
 		return args;
@@ -558,41 +574,41 @@ public class GoSrcWriter : ValabindWriter {
 
 	// BUG: doesn't support '...' parameters
 	private string get_function_declaration_parameters(GoNamer namer, Method f) {
-		parameter_visitor formatter = (is_string, arg_name, maybe_pointer_sym, arg_type) => {
-			if (is_string) {
-				// what about array of char *?  I think we have to let the caller deal with it
-				// hopefully overflows don't happen here?
-				return "%s %sstring".printf (arg_name, maybe_pointer_sym);
-			} else {
-				return "%s %s%s".printf (arg_name, maybe_pointer_sym, get_go_type(arg_type));
-			}
+		parameter_visitor formatter = (is_string, maybe_pointer_sym, p) => {
+			// what about array of char *?  I think we have to let the caller deal with it
+			// hopefully overflows don't happen here?
+			return "%s %s%s".printf (namer.get_parameter_name(p), maybe_pointer_sym, namer.get_parameter_type_declaration(p));
 		};
 		return get_function_parameters(namer, f, formatter);
 	}
 
 	// BUG: doesn't support '...' parameters
 	private string get_function_call_parameters(GoNamer namer, Method f) {
-		parameter_visitor formatter = (is_string, arg_name, maybe_pointer_sym, arg_type) => {
+		parameter_visitor formatter = (is_string, maybe_pointer_sym, p) => {
 			if (is_string) {
 				// what about array of char *?  I think we have to let the caller deal with it
 				// hopefully overflows don't happen here?
-				return "C.CString(%s)".printf (arg_name);
+				return "C.CString(%s)".printf (namer.get_parameter_name(p));
 			} else {
-				return "%s".printf (arg_name);
+				return "%s".printf (namer.get_parameter_name(p));
 			}
 		};
 		return get_function_parameters(namer, f, formatter);
+	}
+
+	private bool is_void_function(Method f) {
+		return f.return_type.to_string() == "void";
 	}
 
 	// see tests t/go/namespace_functions.vapi
 	private string walk_function(GoNamer namer, Namespace ns, Method f) {
 		string ret = "";
 		string nsname = namer.get_namespace_name(ns);
-		string cname = CCodeBaseModule.get_ccode_name(f);
+		string cname = namer.get_method_cname(f);
+
 		debug("walk_function(ns: %s, name: %s)".printf(nsname, cname));
 		indent();
 
-		bool void_return;
 		if (f is CreationMethod) {
 			warning("constructor where function expected");
 		}
@@ -602,24 +618,16 @@ public class GoSrcWriter : ValabindWriter {
 			return ret;
 		}
 
-		string return_value_type_name = f.return_type.to_string ();
-		// TODO: generics
-		return_value_type_name = get_ctype (is_generic (return_value_type_name)?  return_value_type_name : CCodeBaseModule.get_ccode_name (f.return_type));
-		if (return_value_type_name == null) {
-			error ("Cannot resolve return type for %s\n".printf (cname));
-		}
-		void_return = (return_value_type_name == "void");
-
 		string def_args = get_function_declaration_parameters(namer, f);
 		string call_args = get_function_call_parameters(namer, f);
-		if ( ! void_return) {
-			ret += "func (_ nsimp%s) %s(%s) %s {\n".printf (nsname, namer.get_method_name(f), def_args, get_go_type(f.return_type));
+		if ( ! is_void_function(f)) {
+			ret += "func (_ nsimp%s) %s(%s) %s {\n".printf (nsname, namer.get_method_name(f), def_args, namer.get_method_return_type_declaration(f));
 			if (is_string(f.return_type)) {
 				// we have to let the caller deal with array of char *
 				// what happens if there are embedded nulls?
 				ret += "    return C.GoString(%s(%s))\n".printf (cname, call_args);
 			} else {
-				// what about void*?
+				// TODO: what about void*?
 				ret += "    return %s(%s)\n".printf (cname, call_args);
 			}
 		} else {
@@ -635,12 +643,11 @@ public class GoSrcWriter : ValabindWriter {
 	private string walk_method (GoNamer namer, Class c, Method m) {
 		string ret = "";
 		string classname = namer.get_class_name(c);
-		string cname = CCodeBaseModule.get_ccode_name(m);
+		string cname = namer.get_method_cname(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
 		indent();
 
 		// TODO: "unowned"/static methods
-		bool void_return;
 		if (m is CreationMethod) {
 			warning("constructor where function expected");
 		}
@@ -650,14 +657,6 @@ public class GoSrcWriter : ValabindWriter {
 			return ret;
 		}
 
-		string return_value_type_name = m.return_type.to_string ();
-		// TODO: generics
-		return_value_type_name = get_ctype (is_generic (return_value_type_name)?  return_value_type_name : CCodeBaseModule.get_ccode_name (m.return_type));
-		if (return_value_type_name == null) {
-			error ("Cannot resolve return type for %s\n".printf (cname));
-		}
-		void_return = (return_value_type_name == "void");
-
 		string def_args = get_function_declaration_parameters(namer, m);
 		string call_args = get_function_call_parameters(namer, m);
 
@@ -666,12 +665,12 @@ public class GoSrcWriter : ValabindWriter {
 			ret += "%s".printf(def_args);
 		}
 		ret += ") ";
-		if ( ! void_return) {
-			ret += "%s ".printf(get_go_type(m.return_type));
+		if ( ! is_void_function(m)) {
+			ret += "%s ".printf(namer.get_method_return_type_declaration(m));
 		}
 		ret += "{\n";
 		ret += "    ";
-		if ( ! void_return) {
+		if ( ! is_void_function(m)) {
 			ret += "return ";
 			if (is_string(m.return_type)) {
 				// TODO: use wrap_type function
@@ -704,40 +703,24 @@ public class GoSrcWriter : ValabindWriter {
 	private string walk_constructor(GoNamer namer, Class c, Method m, string free_function) {
 		string ret = "";
 		string classname = namer.get_class_name(c);
-		string cname = CCodeBaseModule.get_ccode_name(m);
+		string cname = namer.get_method_cname(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
 		indent();
 
 		// TODO: "unowned"/static methods
-		bool void_return;
 		if (m.is_private_symbol ()) {
 			debug("private.");
 			dedent();
 			return ret;
 		}
 
-		string return_value_type_name = m.return_type.to_string ();
-		// TODO: generics
-		return_value_type_name = get_ctype (is_generic (return_value_type_name)?  return_value_type_name : CCodeBaseModule.get_ccode_name (m.return_type));
-		if (return_value_type_name == null) {
-			error ("Cannot resolve return type for %s\n".printf (cname));
-		}
-		void_return = (return_value_type_name == "void");
-
-		string def_args = get_function_declaration_parameters(namer, m);
-		string call_args = get_function_call_parameters(namer, m);
-
 		ret += "func %s(".printf(namer.get_constructor_name(c, m));
-		if (def_args != "") {
-			ret += "%s".printf(def_args);
-		}
+		ret += "%s".printf(get_function_declaration_parameters(namer, m));
 		ret += ") *%s {\n".printf(classname);
 
 		ret += "    var ret *%s\n".printf(classname);
 		ret += "    ret = C.%s(".printf(cname);
-		if (call_args != "") {
-			ret += "%s".printf(call_args);
-		}
+		ret += "%s".printf(get_function_call_parameters(namer, m));
 		ret += ")\n";
 		if (free_function != "") {
 			ret += "    SetFinalizer(ret, func(r *%s) {\n".printf(classname);
@@ -760,7 +743,7 @@ public class GoSrcWriter : ValabindWriter {
 			ret += walk_class (k);
 		}
 		classname = namer.get_class_name(c);
-		classcname = CCodeBaseModule.get_ccode_name (c);
+		classcname = namer.get_class_cname(c);
 
 		process_includes (c);
 		if (defined_classes.lookup (classname)) {
@@ -791,12 +774,10 @@ public class GoSrcWriter : ValabindWriter {
 			if ( ! (m is CreationMethod)) {
 				ret += walk_method (namer, c, m);
 			} else {
-				debug("constructor: %s::%s".printf(classname, m.name));
 				string free_function = "";
 				if (CCodeBaseModule.is_reference_counting (c)) {
 					string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
 					if (freefun != null && freefun != "") {
-						debug("destructor (unref): %s".printf(freefun));
 						free_function = freefun;
 					}
 				} else {
@@ -805,7 +786,6 @@ public class GoSrcWriter : ValabindWriter {
 					// see test in t/go/classes.vapi
 					string? freefun = CCodeBaseModule.get_ccode_free_function (c);
 					if (freefun != null) {
-						debug("destructor (free): %s".printf(freefun));
 						free_function = freefun;
 					}
 				}
