@@ -204,6 +204,10 @@ public class GoNamer {
 	public string get_struct_name(Struct s) {
 		return "%s%s".printf(this.pfx, camelcase(s.name));
 	}
+
+	public string get_namespace_name(Namespace ns) {
+		return ns.name;
+	}
 }
 
 
@@ -421,12 +425,11 @@ public class GoSrcWriter : ValabindWriter {
 	}
 
 	// here, we use explicit accessors and mutators to fixup accessibility.
-	private string walk_field (GoNamer namer, string class_name, Field f, bool is_static=false) {
+	private string walk_field (GoNamer namer, string owner_name, Field f) {
 		string ret = "";
 		debug("walk_field(name: %s)".printf(f.name));
 		indent();
 
-		// TODO(wb): handle visibility
 		if (f.access != SymbolAccessibility.PUBLIC) {
 			debug("private.");
 			dedent();
@@ -437,20 +440,20 @@ public class GoSrcWriter : ValabindWriter {
 
 		// TODO: make this a function `is_string`
 		if (is_string(f)) {
-			ret += "func (c %s) Get%s() %s {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
+			ret += "func (c %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    return C.GoString(c.%s)\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
+			ret += "func (c %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    c.%s = C.CString(a)\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
 		} else {
-			ret += "func (c %s) Get%s() %s {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
+			ret += "func (c %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    return c.%s\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
+			ret += "func (c %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    c.%s = a\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
@@ -460,6 +463,18 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
+	private string walk_class_field(GoNamer namer, Class c, Field f) {
+		return walk_field(namer, namer.get_class_name(c), f);
+	}
+
+	private string walk_struct_field(GoNamer namer, Struct s, Field f) {
+		return walk_field(namer, namer.get_struct_name(s), f);
+	}
+
+	private string walk_namespace_field(GoNamer namer, Namespace ns, Field f) {
+		return walk_field(namer, "nsimp" + namer.get_namespace_name(ns), f);
+	}
+
 	private string walk_struct (GoNamer namer, Struct s) {
 		string ret = "";
 		debug("walk_struct(name: %s)".printf(s.name));
@@ -467,7 +482,7 @@ public class GoSrcWriter : ValabindWriter {
 
 		ret += "type %s C.%s\n".printf(namer.get_struct_name(s), CCodeBaseModule.get_ccode_name(s));
 		foreach (var f in s.get_fields()) {
-			ret += walk_field(namer, s.name == null ? "" : s.name, f);
+			ret += walk_struct_field(namer, s, f);
 		}
 		ret += "\n";
 
@@ -570,8 +585,9 @@ public class GoSrcWriter : ValabindWriter {
 	}
 
 	// see tests t/go/namespace_functions.vapi
-	private string walk_function(GoNamer namer, string nsname, Method f) {
+	private string walk_function(GoNamer namer, Namespace ns, Method f) {
 		string ret = "";
+		string nsname = namer.get_namespace_name(ns);
 		string cname = CCodeBaseModule.get_ccode_name(f);
 		debug("walk_function(ns: %s, name: %s)".printf(nsname, cname));
 		indent();
@@ -597,7 +613,7 @@ public class GoSrcWriter : ValabindWriter {
 		string def_args = get_function_declaration_parameters(namer, f);
 		string call_args = get_function_call_parameters(namer, f);
 		if ( ! void_return) {
-			ret += "func (_ %s) %s(%s) %s {\n".printf (nsname, namer.get_method_name(f), def_args, get_go_type(f.return_type));
+			ret += "func (_ nsimp%s) %s(%s) %s {\n".printf (nsname, namer.get_method_name(f), def_args, get_go_type(f.return_type));
 			if (is_string(f.return_type)) {
 				// we have to let the caller deal with array of char *
 				// what happens if there are embedded nulls?
@@ -607,7 +623,7 @@ public class GoSrcWriter : ValabindWriter {
 				ret += "    return %s(%s)\n".printf (cname, call_args);
 			}
 		} else {
-			ret += "func (_ %s) %s(%s) {\n".printf (nsname, namer.get_method_name(f), def_args);
+			ret += "func (_ nsimp%s) %s(%s) {\n".printf (nsname, namer.get_method_name(f), def_args);
 			ret += "    %s(%s)\n".printf (cname, call_args);
 		}
 		ret += "}\n";
@@ -616,8 +632,9 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string walk_method (GoNamer namer, string classname, Method m) {
+	private string walk_method (GoNamer namer, Class c, Method m) {
 		string ret = "";
+		string classname = namer.get_class_name(c);
 		string cname = CCodeBaseModule.get_ccode_name(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
 		indent();
@@ -763,7 +780,7 @@ public class GoSrcWriter : ValabindWriter {
 
 		ret += "type %s C.%s\n".printf(classname, classcname);
 		foreach (var f in c.get_fields()) {
-			ret += walk_field(namer, classname, f);
+			ret += walk_class_field(namer, c, f);
 		}
 
 		foreach (var e in c.get_enums ()) {
@@ -772,7 +789,7 @@ public class GoSrcWriter : ValabindWriter {
 
 		foreach (var m in c.get_methods ()) {
 			if ( ! (m is CreationMethod)) {
-				ret += walk_method (namer, classname, m);
+				ret += walk_method (namer, c, m);
 			} else {
 				debug("constructor: %s::%s".printf(classname, m.name));
 				string free_function = "";
@@ -891,10 +908,10 @@ public class GoSrcWriter : ValabindWriter {
 			string fake_ns_name = "nsimp%s".printf(ns.name);
 			ret += "type %s int\n".printf(fake_ns_name);
 			foreach (var c in ns.get_fields()) {
-				ret += walk_field(new GoNamer(ns.name == modulename ? ns.name : ""), fake_ns_name, c);
+				ret += walk_namespace_field(new GoNamer(ns.name == modulename ? ns.name : ""), ns, c);
 			}
 			foreach (var m in ns.get_methods()) {
-				ret += walk_function(new GoNamer(ns.name == modulename ? ns.name : ""), fake_ns_name, m);
+				ret += walk_function(new GoNamer(ns.name == modulename ? ns.name : ""), ns, m);
 			}
 			ret += "var %s %s\n".printf(ns.name, fake_ns_name);
 			ret += "\n";
