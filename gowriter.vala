@@ -90,6 +90,112 @@ public class GenericClassFinder : ValabindWriter {
 	}
 }
 
+public class GoNamer {
+	private string pfx;
+	public GoNamer(string pfx) {
+		this.pfx = pfx;
+	}
+
+	// converts symbol names with underscores to camelCase.
+	// this function should not be called directly. See `camelcase`.
+	// allows trailing '_' characters.
+	private static string cleanup_underscores(string name) {
+		if (name.length == 0) {
+			return "";
+		} else if (name.length == 1) {
+			// accept trailing '_'
+			return name;
+		} else if (name.index_of("_") == -1) {
+			return name;
+		} else {  // there is a '_' here somewhere
+			int i = name.index_of("_");
+			if (i == name.length - 1) {
+				// accept trailing '_'
+				return name;
+			}
+			// there must be at least one more character
+
+			// everything before the '_'
+			string before = "";
+			if (i != 0) {
+				before = name.substring(0, i);
+			}
+
+			// find next non-'_' character uppercase, or all '_' if thats all thats left
+			// j will be the index of this character
+			string next;
+			int j = i + 1;
+			while (true) {
+				before = name.substring(0, i);
+				if (name[j] != '_') {
+					next = name.substring(j, 1).up();
+					break;
+				}
+				j++;
+				if (j == name.length) {  // only '_' remain
+					next = name.substring(i, j - i);  // so catch them all
+					break;
+				}
+			}
+
+			if (j >= name.length - 1) {
+				return before + next;
+			} else {
+				// do rest of string
+				return before + next + cleanup_underscores(name.substring(j + 1));
+			}
+		}
+	}
+
+	// see tests t/go/camelcase.vapi
+	private static string camelcase(string name) {
+		if (name.length == 0) {
+			return "";
+		} else if (name.length == 1) {
+			return name.up();
+		} else {
+			return name.substring(0, 1).up() + cleanup_underscores(name.substring(1, name.length - 1));
+		}
+	}
+
+	public string get_field_name(Field f) {
+		return camelcase(f.name);
+	}
+
+	public string get_method_name(Method m) {
+		return camelcase(m.name);
+	}
+
+	public string get_parameter_name(Vala.Parameter p) {
+		return camelcase(p.name);
+	}
+
+	public string get_enum_name(Enum e) {
+		return e.name;
+	}
+
+	public string get_enum_value_name(Vala.EnumValue v) {
+		return v.name;
+	}
+
+	public string get_constructor_name(Class c, Method m) {
+		string postfix = "";
+		if (m.name != ".new") {
+			postfix = camelcase(m.name);
+		}
+		return "New%s%s".printf(get_class_name(c), postfix);
+	}
+
+	public string get_class_name(Class c) {
+		return "%s%s".printf(this.pfx, camelcase(c.name));
+	}
+
+	public string get_struct_name(Struct s) {
+		return "%s%s".printf(this.pfx, camelcase(s.name));
+	}
+}
+
+
 public class GoSrcWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
@@ -408,7 +514,7 @@ public class GoSrcWriter : ValabindWriter {
 	}
 
 	// here, we use explicit accessors and mutators to fixup accessibility.
-	private string walk_field (string class_name, Field f, bool is_static=false) {
+	private string walk_field (GoNamer namer, string class_name, Field f, bool is_static=false) {
 		string ret = "";
 		debug("walk_field(name: %s)".printf(f.name));
 		indent();
@@ -427,20 +533,20 @@ public class GoSrcWriter : ValabindWriter {
 
 		// TODO: make this a function `is_string`
 		if (is_string(f)) {
-			ret += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "func (c %s) Get%s() %s {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    return C.GoString(c.%s)\n".printf(name);
 			ret += "}\n";
 
-			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    c.%s = C.CString(a)\n".printf(name);
 			ret += "    return\n";
 			ret += "}\n";
 		} else {
-			ret += "func (c %s) Get%s() %s {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "func (c %s) Get%s() %s {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    return c.%s\n".printf(name);
 			ret += "}\n";
 
-			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, camelcase(f.name), get_go_type(f.variable_type));
+			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
 			ret += "    c.%s = a\n".printf(name);
 			ret += "    return\n";
 			ret += "}\n";
@@ -450,14 +556,14 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string walk_struct (string pfx, Struct s) {
+	private string walk_struct (GoNamer namer, Struct s) {
 		string ret = "";
-		debug("walk_struct(pfx: %s, name: %s)".printf(pfx, s.name));
+		debug("walk_struct(name: %s)".printf(s.name));
 		indent();
 
-		ret += "type %s%s C.%s\n".printf(pfx, s.name, CCodeBaseModule.get_ccode_name(s));
+		ret += "type %s C.%s\n".printf(namer.get_struct_name(s), CCodeBaseModule.get_ccode_name(s));
 		foreach (var f in s.get_fields()) {
-			ret += walk_field(s.name == null ? "" : s.name, f);
+			ret += walk_field(namer, s.name == null ? "" : s.name, f);
 		}
 		ret += "\n";
 
@@ -465,7 +571,7 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string walk_enum (Vala.Enum e) {
+	private string walk_enum (GoNamer namer, Vala.Enum e) {
 		string ret = "";
 		var pfx = CCodeBaseModule.get_ccode_prefix(e);
 		debug("walk_enum(pfx: %s, name: %s)".printf(pfx, e.name));
@@ -474,10 +580,10 @@ public class GoSrcWriter : ValabindWriter {
 		ret += "const (\n";
 		foreach (var v in e.get_values()) {
 			debug("enum(name: %s)".printf(v.name));
-			ret += "    %s%s = C.%s%s\n".printf(pfx, v.name, pfx, v.name);
+			ret += "    %s%s = C.%s%s\n".printf(pfx, namer.get_enum_value_name(v), pfx, v.name);
 		}
 		ret += ")\n";
-		ret += "type %s int".printf(e.name);
+		ret += "type %s int".printf(namer.get_enum_name(e));
 
 		dedent();
 		return ret;
@@ -493,23 +599,15 @@ public class GoSrcWriter : ValabindWriter {
 	// arg_type: the parameter type in all its glory
 	delegate string parameter_visitor(bool is_string, string arg_name, string maybe_pointer_sym, DataType? arg_type);
 
-	private string get_function_parameters(Method f, parameter_visitor v) {
+	private string get_function_parameters(GoNamer namer, Method f, parameter_visitor v) {
 		string args = "";
-		string pfx = "";
 
 		bool first = true;
 		foreach (var p in f.get_parameters ()) {
-			string arg_name = p.name;
 			DataType? arg_type = p.variable_type;
 			if (arg_type == null) {
 				warning("failed to resolve parameter type");
 				continue;
-			}
-
-			if (first) {
-				first = false;
-			} else {
-				pfx = ", ";
 			}
 
 			string maybe_pointer_sym = "";
@@ -526,15 +624,21 @@ public class GoSrcWriter : ValabindWriter {
 				}
 			}
 
+			if (first) {
+				first = false;
+			} else {
+				args += ", ";
+			}
+
 			// TODO: consider special handling of `uint8  *buf, int len`?
-			args += "%s%s".printf(pfx, v(is_string(p), arg_name, maybe_pointer_sym, arg_type));
+			args += v(is_string(p), namer.get_parameter_name(p), maybe_pointer_sym, arg_type);
 		}
 
 		return args;
 	}
 
 	// BUG: doesn't support '...' parameters
-	private string get_function_declaration_parameters(Method f) {
+	private string get_function_declaration_parameters(GoNamer namer, Method f) {
 		parameter_visitor formatter = (is_string, arg_name, maybe_pointer_sym, arg_type) => {
 			if (is_string) {
 				// what about array of char *?  I think we have to let the caller deal with it
@@ -544,11 +648,11 @@ public class GoSrcWriter : ValabindWriter {
 				return "%s %s%s".printf (arg_name, maybe_pointer_sym, get_go_type(arg_type));
 			}
 		};
-		return get_function_parameters(f, formatter);
+		return get_function_parameters(namer, f, formatter);
 	}
 
 	// BUG: doesn't support '...' parameters
-	private string get_function_call_parameters(Method f) {
+	private string get_function_call_parameters(GoNamer namer, Method f) {
 		parameter_visitor formatter = (is_string, arg_name, maybe_pointer_sym, arg_type) => {
 			if (is_string) {
 				// what about array of char *?  I think we have to let the caller deal with it
@@ -558,11 +662,11 @@ public class GoSrcWriter : ValabindWriter {
 				return "%s".printf (arg_name);
 			}
 		};
-		return get_function_parameters(f, formatter);
+		return get_function_parameters(namer, f, formatter);
 	}
 
 	// see tests t/go/namespace_functions.vapi
-	private string walk_function(string nsname, Method f) {
+	private string walk_function(GoNamer namer, string nsname, Method f) {
 		string ret = "";
 		string cname = CCodeBaseModule.get_ccode_name(f);
 		debug("walk_function(ns: %s, name: %s)".printf(nsname, cname));
@@ -586,10 +690,10 @@ public class GoSrcWriter : ValabindWriter {
 		}
 		void_return = (return_value_type_name == "void");
 
-		string def_args = get_function_declaration_parameters(f);
-		string call_args = get_function_call_parameters(f);
+		string def_args = get_function_declaration_parameters(namer, f);
+		string call_args = get_function_call_parameters(namer, f);
 		if ( ! void_return) {
-			ret += "func (_ %s) %s(%s) %s {\n".printf (nsname, camelcase(f.name), def_args, get_go_type(f.return_type));
+			ret += "func (_ %s) %s(%s) %s {\n".printf (nsname, namer.get_method_name(f), def_args, get_go_type(f.return_type));
 			if (is_string(f.return_type)) {
 				// we have to let the caller deal with array of char *
 				// what happens if there are embedded nulls?
@@ -599,7 +703,7 @@ public class GoSrcWriter : ValabindWriter {
 				ret += "    return %s(%s)\n".printf (cname, call_args);
 			}
 		} else {
-			ret += "func (_ %s) %s(%s) {\n".printf (nsname, camelcase(f.name), def_args);
+			ret += "func (_ %s) %s(%s) {\n".printf (nsname, namer.get_method_name(f), def_args);
 			ret += "    %s(%s)\n".printf (cname, call_args);
 		}
 		ret += "}\n";
@@ -608,7 +712,7 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string walk_method (string classname, Method m) {
+	private string walk_method (GoNamer namer, string classname, Method m) {
 		string ret = "";
 		string cname = CCodeBaseModule.get_ccode_name(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
@@ -633,10 +737,10 @@ public class GoSrcWriter : ValabindWriter {
 		}
 		void_return = (return_value_type_name == "void");
 
-		string def_args = get_function_declaration_parameters(m);
-		string call_args = get_function_call_parameters(m);
+		string def_args = get_function_declaration_parameters(namer, m);
+		string call_args = get_function_call_parameters(namer, m);
 
-		ret += "func (this *%s) %s(".printf(classname, camelcase(m.name));
+		ret += "func (this *%s) %s(".printf(classname, namer.get_method_name(m));
 		if (def_args != "") {
 			ret += "%s".printf(def_args);
 		}
@@ -676,8 +780,9 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string walk_constructor(string classname, Method m, string free_function) {
+	private string walk_constructor(GoNamer namer, Class c, Method m, string free_function) {
 		string ret = "";
+		string classname = namer.get_class_name(c);
 		string cname = CCodeBaseModule.get_ccode_name(m);
 		debug("walk_method(ns: %s, name: %s)".printf(classname, cname));
 		indent();
@@ -698,22 +803,22 @@ public class GoSrcWriter : ValabindWriter {
 		}
 		void_return = (return_value_type_name == "void");
 
-		string def_args = get_function_declaration_parameters(m);
-		string call_args = get_function_call_parameters(m);
+		string def_args = get_function_declaration_parameters(namer, m);
+		string call_args = get_function_call_parameters(namer, m);
 
 		string postfix = "";
 		if (m.name != ".new") {
 			debug("camelcase: %s".printf(m.name));
 			postfix = camelcase(m.name);
 		}
-		ret += "func New%s%s(".printf(classname, postfix);
+		ret += "func %s(".printf(namer.get_constructor_name(c, m));
 		if (def_args != "") {
 			ret += "%s".printf(def_args);
 		}
 		ret += ") *%s {\n".printf(classname);
 
 		ret += "    var ret *%s\n".printf(classname);
-		ret += "    ret = C.%s(".printf(CCodeBaseModule.get_ccode_name(m));
+		ret += "    ret = C.%s(".printf(cname);
 		if (call_args != "") {
 			ret += "%s".printf(call_args);
 		}
@@ -730,15 +835,15 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string get_class_src(string pfx, Class c) {
+	private string get_class_src(GoNamer namer, Class c) {
 		string ret = "";
 		foreach (var k in c.get_structs ()) {
-			ret += walk_struct (c.name, k);
+			ret += walk_struct (namer, k);
 		}
 		foreach (var k in c.get_classes ()) {
-			ret += walk_class (c.name, k);
+			ret += walk_class (k);
 		}
-		classname = pfx+c.name;
+		classname = namer.get_class_name(c);
 		classcname = CCodeBaseModule.get_ccode_name (c);
 
 		process_includes (c);
@@ -759,16 +864,16 @@ public class GoSrcWriter : ValabindWriter {
 
 		ret += "type %s C.%s\n".printf(classname, classcname);
 		foreach (var f in c.get_fields()) {
-			ret += walk_field(classname, f);
+			ret += walk_field(namer, classname, f);
 		}
 
 		foreach (var e in c.get_enums ()) {
-			ret += walk_enum (e);
+			ret += walk_enum (namer, e);
 		}
 
 		foreach (var m in c.get_methods ()) {
 			if ( ! (m is CreationMethod)) {
-				ret += walk_method (classname, m);
+				ret += walk_method (namer, classname, m);
 			} else {
 				debug("constructor: %s::%s".printf(classname, m.name));
 				string free_function = "";
@@ -788,7 +893,7 @@ public class GoSrcWriter : ValabindWriter {
 						free_function = freefun;
 					}
 				}
-				ret += walk_constructor(classname, m, free_function);
+				ret += walk_constructor(namer, c, m, free_function);
 			}
 		}
 
@@ -797,15 +902,18 @@ public class GoSrcWriter : ValabindWriter {
 		return ret;
 	}
 
-	private string walk_class (string pfx, Class c) {
+	private string walk_class (Class c) {
 		string ret = "";
-		debug("walk_class(pfx: %s, name: %s)".printf(pfx, c.name));
+		debug("walk_class(name: %s)".printf(c.name));
 
 		indent();
 
 		if (this.generic_classes.contains(c.name)) {
 			debug("generic class");
 			indent();
+
+			// TODO: might need to change the prefix
+			GoNamer namer = new GoNamer("");
 
 			foreach (var t in c.get_type_parameters()) {
 				debug("tp: %s".printf(t.name));
@@ -824,9 +932,11 @@ public class GoSrcWriter : ValabindWriter {
 				dedent();
 			});
 			dedent();
-			ret += get_class_src(pfx, c);
+			ret += get_class_src(namer, c);
 		} else {
-			ret += get_class_src(pfx, c);
+			// TODO: might need to change the prefix
+			GoNamer namer = new GoNamer("");
+			ret += get_class_src(namer, c);
 		}
 
 		dedent();
@@ -856,10 +966,10 @@ public class GoSrcWriter : ValabindWriter {
 		process_includes (ns);
 		foreach (var e in ns.get_enums ()) {
 			// enums will float to the top-level "namespace" in Go, since we aren't doing namespaces.
-			ret += walk_enum (e);
+			ret += walk_enum (new GoNamer(ns.name == modulename ? ns.name : ""), e);
 		}
 		foreach (var c in ns.get_structs()) {
-			ret += walk_struct(ns.name == modulename ? ns.name : "", c);
+			ret += walk_struct(new GoNamer(ns.name == modulename ? ns.name : ""), c);
 		}
 		if (ns.get_methods().size + ns.get_fields().size > 0) {
 			// Go only does namespacing through file system paths, whish is
@@ -882,17 +992,16 @@ public class GoSrcWriter : ValabindWriter {
 			string fake_ns_name = "nsimp%s".printf(ns.name);
 			ret += "type %s int\n".printf(fake_ns_name);
 			foreach (var c in ns.get_fields()) {
-				ret += walk_field(fake_ns_name, c);
+				ret += walk_field(new GoNamer(ns.name == modulename ? ns.name : ""), fake_ns_name, c);
 			}
 			foreach (var m in ns.get_methods()) {
-				ret += walk_function(fake_ns_name, m);
+				ret += walk_function(new GoNamer(ns.name == modulename ? ns.name : ""), fake_ns_name, m);
 			}
 			ret += "var %s %s\n".printf(ns.name, fake_ns_name);
 			ret += "\n";
 		}
-		var classprefix = ns.name == modulename? ns.name: "";
 		foreach (var c in ns.get_classes ()) {
-			ret += walk_class (classprefix, c); //ns.name, c);
+			ret += walk_class (c); //ns.name, c);
 		}
 
 		dedent();
