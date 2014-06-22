@@ -20,4 +20,28 @@ namespace Test {
 	public class BB {
 		public AA<int> m1;
 	}
+
+	[Compact]
+	[CCode (cprefix="c_", cname="C", free_function="c_free")]
+	public class CC <G, H> {
+		public G m1;
+		public H m2;
+
+		public CC();
+	}
+	[Compact]
+	[CCode (cprefix="D_", cname="D", free_function="d_free")]
+	public class DD {
+		public CC<int, string> m1;
+	}
+	[Compact]
+	[CCode (cprefix="e_", cname="E", free_function="e_free")]
+	public class EE {
+		public CC<string, AA<int>> m1;  // note, AA<int> already used
+	[Compact]
+	[CCode (cprefix="f_", cname="F", free_function="f_free")]
+	public class FF {
+		public CC<string, AA<string>> m1;  // note, AA<string> not yet defined
+	}
+}
 }
