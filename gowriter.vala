@@ -162,6 +162,17 @@ public class GoNamer {
 		return camelcase(f.name);
 	}
 
+	// renames the C symbol for a field
+	// useful because Go convention is to rename "type" --> "_type"
+	public string get_field_cname(Field f) {
+		string n = CCodeBaseModule.get_ccode_name(f);
+		if (n == "type") {
+			return "_type";
+		} else {
+			return "type";
+		}
+	}
+
 	public string get_method_name(Method m) {
 		return camelcase(m.name);
 	}
@@ -225,48 +236,6 @@ public class GoSrcWriter : ValabindWriter {
 
 	public void set_generic_class_instances(GLib.HashTable<string, GLib.HashTable<unowned string, string>> generic_classes) {
 		this.generic_classes = generic_classes;
-	}
-
-	private string get_alias (string name) {
-		string nname;
-		switch (name) {
-		case "break":  // see: http://golang.org/ref/spec:/Identifiers
-		case "while":
-		case "for":
-		case "if":
-		case "case":
-		case "continue":
-		case "chan":
-		case "const":
-		case "default":
-		case "defer":
-		case "else":
-		case "fallthrough":
-		case "func":
-		case "go":
-		case "goto":
-		case "interface":
-		case "map":
-		case "package":
-		case "range":
-		case "return":
-		case "select":
-		case "struct":
-		case "switch":
-		case "var":
-			nname = "X" + name;
-			break;
-		case "type":
-			nname = "_type";  // go specific hack for struct names, see http://golang.org/cmd/cgo:/"Go references to C"
-			break;
-		default:
-			nname = name;
-			break;
-		}
-		if (name != nname) {
-			warning ("%s symbol renamed to %s".printf(name, nname));
-		}
-		return nname;
 	}
 
 	private string get_ctype (string _type) {
@@ -392,68 +361,6 @@ public class GoSrcWriter : ValabindWriter {
 		dedent();
 	}
 
-	// converts symbol names with underscores to camelCase.
-	// this function should not be called directly. See `camelcase`.
-	// allows trailing '_' characters.
-	private static string cleanup_underscores(string name) {
-		if (name.length == 0) {
-			return "";
-		} else if (name.length == 1) {
-			// accept trailing '_'
-			return name;
-		} else if (name.index_of("_") == -1) {
-			return name;
-		} else {  // there is a '_' here somewhere
-			int i = name.index_of("_");
-			if (i == name.length - 1) {
-				// accept trailing '_'
-				return name;
-			}
-			// there must be at least one more character
-
-			// everything before the '_'
-			string before = "";
-			if (i != 0) {
-				before = name.substring(0, i);
-			}
-
-			// find next non-'_' character uppercase, or all '_' if thats all thats left
-			// j will be the index of this character
-			string next;
-			int j = i + 1;
-			while (true) {
-				before = name.substring(0, i);
-				if (name[j] != '_') {
-					next = name.substring(j, 1).up();
-					break;
-				}
-				j++;
-				if (j == name.length) {  // only '_' remain
-					next = name.substring(i, j - i);  // so catch them all
-					break;
-				}
-			}
-
-			if (j >= name.length - 1) {
-				return before + next;
-			} else {
-				// do rest of string
-				return before + next + cleanup_underscores(name.substring(j + 1));
-			}
-		}
-	}
-
-	// see tests t/go/camelcase.vapi
-	private static string camelcase(string name) {
-		if (name.length == 0) {
-			return "";
-		} else if (name.length == 1) {
-			return name.up();
-		} else {
-			return name.substring(0, 1).up() + cleanup_underscores(name.substring(1, name.length - 1));
-		}
-	}
-
 	// given a DataType symbol, return a string that contains the Go source code for
 	// a type specifier of that type.
 	private string get_go_type(DataType type) {
@@ -526,28 +433,25 @@ public class GoSrcWriter : ValabindWriter {
 			return ret;
 		}
 
-		string cname = CCodeBaseModule.get_ccode_name(f);
-		string name = get_alias(cname);
-
 		// TODO: handle generics. ATM, type of `public G data` becomes `func ... GetData() void`
 
 		// TODO: make this a function `is_string`
 		if (is_string(f)) {
 			ret += "func (c %s) Get%s() %s {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    return C.GoString(c.%s)\n".printf(name);
+			ret += "    return C.GoString(c.%s)\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
 			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    c.%s = C.CString(a)\n".printf(name);
+			ret += "    c.%s = C.CString(a)\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
 		} else {
 			ret += "func (c %s) Get%s() %s {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    return c.%s\n".printf(name);
+			ret += "    return c.%s\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
 			ret += "func (c %s) Set%s(a %s) {\n".printf(class_name, namer.get_field_name(f), get_go_type(f.variable_type));
-			ret += "    c.%s = a\n".printf(name);
+			ret += "    c.%s = a\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
 		}
@@ -806,11 +710,6 @@ public class GoSrcWriter : ValabindWriter {
 		string def_args = get_function_declaration_parameters(namer, m);
 		string call_args = get_function_call_parameters(namer, m);
 
-		string postfix = "";
-		if (m.name != ".new") {
-			debug("camelcase: %s".printf(m.name));
-			postfix = camelcase(m.name);
-		}
 		ret += "func %s(".printf(namer.get_constructor_name(c, m));
 		if (def_args != "") {
 			ret += "%s".printf(def_args);
@@ -926,7 +825,7 @@ public class GoSrcWriter : ValabindWriter {
 				indent();
 
 				// stuff
-				ret += "// type %s_%s\n".printf(c.name, camelcase(v));
+				ret += "// type %s_%s\n".printf(c.name, v);
 
 
 				dedent();
