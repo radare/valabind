@@ -513,7 +513,7 @@ public class GoSrcWriter : ValabindWriter {
 			ret += "    return C.GoString(s.%s)\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "func (s %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "func (s *%s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
 			ret += "    s.%s = C.CString(a)\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
@@ -522,7 +522,7 @@ public class GoSrcWriter : ValabindWriter {
 			ret += "    return s.%s\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "func (s %s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "func (s *%s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
 			ret += "    s.%s = a\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
