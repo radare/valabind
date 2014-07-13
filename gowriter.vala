@@ -585,7 +585,7 @@ public class GoSrcWriter : ValabindWriter {
 			ret += "    %s%s = C.%s%s\n".printf(pfx, namer.get_enum_value_name(v), pfx, namer.get_enum_value_cname(v));
 		}
 		ret += ")\n";
-		ret += "type %s int".printf(namer.get_enum_name(e));
+		ret += "type %s int\n\n".printf(namer.get_enum_name(e));
 
 		dedent();
 		return ret;
