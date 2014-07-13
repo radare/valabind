@@ -360,6 +360,16 @@ public class GoNamer {
 		return type;
 	}
 
+	private inline string strip_non_class_name(string s) {
+		return s.substring(0, s.index_of_char('<'));
+	}
+
+	// `s` should not contain a specializer (<...>)
+	private inline string strip_namespace(string s) {
+		int i1 = s.last_index_of_char('.') + 1;
+		return s.substring(i1);
+	}
+
 	// given a DataType symbol, return a string that contains the Go source code for
 	// a type specifier of that type.
 	private string get_type_declaration(DataType type) {
@@ -373,6 +383,10 @@ public class GoNamer {
 		} else if (type.to_string().index_of ("<") != -1) {
 			basic_name = get_specialized_type_declaration(type);
 		}
+
+		// guess
+		basic_name = strip_namespace(strip_non_class_name(basic_name));
+
 
 		string typename = get_ctype (basic_name); // TODO: why are we using ctype here?
 		// we can typecheck to determine if this is a pointer, so throw away '*'
