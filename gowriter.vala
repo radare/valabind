@@ -323,7 +323,7 @@ public class GoNamer {
 		case "const gchar*":
 			return "string"; // XXX lost const?
 		case "void":
-			return "void"
+			return "void";
 		case "int[]":
 		case "int":
 		case "gint":
@@ -343,14 +343,14 @@ public class GoNamer {
 		/* XXX swig does not support unsigned char* */
 		case "uint8*":
 		case "guint8*":
-			return "byte*"
+			return "byte*";
 		case "guint16":
 		case "uint16":
 			return "ushort";
 		case "ut32":
 		case "uint32":
 		case "guint32":
-			return "unsigned int"
+			return "unsigned int";
 		case "bool": // no conversion needed
 		case "gboolean":
 			return "bool"; // XXX bool?
