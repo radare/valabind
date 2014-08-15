@@ -1,4 +1,7 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+
 /* Copyleft 2009-2013 -- pancake, eddyb */
+/* Copyleft 2014 -- Ritesh Khadgaray <khadgaray@gmail.com> */
 
 using Vala;
 
@@ -83,9 +86,10 @@ public class SwigWriter : ValabindWriter {
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type, retType);
-			if (!array.fixed_length)
+			int len = array_length(array);
+			if (len < 0 )
 				return element+"*"; // FIXME should this be element+"[]"?
-			return element+"[%d]".printf (array.length); // FIXME will this work?
+			return element+"[%d]".printf (len); // FIXME will this work?
 		}
 
 		if (!ignoreRef && (type is ReferenceType)) {
@@ -260,9 +264,10 @@ public class SwigWriter : ValabindWriter {
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type);
-			if (!array.fixed_length)
+			int len = array_length(array);	
+			if (len < 0)
 				field = element + "* " + f.name; // FIXME should this be element+"[]"?
-			field = element + " " + f.name + "[%d]".printf (array.length); // FIXME will this work?
+			field = element + " " + f.name + "[%d]".printf (len); // FIXME will this work?
 		} else {
 			/* HACK to support generics. this is r2 specific */
 			string _type = type.to_string ();

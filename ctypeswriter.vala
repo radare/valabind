@@ -1,4 +1,7 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+
 /* Copyright GPLv3 - 2009-2014 - pancake */
+/* Copyleft 2014 -- Ritesh Khadgaray <khadgaray@gmail.com> */
 
 using Vala;
 
@@ -204,9 +207,12 @@ public class CtypesWriter : ValabindWriter {
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type, retType);
-			if (!array.fixed_length)
+
+			int len = array_length(array);
+			if (len < 0 )
 				return element; //+"*"; // FIXME should this be element+"[]"?
-			return "'"+element+"', * %d".printf (array.length); // FIXME will this work?
+			
+			return "'"+element+"', * %d".printf (len); // FIXME will this work?		
 		}
 
 		if (!ignoreRef && (type is ReferenceType)) {
@@ -406,10 +412,10 @@ n++;
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type);
 			warning ("Arrays not yet supported in ctypes bindings");
-			if (!array.fixed_length)
+			int len = array_length(array);
+			if (len < 0)
 				field = element + "* " + f.name; // FIXME should this be element+"[]"?
-			field = "'%s', %s * %d".printf (f.name, element, array.length);
-            stype = element;
+			field = "'%s', %s * %d".printf (f.name, element, len);
 		} else {
 			/* HACK to support generics. this is r2 specific */
 			if (stype.index_of ("RListIter") != -1) {

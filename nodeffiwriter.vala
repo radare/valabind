@@ -1,4 +1,7 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+
 /* Copyleft 2012 -- pancake // eddyb */
+/* Copyleft 2014 -- Ritesh Khadgaray <khadgaray@gmail.com> */
 
 using Vala;
 
@@ -65,9 +68,10 @@ public class NodeFFIWriter : ValabindWriter {
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
 			string element = type_name (array.element_type);
-			if (!array.fixed_length)
+			int len = array_length(array);
+			if (len < 0)
 				return "_.ptr("+element+")";
-			return "_.array("+element+", %d)".printf (array.length);
+			return "_.array("+element+", %d)".printf (len);
 		}
 
 		if (!ignoreRef && (type is ReferenceType)) {
