@@ -1,0 +1,39 @@
+Thanks to:
+----------
+
+Name: Aitor P. Iturri <aitor.iturri@gmail.com>
+
+	Added -D flag
+
+Name: Anton Kochkov <anton.kochkov@gmail.com>
+
+	Support for Ruby
+
+Name: David Holm <dholmster@gmail.com>
+
+	Fix `getvv` on MacOS X Lion
+	
+Name: David Martínez Moreno <ender@debian.org>
+
+	Patches from Debian
+
+Name: Eduard Burtescu <edy.burt@gmail.com>
+
+	Implement Node-ffi bindings and some major refactorings
+
+Name: Ritesh Khadgaray <khadgaray@gmail.com>
+
+	Fix build for Vala 0.26
+
+Name: Willi Ballenthin <wilbal1087@gmail.com>
+
+	Work in progress Go bindings
+
+Name: dequis <dx@dxzone.com.ar>
+
+	Refactor ctypeswriter
+
+Name: ditch <ditch@squidnet.de>
+
+	Fix handling dependencies in ctypeswriter
+

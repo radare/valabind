@@ -1,7 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 
-/* Copyleft 2012 -- pancake // eddyb */
-/* Copyleft 2014 -- Ritesh Khadgaray <khadgaray@gmail.com> */
+/* Copyleft 2012-2014 -- pancake, eddyb, ritesh */
 
 using Vala;
 

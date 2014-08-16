@@ -1,7 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 
-/* Copyleft 2013 -- pancake // nopcode.org */
-/* Copyleft 2014 -- Ritesh Khadgaray <khadgaray@gmail.com> */
+/* GPLv3 - Copyright 2013-2014 -- pancake */
 
 using Vala;
 
