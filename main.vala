@@ -93,8 +93,10 @@ int main (string[] args) {
 
 	ValabindWriter writer = null;
 	int count = 0;
-	if (swigoutput && count++ == 0)
+	if (swigoutput && count++ == 0) {
+		writer.add_define ("VALABIND_SWIG");
 		writer = new SwigWriter (cxxmode);
+	}
 	if (nodeoutput && count++ == 0) {
 		writer.add_define ("VALABIND_NODEJS");
 		writer = new NodeFFIWriter ();
@@ -107,12 +109,18 @@ int main (string[] args) {
 		writer.add_define ("VALABIND_GIR");
 		writer = new GirWriter ();
 	}
-	if (dlangoutput && count++ == 0)
+	if (dlangoutput && count++ == 0) {
 		writer = new DlangWriter ();
-	if (cxxoutput && count++ == 0)
+		writer.add_define ("VALABIND_DLANG");
+	}
+	if (cxxoutput && count++ == 0) {
 		writer = new CxxWriter ();
-	if (gooutput && count++ == 0)
+		writer.add_define ("VALABIND_CXX");
+	}
+	if (gooutput && count++ == 0) {
 		writer = new GoWriter ();
+		writer.add_define ("VALABIND_GO");
+	}
 	if (count == 0)
 		error ("No output mode specified. Try --help\n");
 	else if (count > 1)
