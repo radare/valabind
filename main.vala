@@ -94,20 +94,20 @@ int main (string[] args) {
 	ValabindWriter writer = null;
 	int count = 0;
 	if (swigoutput && count++ == 0) {
-		writer.add_define ("VALABIND_SWIG");
 		writer = new SwigWriter (cxxmode);
+		writer.add_define ("VALABIND_SWIG");
 	}
 	if (nodeoutput && count++ == 0) {
-		writer.add_define ("VALABIND_NODEJS");
 		writer = new NodeFFIWriter ();
+		writer.add_define ("VALABIND_NODEJS");
 	}
 	if (ctypesoutput && count++ == 0) {
 		writer = new CtypesWriter ();
 		writer.add_define ("VALABIND_CTYPES");
 	}
 	if (giroutput && count++ == 0) {
-		writer.add_define ("VALABIND_GIR");
 		writer = new GirWriter ();
+		writer.add_define ("VALABIND_GIR");
 	}
 	if (dlangoutput && count++ == 0) {
 		writer = new DlangWriter ();
