@@ -3,7 +3,7 @@ IFS=:
 [ -z "${VALAC}" ] && VALAC=valac
 for a in $PATH; do
 	if [ -e "$a/valac" ]; then
-		v=$(cat $a/${VALAC} | strings | grep vala- | grep -v lib)
+		v=$(cat $a/${VALAC} | strings | grep vala- | grep -v lib | head -n1)
 		if [ -n "$v" ]; then
 			printf lib$v
 			exit 0
