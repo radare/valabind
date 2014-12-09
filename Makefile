@@ -1,4 +1,4 @@
-_VERSION=0.9.0
+_VERSION=0.9.1
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 CONTACT=pancake@nopcode.org
@@ -47,6 +47,7 @@ $(BIN): $(SRC) | $(VAPIS)
 $(BUILD)/%.vapi: %.vala | $(BUILD)
 	@echo 'Generating $< -> $@'
 	@$(VALAC) --fast-vapi=$@ $<
+	@${MAKE} config.vala
 
 config.vala:
 	@echo 'Generating $@'
@@ -93,4 +94,4 @@ uninstall:
 	-rm $(DESTDIR)$(PREFIX)/bin/$(BIN)
 	-rm $(DESTDIR)$(PREFIX)/bin/$(BIN)-cc
 
-.PHONY: all clean dist install symstall uninstall deinstall mrproper
+.PHONY: all clean dist install symstall uninstall deinstall mrproper 
