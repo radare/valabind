@@ -86,11 +86,17 @@ public class NodeFFIWriter : ValabindWriter {
 			generic = sep (generic, ", ") + type_name (t);
 
 		string _type = type.to_string ();
+		string local_ns_pfx = ns_pfx;
+		if (type.data_type != null && type.data_type.parent_symbol is Namespace) {
+			Namespace local_ns = (Namespace)type.data_type.parent_symbol;
+			if (use_namespace(local_ns))
+				local_ns_pfx = local_ns.get_full_name()+".";
+		}
 
 		// HACK find a better way to remove generic type args
 		_type = _type.split ("<", 2)[0];
 
-		_type = _type.replace (ns_pfx, "").replace (".", "");
+		_type = _type.replace (local_ns_pfx, "").replace (".", "");
 		_type = _type.replace ("?","");
 		_type = _type.replace ("unsigned ", "u");
 
