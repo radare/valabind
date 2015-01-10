@@ -91,6 +91,8 @@ mrproper clean:
 deinstall: uninstall
 
 uninstall:
+	-rm $(DESTDIR)$(MANDIR)/man1/$(BIN).1
+	-rm $(DESTDIR)$(MANDIR)/man1/$(BIN)-cc.1
 	-rm $(DESTDIR)$(PREFIX)/bin/$(BIN)
 	-rm $(DESTDIR)$(PREFIX)/bin/$(BIN)-cc
 
