@@ -35,13 +35,31 @@ endif
 INSTALL_MAN?=install -m0644
 INSTALL_PROGRAM?=install -m0755
 
+
+ifneq ($(W32),)
+PREFIX=/opt/gtk3w32/
+PKG_CONFIG_PATH=$(W32_PREFIX)/lib/pkgconfig
+CFLAGS=-I$(PREFIX)/include/glib
+CFLAGS+=-I$(PREFIX)/include/glib
+LDFLAGS=-L$(PREFIX)/lib
+CC=i686-pc-mingw32-gcc
+all: $(BIN).exe
+else
 all: $(BIN)
+endif
+
+w32:
+	$(MAKE) W32=1
 
 .PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
+$(BIN).exe: $(SRC) | $(VAPIS)
+	@echo 'Compiling $(VALA_FILTER) -> $@'
+	$(VALAC) -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
+	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BIN): $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
+	$(VALAC) -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
