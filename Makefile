@@ -54,12 +54,12 @@ w32:
 .PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
 $(BIN).exe: $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) --vapidir=. -D W32=1 -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg $(VALAPKG) --save-temps ${TEMPS} windows.c --pkg windows
+	$(VALAC) --vapidir=. -D W32 -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg $(VALAPKG) --save-temps ${TEMPS} windows.c --pkg windows
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BIN): $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
+	$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
@@ -104,7 +104,7 @@ shot:
 mrproper clean:
 	rm -f config.vala
 	rm -rf $(BUILD) $(BIN)
-	rm -rf *.c
+	rm -rf $(CSRC)
 
 deinstall: uninstall
 

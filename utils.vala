@@ -2,7 +2,7 @@
 
 /* Copyleft 2009-2015 -- pancake, ritesh */
 
-#if W32 == 1
+#if W32
 using Windows;
 #endif
 
@@ -16,7 +16,7 @@ public void warning (string msg) {
 
 public void error (string msg) {
 	stderr.printf ("\x1b[31;1mERROR\x1b[0m %s\n", msg);
-#if W32 == 1
+#if W32
 	Windows.exit (1);
 #else
 	Posix.exit (1);
@@ -62,7 +62,7 @@ public string get_enums_for (string str, GLib.List<string> includefiles) {
 		gcc_stdin.printf ("int main(){%s;return 0;}\n", str);
 		gcc_stdin = null;
 		int status;
-#if W32 == 1
+#if W32
 		status = Windows.waitpid (gcc_pid);
 #else
 		Posix.waitpid (gcc_pid, out status, 0);

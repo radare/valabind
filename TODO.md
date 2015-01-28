@@ -1,17 +1,10 @@
 valabind todo
 =============
 
-0.7.4
------
-      [.] implement ctypes (dynamic python bindings) t/python/ctypes.py
-        [ ] support for static methods
-        [ ] support for generics
-
-
 beyond
 ------
+      [ ] Finish Go support
       [ ] Add support for Java using JNA
-      [ ] Add support for Go
       [ ] Add support for unions (required for dynamic bindings)
       [ ] Unify all output modes
             --ctypes --swig --node ... those are should not be flags
