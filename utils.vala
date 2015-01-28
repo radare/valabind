@@ -1,6 +1,10 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 
-/* Copyleft 2009-2014 -- pancake, ritesh */
+/* Copyleft 2009-2015 -- pancake, ritesh */
+
+#if W32 == 1
+using Windows;
+#endif
 
 public void notice (string msg) {
 	stderr.printf ("\x1b[34;1mNOTICE\x1b[0m %s\n", msg);
@@ -12,7 +16,11 @@ public void warning (string msg) {
 
 public void error (string msg) {
 	stderr.printf ("\x1b[31;1mERROR\x1b[0m %s\n", msg);
+#if W32 == 1
+	Windows.exit (1);
+#else
 	Posix.exit (1);
+#endif
 }
 
 // TODO: check out if this is really required ?
@@ -54,7 +62,12 @@ public string get_enums_for (string str, GLib.List<string> includefiles) {
 		gcc_stdin.printf ("int main(){%s;return 0;}\n", str);
 		gcc_stdin = null;
 		int status;
+#if W32 == 1
+		status = Windows.waitpid (gcc_pid);
+#else
 		Posix.waitpid (gcc_pid, out status, 0);
+#endif
+
 		Process.close_pid (gcc_pid);
 		if (status != 0)
 			throw new SpawnError.FAILED ("gcc exited with status %d", status);

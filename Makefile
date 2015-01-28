@@ -1,4 +1,4 @@
-_VERSION=0.9.1
+_VERSION=0.9.2
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 CONTACT=pancake@nopcode.org
@@ -35,8 +35,8 @@ endif
 INSTALL_MAN?=install -m0644
 INSTALL_PROGRAM?=install -m0755
 
-
 ifneq ($(W32),)
+VALAFLAGS+=-D W32=1
 PREFIX=/opt/gtk3w32/
 PKG_CONFIG_PATH=$(W32_PREFIX)/lib/pkgconfig
 CFLAGS=-I$(PREFIX)/include/glib
@@ -54,7 +54,7 @@ w32:
 .PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
 $(BIN).exe: $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
+	$(VALAC) --vapidir=. -D W32=1 -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg $(VALAPKG) --save-temps ${TEMPS} windows.c --pkg windows
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BIN): $(SRC) | $(VAPIS)
@@ -64,7 +64,7 @@ $(BIN): $(SRC) | $(VAPIS)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
 	@echo 'Generating $< -> $@'
-	@$(VALAC) --fast-vapi=$@ $<
+	@$(VALAC) $(VALAFLAGS) --fast-vapi=$@ $<
 	@${MAKE} config.vala
 
 config.vala:
