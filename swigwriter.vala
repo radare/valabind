@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 
-/* Copyright GPLv3 2009-2014 -- pancake, eddyb, ritesh */
+/* Copyright GPLv3 2009-2015 -- pancake, eddyb, ritesh */
 
 using Vala;
 
@@ -49,7 +49,18 @@ public class SwigWriter : ValabindWriter {
 
 	string get_alias (string oname) {
 		string name = oname;
+
+		if (oname.has_prefix ("set_")) {
+			var capital = "%c".printf (oname[4].toupper ());
+			name = "set" + capital + oname.substring (5);
+		} else
+		if (oname.has_prefix ("get_")) {
+			var capital = "%c".printf (oname[4].toupper ());
+			name = "get" + capital + oname.substring (5);
+		} else
 		switch (oname) {
+			case "lock":
+			case "base":
 			case "clone":
 			case "break":
 			case "delete":
