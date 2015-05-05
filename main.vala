@@ -4,6 +4,7 @@ private static string vapidir;
 private static string library;
 private static bool show_version;
 private static bool glibmode;
+private static bool camelgetters;
 private static bool cxxmode;
 private static bool dlangoutput;
 private static bool cxxoutput;
@@ -46,6 +47,8 @@ private const OptionEntry[] options = {
 	  ref glibmode, "call g_type_init before any constructor", null },
 	{ "swig", 0, 0, OptionArg.NONE,
 	  ref swigoutput, "generate swig interface code", null },
+	{ "camel-getters", 0, 0, OptionArg.NONE,
+	  ref camelgetters, "translate {get,set}_foo into {get,set}Foo", null },
 	{ "node-ffi", 0, 0, OptionArg.NONE,
 	  ref nodeoutput, "generate node-ffi interface", null },
 	{ "library", 'l', 0, OptionArg.STRING,
@@ -129,6 +132,7 @@ int main (string[] args) {
 	writer.library = (library != null)? library: modulename;
 	writer.include_dirs = include_dirs;
 	writer.namespaces = namespaces;
+	writer.camelgetters = camelgetters;
 
 	writer.init (vapidir, glibmode);
 	if (packages != null)

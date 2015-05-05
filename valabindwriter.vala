@@ -6,6 +6,7 @@ public class ValabindWriter : CodeVisitor {
 	public string modulename;
 	public string library;
 	public bool pkgmode;
+	public bool camelgetters;
 	public string pkgname;
 	[CCode (array_length = false, array_null_terminated = true)]
 	public string[] include_dirs;

@@ -50,14 +50,16 @@ public class SwigWriter : ValabindWriter {
 	string get_alias (string oname) {
 		string name = oname;
 
-		if (oname.has_prefix ("set_")) {
-			var capital = "%c".printf (oname[4].toupper ());
-			name = "set" + capital + oname.substring (5);
-		} else
-		if (oname.has_prefix ("get_")) {
-			var capital = "%c".printf (oname[4].toupper ());
-			name = "get" + capital + oname.substring (5);
-		} else
+		if (this.camelgetters) {
+			if (oname.has_prefix ("set_")) {
+				var capital = "%c".printf (oname[4].toupper ());
+				return "set" + capital + oname.substring (5);
+			} else
+			if (oname.has_prefix ("get_")) {
+				var capital = "%c".printf (oname[4].toupper ());
+				return "get" + capital + oname.substring (5);
+			}
+		}
 		switch (oname) {
 			case "lock":
 			case "base":

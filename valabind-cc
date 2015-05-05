@@ -179,7 +179,10 @@ lua)
     LDFLAGS="${LDFLAGS} `pkg-config --libs ${LUAPKG}`"
   fi
   ;;
-go|csharp)
+go)
+  ;;
+csharp)
+  VALABINDFLAGS="--camel-getters ${VALABINDFLAGS}"
   ;;
 esac
 
