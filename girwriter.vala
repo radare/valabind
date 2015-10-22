@@ -1,4 +1,4 @@
-/* Copyleft 2011-2012 -- pancake // nopcode.org */
+/* Copyright 2011-2015 -- pancake */
 
 using Vala;
 

@@ -1,4 +1,5 @@
-/* Copyright GPL3 - 2009-2013 -- pancake // nopcode.org */
+/* Copyright GPL3 - 2009-2013 -- pancake */
+
 private static string[] files;
 private static string vapidir;
 private static string library;

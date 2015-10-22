@@ -1,6 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
-
-/* Copyleft 2012-2014 -- pancake, eddyb, ritesh */
+/* Copyright 2012-2015 -- pancake, eddyb, ritesh */
 
 using Vala;
 

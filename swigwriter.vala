@@ -1,6 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
-
-/* Copyright GPLv3 2009-2015 -- pancake, eddyb, ritesh */
+/* Copyright 2009-2015 -- pancake, eddyb, ritesh */
 
 using Vala;
 

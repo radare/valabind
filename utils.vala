@@ -1,6 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
-
-/* Copyleft 2009-2015 -- pancake, ritesh */
+/* Copyright 2009-2015 -- pancake, ritesh */
 
 #if W32
 using Windows;
