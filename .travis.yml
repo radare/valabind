@@ -1,0 +1,10 @@
+os: linux
+language: c
+compiler: gcc
+before_install:
+  - sudo add-apt-repository ppa:vala-team/ppa -y
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libvala-0.28-dev valac-0.28
+script:
+  - make
+
