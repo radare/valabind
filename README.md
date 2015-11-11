@@ -1,4 +1,4 @@
-Valabind
+Valabind [![Build Status](https://travis-ci.org/radare/radare2.svg?branch=master)](https://travis-ci.org/radare/radare2)
 ========
 
 Valabind is a tool to parse vala[1] or vapi files to transform
