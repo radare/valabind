@@ -248,7 +248,7 @@ public class SwigWriter : ValabindWriter {
 			extends += "%%extend %s {\n".printf (name);
 
 			if (freefun != null && freefun != "")
-				extends += "\t~%s() {\n\t\t%s(self);\n\t}\n".printf (name, freefun);
+				extends += "\t~%s() {\n\n\t}\n".printf (name); // we do not need a free, cause it will be done in the lib.
 
 			// NOTE if m.accept (this) is used, it might try other functions than visit_method
 			foreach (Method m in methods)
