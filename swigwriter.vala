@@ -52,26 +52,26 @@ public class SwigWriter : ValabindWriter {
 			if (oname.has_prefix ("set_")) {
 				var capital = "%c".printf (oname[4].toupper ());
 				return "set" + capital + oname.substring (5);
-			} else
-			if (oname.has_prefix ("get_")) {
+			} else if (oname.has_prefix ("get_")) {
 				var capital = "%c".printf (oname[4].toupper ());
 				return "get" + capital + oname.substring (5);
 			}
 		}
 		switch (oname) {
-			case "lock":
-			case "base":
-			case "clone":
-			case "break":
-			case "delete":
-				name = "_"+oname;
-				break;
-			case "continue":
-				name = "cont";
-				break;
+		case "lock":
+		case "base":
+		case "clone":
+		case "break":
+		case "delete":
+			name = "_" + oname;
+			break;
+		case "continue":
+			name = "cont";
+			break;
 		}
-		if (name != oname)
+		if (name != oname) {
 			warning ("Method %s renamed to %s (don't ask where)".printf (oname, name));
+		}
 		return name;
 	}
 
@@ -82,16 +82,19 @@ public class SwigWriter : ValabindWriter {
 		}
 
 		// HACK is this required?
-		if (type is EnumValueType)
+		if (type is EnumValueType) {
 			return "long int";
+		}
 
 		// HACK needs proper generic support
-		if (type is GenericType)
+		if (type is GenericType) {
 			return "void*";
 			//return type.to_qualified_string ();
+		}
 
-		if (type is PointerType)
+		if (type is PointerType) {
 			return type_name ((type as PointerType).base_type, retType, true)+"*";
+		}
 
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;
@@ -112,8 +115,9 @@ public class SwigWriter : ValabindWriter {
 		}
 
 		string generic = "";
-		foreach (DataType t in type.get_type_arguments ())
+		foreach (DataType t in type.get_type_arguments ()) {
 			generic = sep (generic, ", ") + type_name (t);
+		}
 
 		string _type = type.to_string ();
 
@@ -125,59 +129,60 @@ public class SwigWriter : ValabindWriter {
 		_type = _type.replace ("unsigned ", "u");
 
 		switch (_type) {
-			case "bool":
-			case "gboolean":
-				return "bool";
-			case "gconstpointer":
-			case "gpointer":
-				return "void*";
-			case "gchar":
-				return "char";
-			/* Hack to bypass namespace rules in r2-bindings */
-			case "SDBSdb":
-				return "Sdb";
-			case "gint":
-			case "st32":
-			case "int32":
-			case "gint32":
-				return "int";
-			case "uint":
-			case "guint":
-			case "ut32":
-			case "uint32":
-			case "guint32":
-				return "unsigned int";
-			case "glong":
-				return "long";
-			case "ut8":
-			case "uint8":
-			case "guint8":
-				return "unsigned char";
-			case "guint16":
-			case "uint16":
-				return "unsigned short";
-			case "st64":
-			case "int64":
-			case "gint64":
-				return "long long";
-			case "ut64":
-			case "uint64":
-			case "guint64":
-				// HACK uint64_t doesn't work here because radare2 doesn't use the right type
-				return "unsigned long long";
-			case "gdouble":
-				return "double";
-			case "gfloat":
-				return "float";
-			case "string":
-				return retType ? "const char*" : "char*";
-			//case "const gchar*":
-			//	return "const char*";
-			// HACK needs proper generic support
-			case "RList":
-				if (generic != "")
-					return "std::vector<"+generic+">";
-				break;
+		case "bool":
+		case "gboolean":
+			return "bool";
+		case "gconstpointer":
+		case "gpointer":
+			return "void*";
+		case "gchar":
+			return "char";
+		/* Hack to bypass namespace rules in r2-bindings */
+		case "SDBSdb":
+			return "Sdb";
+		case "gint":
+		case "st32":
+		case "int32":
+		case "gint32":
+			return "int";
+		case "uint":
+		case "guint":
+		case "ut32":
+		case "uint32":
+		case "guint32":
+			return "unsigned int";
+		case "glong":
+			return "long";
+		case "ut8":
+		case "uint8":
+		case "guint8":
+			return "unsigned char";
+		case "guint16":
+		case "uint16":
+			return "unsigned short";
+		case "st64":
+		case "int64":
+		case "gint64":
+			return "long long";
+		case "ut64":
+		case "uint64":
+		case "guint64":
+			// HACK uint64_t doesn't work here because radare2 doesn't use the right type
+			return "unsigned long long";
+		case "gdouble":
+			return "double";
+		case "gfloat":
+			return "float";
+		case "string":
+			return retType ? "const char*" : "char*";
+		//case "const gchar*":
+		//	return "const char*";
+		// HACK needs proper generic support
+		case "RList":
+			if (generic != "") {
+				return "std::vector<"+generic+">";
+			}
+			break;
 		}
 		return _type;
 	}
@@ -286,17 +291,17 @@ public class SwigWriter : ValabindWriter {
 			} else
 			if (_type.index_of ("RList") != -1) {
 				field = "RList* " + f.name;
-			} else
+			} else {
 				field = type_name (type) + " " + f.name;
+			}
 		}
-
 		structs += "\t" + field + ";\n";
 	}
 
 	public override void visit_method (Method m) {
-		if (m.is_private_symbol ())
+		if (m.is_private_symbol ()) {
 			return;
-
+		}
 		add_includes (m);
 
 		string cname = CCodeBaseModule.get_ccode_name (m), alias = get_alias (m.name);
@@ -365,7 +370,9 @@ public class SwigWriter : ValabindWriter {
 			if (cxx_mode && ret.index_of ("std::vector") != -1) {
 				ret = ret.replace (">*", ">").replace ("*>",">");
 				int ptr = ret.index_of ("<");
-				string iter_type = (ptr==-1)?ret:ret[ptr:ret.length];
+				string iter_type = (ptr==-1)
+					? ret
+					: ret[ptr : ret.length];
 				iter_type = iter_type.replace ("<", "");
 				iter_type = iter_type.replace (">", "");
 				iter_type = iter_type.replace ("*", "");
