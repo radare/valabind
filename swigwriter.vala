@@ -58,6 +58,7 @@ public class SwigWriter : ValabindWriter {
 			}
 		}
 		switch (oname) {
+		case "call":
 		case "lock":
 		case "base":
 		case "clone":
