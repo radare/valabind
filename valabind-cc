@@ -173,11 +173,12 @@ php5)
   ;;
 lua)
   SOEXT=so
-  LUAPKG=`pkg-config --list-all|awk '/lua|lua-/{print $1;}'`
-  if [ -n "${LUAPKG}" ]; then
-    CFLAGS="${CFLAGS} `pkg-config --cflags ${LUAPKG}`"
-    LDFLAGS="${LDFLAGS} `pkg-config --libs ${LUAPKG}`"
-  fi
+  # get a list with the installed lua versions
+  LUAPKG=`pkg-config --list-all|awk '/^lua[^a-zA-Z]/{printf($1 "|");}'|sed -e s/\|$//`
+  #if [ -n "${LUAPKG}" ]; then
+    #CFLAGS="${CFLAGS} `pkg-config --cflags ${LUAPKG}`"
+    #LDFLAGS="${LDFLAGS} `pkg-config --libs ${LUAPKG}`"
+  #fi
   ;;
 go)
   ;;
@@ -292,6 +293,22 @@ else
   "nodejs"|node|"node-ffi")
     eval echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
     eval valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
+    exit $?
+    ;;
+  "lua") # Really dirty hack. Its really necesary to generalize this script.
+    if [ -n "${LUAPKG}" ]; then
+      echo valabind --swig ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES}
+      valabind --swig ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.i -m ${MOD} ${FILES} || exit 1
+      eval echo ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i ${NULLPIPE}
+      ${SWIG} -O -o ${MOD}_wrap.cxx ${SWIGCPP} ${SWIGFLAGS} -${LANG} ${MOD}.i || exit 1
+      for lua_pkg in `echo $LUAPKG | sed -e s/\|/\\\n/`; do
+        lua_ver=`pkg-config --variable=V $lua_pkg`
+        _CFLAGS="${CFLAGS} `pkg-config --cflags ${lua_pkg}`"
+        _LDFLAGS="${LDFLAGS} `pkg-config --libs ${lua_pkg}`"
+        ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${_CFLAGS} \
+          -o ${OMOD}.${SOEXT}.$lua_ver ${_LDFLAGS} || exit 1
+      done
+    fi
     exit $?
     ;;
   *)
