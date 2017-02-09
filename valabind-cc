@@ -226,7 +226,11 @@ while : ; do
   elif [ "`echo $1 | grep -- '^-D'`" ]; then
     VALABINDFLAGS="`echo $1|sed -e 's,^-D,-D ,'` ${VALABINDFLAGS}"
   elif [ "`echo $1 | grep -- '^--nolibpython'`" ]; then
-    LDFLAGS="$(echo ${LDFLAGS} | sed -r 's,-lpython[0-9.]+,,g')"
+    SEDFLAGS="-r"
+    if [ -z "`sed --version 2>/dev/null | grep GNU`" ]; then
+      SEDFLAGS="-E"
+    fi
+    LDFLAGS="$(echo ${LDFLAGS} | sed ${SEDFLAGS} 's,-lpython[0-9.]+,,g')"
   else
     FILES="$1 ${FILES}"
   fi
