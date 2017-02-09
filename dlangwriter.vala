@@ -167,7 +167,7 @@ public class DlangWriter : ValabindWriter {
 	}
 
 	public void walk_field (Field f) {
-		if (f.get_ctype () == null) {
+		if (f.get_attribute_string ("CCode", "type") == null) {
 			//warning (
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		} else {
