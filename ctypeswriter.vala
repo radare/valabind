@@ -292,6 +292,8 @@ public class CtypesWriter : ValabindWriter {
 			// HACK needs proper generic support
 			case "RList":
 				return "RList";
+			case "SdbList":
+				return "SdbList";
 		}
 		return _type;
 	}
@@ -378,10 +380,16 @@ n++;
 				if (m is CreationMethod)
 					visit_method (m);
 			/* helper function */
-			if (name == "RList")
+			if (name == "RList") {
 				ctc.cur.append (
 					"\tdef to_list(self,type):\n"+
 					"\t\treturn rlist2array(self,type)\n");
+			}
+			if (name == "SdbList") {
+				ctc.cur.append (
+					"\tdef to_list(self,type):\n"+
+					"\t\treturn sdblist2array(self,type)\n");
+			}
 			/* delegates */
 			if (delegates != null)
 				foreach (Delegate d in delegates)
@@ -419,9 +427,12 @@ n++;
 			/* HACK to support generics. this is r2 specific */
 			if (stype.index_of ("RListIter") != -1) {
 				stype = "c_void_p"; // XXX RListIter*";
-			} else
-			if (stype.index_of ("RList") != -1) {
+			} else if (stype.index_of ("RList") != -1) {
 				stype = "c_void_p"; // XXX "RList*";
+			} else if (stype.index_of ("SdbListIter") != -1) {
+				stype = "c_void_p"; // XXX SdbListIter*";
+			} else if (stype.index_of ("SdbList") != -1) {
+				stype = "c_void_p"; // XXX "SdbList*";
 			} else stype = type_name (type);
 			field = "\"%s\", %s".printf (f.name, stype);
 		}
@@ -525,6 +536,17 @@ n++;
 					gen = sep (gen, ", ") + type_name (t);
 				ret = "RList<"+gen+">";
 				wrappers +="\t\treturn rlist2array(self.%s(%s),%s)\n".printf (
+						m.name, call_args, gen);
+			}
+			if (ret == "SdbList") {
+				wrappers +="\tdef %s(self%s):\n".printf (m.name, call_args);
+				m.name = "_"+m.name;
+				string gen = "";
+				var type = m.return_type;
+				foreach (DataType t in type.get_type_arguments ())
+					gen = sep (gen, ", ") + type_name (t);
+				ret = "SdbList<"+gen+">";
+				wrappers +="\t\treturn sdblist2array(self.%s(%s),%s)\n".printf (
 						m.name, call_args, gen);
 			}
 			ret = (ret=="void")? "None": "'"+ret+"'";

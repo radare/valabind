@@ -132,6 +132,10 @@ public class DlangWriter : ValabindWriter {
 			if (iter_type != null)
 				return "std::vector<"+iter_type+">";
 			break;
+		case "SdbList":
+			if (iter_type != null)
+				return "std::vector<"+iter_type+">";
+			break;
 		default:
 			type = "_"+type;
 			break;

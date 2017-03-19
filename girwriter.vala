@@ -129,6 +129,10 @@ public class GirWriter : ValabindWriter {
 			if (iter_type != null)
 				return "std::vector<"+iter_type+">";
 			break;
+		case "SdbList":
+			if (iter_type != null)
+				return "std::vector<"+iter_type+">";
+			break;
 		}
 		return type;
 	}

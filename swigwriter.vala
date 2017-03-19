@@ -1,4 +1,4 @@
-/* Copyright 2009-2015 -- pancake, eddyb, ritesh */
+/* Copyright 2009-2017 -- pancake, eddyb, ritesh */
 
 using Vala;
 
@@ -184,6 +184,11 @@ public class SwigWriter : ValabindWriter {
 				return "std::vector<"+generic+">";
 			}
 			break;
+		case "SdbList":
+			if (generic != "") {
+				return "std::vector<"+generic+">";
+			}
+			break;
 		}
 		return _type;
 	}
@@ -289,9 +294,12 @@ public class SwigWriter : ValabindWriter {
 			string _type = type.to_string ();
 			if (_type.index_of ("RListIter") != -1) {
 				field = "RListIter* " + f.name;
-			} else
-			if (_type.index_of ("RList") != -1) {
+			} else if (_type.index_of ("RList") != -1) {
 				field = "RList* " + f.name;
+			} else if (_type.index_of ("SdbListIter") != -1) {
+				field = "SdbListIter* " + f.name;
+			} else if (_type.index_of ("SdbList") != -1) {
+				field = "SdbList* " + f.name;
 			} else {
 				field = type_name (type) + " " + f.name;
 			}
@@ -389,6 +397,18 @@ public class SwigWriter : ValabindWriter {
 					fbdy += "\t\t%s ret;\n".printf (ret);
 					fbdy += "\t\tRList *list;\n";
 					fbdy += "\t\tRListIter *iter;\n";
+					fbdy += "\t\t%s *item;\n".printf (iter_type);
+					fbdy += "\t\tlist = %s (%s);\n".printf (cname, call_args);
+					fbdy += "\t\tif (list)\n";
+					fbdy += "\t\tfor (iter = list->head; iter && (item = (%s*)iter->data); iter = iter->n)\n".printf (iter_type);
+					fbdy += "\t\t\tret.push_back(*item);\n";
+					fbdy += "\t\treturn ret;\n";
+					fbdy += "\t}\n";
+				}
+				if (m.return_type.to_string ().index_of ("SdbList") != -1) {
+					fbdy += "\t\t%s ret;\n".printf (ret);
+					fbdy += "\t\tSdbList *list;\n";
+					fbdy += "\t\tSdbListIter *iter;\n";
 					fbdy += "\t\t%s *item;\n".printf (iter_type);
 					fbdy += "\t\tlist = %s (%s);\n".printf (cname, call_args);
 					fbdy += "\t\tif (list)\n";
