@@ -1,10 +1,17 @@
 # RAsm ctypes example #
 from ctypes import *
 from ctypes.util import find_library
+import sys
 
 # helper functions
+if sys.platform.startswith('win'):
+	
+	lib = WinDLL (find_library ("r_asm"))
 
-lib = CDLL (find_library ("r_asm"))
+else:
+	lib = CDLL (find_library ("r_asm"))
+	
+	
 free = getattr (lib, "free")
 
 def register (self, name, cname, args, ret):
