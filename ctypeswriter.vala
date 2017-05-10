@@ -109,12 +109,14 @@ private class CtypeClass {
 			deps.append (d);
 	}
 
+/*
 	public bool depends_on(string d) {
 		foreach (var s in deps)
 			if (s == d)
 				return true;
 		return false;
 	}
+*/
 
 	public string to_string() {
 		return this.text;
@@ -217,8 +219,9 @@ public class CtypesWriter : ValabindWriter {
 		if (!ignoreRef && (type is ReferenceType)) {
 			string unref_type = type_name (type, retType, true);
 			// HACK just check for the string class instead (how?)
-			if (unref_type == "char*" || unref_type == "const char*")
+			if (unref_type == "char*" || unref_type == "const char*") {
 				return unref_type;
+			}
 			// FIXME should it be & under C++?
 			return unref_type; //+"_p"; //+"*";
 		}
@@ -319,10 +322,12 @@ public class CtypesWriter : ValabindWriter {
 		visit_struct_or_class (c, name, c.get_fields (), c.get_methods (), c.get_delegates ());
 
 		/* walk nested structs and classes */
-		foreach (Struct s in c.get_structs ())
+		foreach (Struct s in c.get_structs ()) {
 			s.accept (this);
-		foreach (Class k in c.get_classes ())
+		}
+		foreach (Class k in c.get_classes ()) {
 			k.accept (this);
+		}
 		/* TODO: add support for freefun in destructor 
 		string? freefun = null;
 		if (CCodeBaseModule.is_reference_counting (c))

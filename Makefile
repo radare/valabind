@@ -1,4 +1,4 @@
-_VERSION=1.0
+_VERSION=1.1
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 CONTACT=pancake@nopcode.org

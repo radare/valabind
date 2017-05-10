@@ -14,10 +14,7 @@ public class GenericClassFinder : ValabindWriter {
 	GLib.HashTable<string, GLib.HashTable<string, GLib.List<DataType>>> generic_classes = new GLib.HashTable<string, GLib.HashTable<string, GLib.List<DataType>>> (GLib.str_hash, GLib.str_equal);
 
 	inline bool is_generic(DataType d) {
-		foreach (var t in d.get_type_arguments()) {
-			return true;
-		}
-		return false;
+		return (d.get_type_arguments().size > 0);
 	}
 
 	inline bool is_glib(DataType d) {
@@ -218,14 +215,7 @@ public class GoNamer {
 
 	private string mangle_datatype(DataType d) {
 		string ret = d.data_type.name;  // i think should unify with get_type_declaration?
-
-		bool has_parameters = false;
-		foreach(var p in d.get_type_arguments()) {
-			has_parameters = true;
-			break;
-		}
-
-		if (has_parameters) {
+		if (d.get_type_arguments().size > 0) {
 			foreach(var dd in d.get_type_arguments()) {
 				ret += "_";
 				ret += mangle_datatype(dd);
