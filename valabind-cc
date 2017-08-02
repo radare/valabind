@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyleft valabind 2009-2015 pancake
+# Copyleft valabind 2009-2017 pancake
 
 LANG=$1
 MOD=$2
@@ -309,6 +309,8 @@ else
     if [ -n "${COMPILE}" ]; then
       # Damn Python flags!
       CFLAGS="`echo ${CFLAGS} | sed -e 's,-mno[^\ ]*,,g' -e 's,-f[^\ ]*,,g'`"
+      LDFLAGS="`echo ${LDFLAGS} | sed -e 's,-pagezero_size [^\ ]*,,g'`"
+      LDFLAGS="`echo ${LDFLAGS} | sed -e 's,-image_base [^\ ]*,,g'`"
       echo ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS}
       ${CC} $@ -fPIC -shared ${MOD}_wrap.${EXT} ${SWIGCPP} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} || exit 1
     fi
