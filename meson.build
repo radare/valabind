@@ -5,7 +5,7 @@ add_project_arguments([
   language: 'vala')
 
 files = [
-'config.vala',
+  'config.vala',
   'ctypeswriter.vala',
   'cxxwriter.vala',
   'dlangwriter.vala',

@@ -1,4 +1,4 @@
-_VERSION=1.4
+_VERSION=1.5
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 CONTACT=pancake@nopcode.org
@@ -67,7 +67,7 @@ $(BUILD)/%.vapi: %.vala | $(BUILD)
 	@$(VALAC) $(VALAFLAGS) --fast-vapi=$@ $<
 	@${MAKE} config.vala
 
-config.vala:
+config.vala: Makefile
 	@echo 'Generating $@'
 	@echo 'const string version_string = "$(VERSION)";' > $@
 
