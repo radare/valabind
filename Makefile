@@ -10,7 +10,7 @@ CC?=gcc
 VALAFLAGS:=$(foreach w,$(CPPFLAGS) $(CFLAGS) $(LDFLAGS),-X $(w))
 VALAC?=valac -g --cc="$(CC)" $(VALAFLAGS)
 RTLIBS=gobject-2.0 glib-2.0
-VALAPKG:=$(shell ./getvv)
+VALAPKG:=lib$(shell ./getvv)
 BUILD?=build
 BIN=valabind
 SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala utils.vala
@@ -49,10 +49,10 @@ all: $(BIN)
 endif
 
 VALASRC=/Users/pancake/.config/radare2/r2pm/git/vala-0.39.2
-VALA040=--pkg libvala-0.40
+VALA040=--pkg $(VALAPKG)
 VALA040+=--vapidir=$(VALASRC)/ccode --pkg ccode -X -I$(VALASRC)/ccode
 VALA040+=--vapidir=$(VALASRC)/codegen --pkg codegen -X -I$(VALASRC)/codegen
-VALA040+=-X -L/usr/local/lib/vala-0.40 -X -lvalaccodegen
+VALA040+=-X -L/usr/local/lib/$(shell ./getvv) -X -lvalaccodegen
 
 w32:
 	$(MAKE) W32=1
