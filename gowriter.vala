@@ -173,7 +173,7 @@ public class GoNamer {
 	// renames the C symbol for a field
 	// useful because Go convention is to rename "type" --> "_type"
 	public string get_field_cname(Field f) {
-		string n = CCodeBaseModule.get_ccode_name(f);
+		string n = Vala.get_ccode_name(f);
 		if (n == "type") {
 			return "_type";
 		} else {
@@ -186,7 +186,7 @@ public class GoNamer {
 	}
 
 	public string get_method_cname(Method m) {
-		return CCodeBaseModule.get_ccode_name(m);
+		return Vala.get_ccode_name(m);
 	}
 
 	public string get_parameter_name(Vala.Parameter p) {
@@ -253,7 +253,7 @@ public class GoNamer {
 		return mangle_datatype(d);
 	}
 	public string get_class_cname(Class c) {
-		return CCodeBaseModule.get_ccode_name(c);
+		return Vala.get_ccode_name(c);
 	}
 
 	public string get_struct_name(Struct s) {
@@ -261,7 +261,7 @@ public class GoNamer {
 	}
 
 	public string get_struct_cname(Struct s) {
-		return CCodeBaseModule.get_ccode_name(s);
+		return Vala.get_ccode_name(s);
 	}
 
 	public string get_namespace_name(Namespace ns) {
@@ -465,7 +465,7 @@ public class GoSrcWriter : ValabindWriter {
 	private void process_includes (Symbol s) {
 		debug("process_includes(sym: %s)".printf(s.name));
 		indent();
-		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+		foreach (var foo in Vala.get_ccode_header_filenames (s).split (",")) {
 			debug("include(%s)".printf(foo));
 			var include = true;
 			foreach (var inc in includefiles) {
@@ -565,7 +565,7 @@ public class GoSrcWriter : ValabindWriter {
 
 	private string walk_enum (GoNamer namer, Vala.Enum e) {
 		string ret = "";
-		var pfx = CCodeBaseModule.get_ccode_prefix(e);
+		var pfx = Vala.get_ccode_prefix(e);
 		debug("walk_enum(pfx: %s, name: %s)".printf(pfx, e.name));
 		indent();
 
@@ -822,8 +822,8 @@ public class GoSrcWriter : ValabindWriter {
 				ret += walk_method (namer, c, m);
 			} else {
 				string free_function = "";
-				if (CCodeBaseModule.is_reference_counting (c)) {
-					string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
+				if (Vala.is_reference_counting (c)) {
+					string? freefun = Vala.get_ccode_unref_function (c);
 					if (freefun != null && freefun != "") {
 						free_function = freefun;
 					}
@@ -831,7 +831,7 @@ public class GoSrcWriter : ValabindWriter {
 					// BUG?: this method always seems to return a free function (default: ${cprefix}_free)
 					//   even if there is no `free_function` defined in the `CCode` block
 					// see test in t/go/classes.vapi
-					string? freefun = CCodeBaseModule.get_ccode_free_function (c);
+					string? freefun = Vala.get_ccode_free_function (c);
 					if (freefun != null) {
 						free_function = freefun;
 					}

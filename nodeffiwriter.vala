@@ -17,7 +17,7 @@ public class NodeFFIWriter : ValabindWriter {
 	}
 
 	void add_includes (Symbol s) {
-		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+		foreach (string i in Vala.get_ccode_header_filenames (s).split (",")) {
 			bool include = true;
 			foreach (string j in includefiles) {
 				if (i == j) {
@@ -154,7 +154,7 @@ public class NodeFFIWriter : ValabindWriter {
 			bind = sep (bind, ",")+"\n\t\t$%s: {}/*types.Enum*/".printf (e.name);
 		foreach (var v in e.get_values ()) {
 			enum_fmt += "exports.%s%s.%s = %%d;\\n".printf (pfx, e.name, v.name);
-			enum_vals += ","+CCodeBaseModule.get_ccode_name (v);
+			enum_vals += ","+Vala.get_ccode_name (v);
 		}
 	}
 
@@ -207,10 +207,10 @@ public class NodeFFIWriter : ValabindWriter {
 
 		// TODO use node-weak to call the free function on GC
 		string? freefun = null;
-		if (CCodeBaseModule.is_reference_counting (c))
-			freefun = CCodeBaseModule.get_ccode_unref_function (c);
+		if (Vala.is_reference_counting (c))
+			freefun = Vala.get_ccode_unref_function (c);
 		else
-			freefun = CCodeBaseModule.get_ccode_free_function (c);
+			freefun = Vala.get_ccode_free_function (c);
 		if (freefun != null && freefun != "") {
 			if (is_generic)
 				name = name +"(G)";
@@ -240,7 +240,7 @@ public class NodeFFIWriter : ValabindWriter {
 
 		//notice (">\x1b[1mmethod\x1b[0m "+m.get_full_name ());
 		var parent = m.parent_symbol;
-		string cname = CCodeBaseModule.get_ccode_name (m), name = m.name;
+		string cname = Vala.get_ccode_name (m), name = m.name;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod);
 		bool parent_is_class = parent is Class || parent is Struct;
 

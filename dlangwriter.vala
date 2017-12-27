@@ -157,7 +157,7 @@ public class DlangWriter : ValabindWriter {
 	}
 
 	public void process_includes (Symbol s) {
-		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+		foreach (var foo in Vala.get_ccode_header_filenames (s).split (",")) {
 			var include = true;
 			foreach (var inc in includefiles) {
 				if (inc == foo) {
@@ -176,7 +176,7 @@ public class DlangWriter : ValabindWriter {
 			//	"Cannot resolve type for field '%s'".printf (f.get_cname ()));
 		} else {
 			warning ("Type for %s\n".printf (
-				CCodeBaseModule.get_ccode_name (f)));
+				Vala.get_ccode_name (f)));
 		}
 		string type = f.variable_type.to_string ();
 		string name = f.name;
@@ -194,7 +194,7 @@ public class DlangWriter : ValabindWriter {
 			}
 		//if (f.access == Accessibility.PRIVATE)
 		//	print ("---> field is private XXX\n");
-		//if (CCodeBaseModule.get_ccode_array_length (f))
+		//if (Vala.get_ccode_array_length (f))
 		//	print ("---> array without length\n");
 	}
 
@@ -214,7 +214,7 @@ public class DlangWriter : ValabindWriter {
 		foreach (var k in c.get_classes ())
 			walk_class (c.name, k);
 		classname = pfx+c.name;
-		classcname = "_"+CCodeBaseModule.get_ccode_name (c);
+		classcname = "_"+Vala.get_ccode_name (c);
 
 		process_includes (c);
 
@@ -254,12 +254,12 @@ public class DlangWriter : ValabindWriter {
 			walk_enum (e);
 		//c.static_destructor!=null?"true":"false");
 		if (has_destructor && has_constructor) {
-			if (CCodeBaseModule.is_reference_counting (c)) {
-				string? freefun = CCodeBaseModule.get_ccode_unref_function (c);
+			if (Vala.is_reference_counting (c)) {
+				string? freefun = Vala.get_ccode_unref_function (c);
 				if (freefun != null && freefun != "")
 					extends += "  ~this() { %s (o); }\n".printf (freefun);
 			} else {
-				string? freefun = CCodeBaseModule.get_ccode_free_function (c);
+				string? freefun = Vala.get_ccode_free_function (c);
 				if (freefun != null)
 					extends += "  ~this() { %s (o); }\n".printf (freefun);
 			}
@@ -275,13 +275,13 @@ public class DlangWriter : ValabindWriter {
 		var enumname = classname + e.name;
 		var tmp = "%{\n";
 		enums += "/* enum: %s (%s) */\n".printf (
-			e.name, CCodeBaseModule.get_ccode_name (e));
+			e.name, Vala.get_ccode_name (e));
 		enums += "enum %s {\n".printf (enumname);
 		tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
 			enums += "  %s_%s,\n".printf (e.name, v.name);
 			tmp += "#define %s_%s %s\n".printf (e.name, v.name,
-				CCodeBaseModule.get_ccode_name (v));
+				Vala.get_ccode_name (v));
 		}
 		enums += "};\n";
 		enums += tmp + "%}\n";
@@ -294,7 +294,7 @@ public class DlangWriter : ValabindWriter {
 
 	public void walk_method (Method m) {
 		bool first = true;
-		string cname = CCodeBaseModule.get_ccode_name (m);
+		string cname = Vala.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		string ret;
 		string def_args = "";
@@ -309,7 +309,7 @@ public class DlangWriter : ValabindWriter {
 		// m.get_postconditions ();
 
 		ret = m.return_type.to_string ();
-		ret = get_ctype (is_generic (ret)?  ret : CCodeBaseModule.get_ccode_name (m.return_type));
+		ret = get_ctype (is_generic (ret)?  ret : Vala.get_ccode_name (m.return_type));
 		if (ret == null)
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
@@ -332,7 +332,7 @@ public class DlangWriter : ValabindWriter {
 			DataType? bar = foo.variable_type;
 			if (bar == null)
 				continue;
-			string? arg_type = get_ctype (CCodeBaseModule.get_ccode_name (bar));
+			string? arg_type = get_ctype (Vala.get_ccode_name (bar));
 
 			if (first) {
 				first = false;

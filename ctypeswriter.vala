@@ -142,7 +142,7 @@ public class CtypesWriter : ValabindWriter {
 
 	// FIXME duplicate from NodeFFIWriter
 	void add_includes (Symbol s) {
-		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+		foreach (string i in Vala.get_ccode_header_filenames (s).split (",")) {
 			bool include = true;
 			foreach (string j in includefiles) {
 				if (i == j) {
@@ -303,7 +303,7 @@ public class CtypesWriter : ValabindWriter {
 
 	public override void visit_constant (Constant c) {
 		warning ("Constants not yet supported on ctypes ("+c.name+")");
-		//var cname = CCodeBaseModule.get_ccode_name (c);
+		//var cname = Vala.get_ccode_name (c);
 		//classes += c.name+" = "+cname+";\n";
 	}
 
@@ -330,10 +330,10 @@ public class CtypesWriter : ValabindWriter {
 		}
 		/* TODO: add support for freefun in destructor 
 		string? freefun = null;
-		if (CCodeBaseModule.is_reference_counting (c))
-			freefun = CCodeBaseModule.get_ccode_unref_function (c);
+		if (Vala.is_reference_counting (c))
+			freefun = Vala.get_ccode_unref_function (c);
 		else
-			freefun = CCodeBaseModule.get_ccode_free_function (c);
+			freefun = Vala.get_ccode_free_function (c);
 		if (freefun == "")
 			freefun = null;
 		var methods = c.get_methods ();
@@ -360,7 +360,7 @@ int n = 0;
 	private void visit_struct_or_class (Symbol s, string name,
 			Vala.List<Field> fields, Vala.List<Method> methods,
 			Vala.List<Delegate>? delegates) {
-		//string cname = CCodeBaseModule.get_ccode_name (s);
+		//string cname = Vala.get_ccode_name (s);
 		add_includes (s);
 		ctc.add_class (name, "class "+name+"(Structure): #"+n.to_string()+"\n");
 stderr.printf ("--> "+name+" ("+n.to_string()+")\n");
@@ -451,7 +451,7 @@ n++;
 	}
 
 	public override void visit_delegate (Delegate d) {
-		string cname = CCodeBaseModule.get_ccode_name (d);
+		string cname = Vala.get_ccode_name (d);
 
 		string args = "";
 		foreach (var p in d.get_parameters ()) {
@@ -468,7 +468,7 @@ n++;
 			return;
 		add_includes (m);
 
-		string cname = CCodeBaseModule.get_ccode_name (m);
+		string cname = Vala.get_ccode_name (m);
 		//string alias = get_alias (m.name);
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0;
 		bool is_constructor = (m is CreationMethod);

@@ -184,7 +184,7 @@ public class GirWriter : ValabindWriter {
 	}
 
 	public void walk_constant (Constant f) {
-		var cname = CCodeBaseModule.get_ccode_name (f);
+		var cname = Vala.get_ccode_name (f);
 		var cvalue = "TODO";
 		var ctype = get_ctype (f.type_reference.to_string ());
 		var gtype = girtype (f.type_reference.to_string ());
@@ -200,7 +200,7 @@ public class GirWriter : ValabindWriter {
 	}
 
 	public void process_includes (Symbol s) {
-		foreach (var foo in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+		foreach (var foo in Vala.get_ccode_header_filenames (s).split (",")) {
 			var include = true;
 			foreach (var inc in includefiles) {
 				if (inc == foo) {
@@ -214,7 +214,7 @@ public class GirWriter : ValabindWriter {
 	}
 
 	public void walk_field (Field f) {
-		var name = CCodeBaseModule.get_ccode_name (f);
+		var name = Vala.get_ccode_name (f);
 		var type = f.variable_type.to_string ();
 		type = get_ctype (type);
 		externs += "    <field name=\""+name+"\" allow-none=\"1\">\n";
@@ -237,7 +237,7 @@ public class GirWriter : ValabindWriter {
 		foreach (var k in c.get_classes ())
 			walk_class (c.name, k);
 		classname = pfx+c.name;
-		classcname = CCodeBaseModule.get_ccode_name (c);
+		classcname = Vala.get_ccode_name (c);
 		process_includes (c);
 		if (context.profile == Profile.GOBJECT)
 			classname = "%s%s".printf (nspace, classname);
@@ -274,7 +274,7 @@ public class GirWriter : ValabindWriter {
 		//tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
 		foreach (var v in e.get_values ()) {
                         tmp += "    <member name=\""+e.name+"\" value=\""+
-				CCodeBaseModule.get_ccode_name (v)+"\"/>\n";
+				Vala.get_ccode_name (v)+"\"/>\n";
 			//enums += "  %s_%s,\n".printf (e.name, v.name);
 			//tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
 		}
@@ -289,7 +289,7 @@ public class GirWriter : ValabindWriter {
 
 	public void walk_method (Method m) {
 		//bool first = true;
-		string cname = CCodeBaseModule.get_ccode_name (m);
+		string cname = Vala.get_ccode_name (m);
 		string alias = get_alias (m.name);
 		string ret, vret;
 		bool void_return;
@@ -302,7 +302,7 @@ public class GirWriter : ValabindWriter {
 
 		ret = vret = m.return_type.to_string ();
 		if (is_generic (ret)) ret = get_ctype (vret);
-		else ret = get_ctype (CCodeBaseModule.get_ccode_name (m.return_type));
+		else ret = get_ctype (Vala.get_ccode_name (m.return_type));
 		if (ret == null)
 			error ("Cannot resolve return type for %s\n".printf (cname));
 		void_return = (ret == "void");
@@ -338,7 +338,7 @@ public class GirWriter : ValabindWriter {
 				if (bar == null)
 					continue;
 				string? arg_type = girtype (bar.to_string ());
-				string? arg_ctype = get_ctype (CCodeBaseModule.get_ccode_name (bar));
+				string? arg_ctype = get_ctype (Vala.get_ccode_name (bar));
 				externs += "    <parameter name=\""+arg_name+"\" transfer-ownership=\"none\">\n";
 				externs += "      <type name=\""+arg_type+"\" c:type=\""+arg_ctype+"\"/>\n";
 				externs += "    </parameter>\n";

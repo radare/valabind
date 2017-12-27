@@ -22,7 +22,7 @@ public class SwigWriter : ValabindWriter {
 
 	// FIXME duplicate from NodeFFIWriter and ctypeswriter
 	void add_includes (Symbol s) {
-		foreach (string i in CCodeBaseModule.get_ccode_header_filenames (s).split (",")) {
+		foreach (string i in Vala.get_ccode_header_filenames (s).split (",")) {
 			bool include = true;
 			foreach (string j in includefiles) {
 				if (i == j) {
@@ -194,7 +194,7 @@ public class SwigWriter : ValabindWriter {
 	}
 
 	public override void visit_constant (Constant c) {
-		var cname = CCodeBaseModule.get_ccode_name (c);
+		var cname = Vala.get_ccode_name (c);
 		extends += "%immutable "+c.name+";\n";
 		extends += "static const char *"+c.name+" = "+cname+";\n";
 	}
@@ -204,7 +204,7 @@ public class SwigWriter : ValabindWriter {
 
 		/*extends += "enum %s {\n".printf (e.name);
 		foreach (var v in e.get_values ())
-			extends += "\t%s = %s,\n".printf (v.name, CCodeBaseModule.get_ccode_name (v));
+			extends += "\t%s = %s,\n".printf (v.name, Vala.get_ccode_name (v));
 		extends += "};\n";*/
 	}
 
@@ -213,7 +213,7 @@ public class SwigWriter : ValabindWriter {
 
 		// FIXME does SWIG support actual namespaces?
 		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		string cname = CCodeBaseModule.get_ccode_name (s);
+		string cname = Vala.get_ccode_name (s);
 
 		structs += "typedef struct %s {\n".printf (cname);
 		foreach (Field f in s.get_fields ())
@@ -237,7 +237,7 @@ public class SwigWriter : ValabindWriter {
 
 		// FIXME does SWIG support actual namespaces?
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		string cname = CCodeBaseModule.get_ccode_name (c);
+		string cname = Vala.get_ccode_name (c);
 
 		structs += "typedef struct %s {\n".printf (cname);
 		foreach (Field f in c.get_fields ())
@@ -248,10 +248,10 @@ public class SwigWriter : ValabindWriter {
 			e.accept (this);
 
 		string? freefun = null;
-		if (CCodeBaseModule.is_reference_counting (c))
-			freefun = CCodeBaseModule.get_ccode_unref_function (c);
+		if (Vala.is_reference_counting (c))
+			freefun = Vala.get_ccode_unref_function (c);
 		else
-			freefun = CCodeBaseModule.get_ccode_free_function (c);
+			freefun = Vala.get_ccode_free_function (c);
 		if (freefun == "")
 			freefun = null;
 		var methods = c.get_methods ();
@@ -313,7 +313,7 @@ public class SwigWriter : ValabindWriter {
 		}
 		add_includes (m);
 
-		string cname = CCodeBaseModule.get_ccode_name (m), alias = get_alias (m.name);
+		string cname = Vala.get_ccode_name (m), alias = get_alias (m.name);
 		var parent = m.parent_symbol;
 		bool is_static = (m.binding & MemberBinding.STATIC) != 0, is_constructor = (m is CreationMethod);
 		bool parent_is_class = parent is Class || parent is Struct;

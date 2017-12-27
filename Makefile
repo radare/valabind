@@ -1,4 +1,4 @@
-_VERSION=1.5
+_VERSION=2.0
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 CONTACT=pancake@nopcode.org
@@ -48,6 +48,12 @@ else
 all: $(BIN)
 endif
 
+VALASRC=/Users/pancake/.config/radare2/r2pm/git/vala-0.39.2
+VALA040=--pkg libvala-0.40
+VALA040+=--vapidir=$(VALASRC)/ccode --pkg ccode -X -I$(VALASRC)/ccode
+VALA040+=--vapidir=$(VALASRC)/codegen --pkg codegen -X -I$(VALASRC)/codegen
+VALA040+=-X -L/usr/local/lib/vala-0.40 -X -lvalaccodegen
+
 w32:
 	$(MAKE) W32=1
 
@@ -59,7 +65,11 @@ $(BIN).exe: $(SRC) | $(VAPIS)
 
 $(BIN): $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --save-temps ${TEMPS}
+ifeq ($(VALAPKG),libvala-0.40)
+	$(VALAC) --vapidir=/usr/local/share/vala/vapi -o $@ --pkg posix $(VALA040) --save-temps ${TEMPS}
+else
+	$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --pkg valacodegen-0.40 --save-temps ${TEMPS}
+endif
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
