@@ -44,9 +44,10 @@ private class CtypeCompiler {
 				}
 			}
 			count2 = classes.length ();
-			if (count2>0 && count == count2) // detect infinite loop
-				error ("Cannot compile\n");
-		} while (count2>0);
+			if (count2 > 0 && count == count2) { // detect infinite loop
+				error ("Cannot compile, infinite loop dependency detected\n");
+			}
+		} while (count2 > 0);
 		/* refill */
 		foreach (var c in classes) {
 			if (c.is_satisfied (this)) {
@@ -79,8 +80,9 @@ private class CtypeClass {
 		//		break;
 			}
 			stderr.printf ("--> "+d+"\n");
-			if (!c.contains (d))
+			if (!c.contains (d)) {
 				return false;
+			}
 		}
 		stderr.printf ("    *** Yep. "+name+" is satisfied\n");
 		return true;
@@ -137,7 +139,7 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	public override string get_filename (string base_name) {
-		return base_name+".py";
+		return base_name + ".py";
 	}
 
 	// FIXME duplicate from NodeFFIWriter
@@ -150,36 +152,39 @@ public class CtypesWriter : ValabindWriter {
 					break;
 				}
 			}
-			if (include)
+			if (include) {
 				includefiles.prepend (i);
+			}
 		}
 	}
 
 	// FIXME duplicate from NodeFFIWriter
 	string sep (string str, string separator) {
-		if (str.length == 0)
-			return str;
-		char last = str[str.length-1];
-		if (last != '(' && last != '[' && last != '{')
-			return str+separator;
+		if (str.length != 0) {
+			char last = str[str.length-1];
+			if (last != '(' && last != '[' && last != '{') {
+				return str + separator;
+			}
+		}
 		return str;
 	}
 
 	string get_alias (string oname) {
 		string name = oname;
 		switch (oname) {
-			case "break":
-			case "import":
-			case "from":
-			case "del":
-				name = "_"+oname;
-				break;
-			case "continue":
-				name = "cont";
-				break;
+		case "break":
+		case "import":
+		case "from":
+		case "del":
+			name = "_"+oname;
+			break;
+		case "continue":
+			name = "cont";
+			break;
 		}
-		if (name != oname)
+		if (name != oname) {
 			warning ("Method %s renamed to %s".printf (oname, name));
+		}
 		return name;
 	}
 
@@ -210,9 +215,9 @@ public class CtypesWriter : ValabindWriter {
 			string element = type_name (array.element_type, retType);
 
 			int len = array_length(array);
-			if (len < 0 )
+			if (len < 0) {
 				return element; //+"*"; // FIXME should this be element+"[]"?
-			
+			}
 			return "'"+element+"', * %d".printf (len); // FIXME will this work?		
 		}
 
@@ -425,9 +430,18 @@ n++;
 			string element = type_name (array.element_type);
 			warning ("Arrays not yet supported in ctypes bindings");
 			int len = array_length(array);
-			if (len < 0)
+			if (len < 0) {
 				field = element + "* " + f.name; // FIXME should this be element+"[]"?
+			}
 			field = "'%s', %s * %d".printf (f.name, element, len);
+			// warning ("Field is array " + element);
+			// ctc.cur.add_dependency ("RRegItem");
+			// if dependency type is not a c one
+			if (element[0] != 'c' && element[1] != '_') {
+				ctc.cur.add_dependency (element);
+			} else {
+				warning ("NODEP " + element);
+			}
 		} else {
 			/* HACK to support generics. this is r2 specific */
 			if (stype.index_of ("RListIter") != -1) {
