@@ -1,0 +1,8 @@
+PKGNAME valabind
+VERSION 2.1
+CONTACT pancake ; pancake@nopcode.org
+
+LANG_C!
+LANG_VALA!
+
+SUBDIRS ./config.mk ;
