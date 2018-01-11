@@ -1,5 +1,4 @@
-_VERSION=2.1
-
+_VERSION=?
 -include config.mk
 
 PWD:=$(shell pwd)
