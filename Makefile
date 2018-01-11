@@ -48,10 +48,11 @@ else
 all: $(BIN)
 endif
 
-VALASRC=$(HOME)/.config/radare2/r2pm/git/vala-0.39.2
+#VALASRC=$(HOME)/.config/radare2/r2pm/git/vala-0.39.2
+#VALA040+=--vapidir=$(VALASRC)/ccode --pkg ccode -X -I$(VALASRC)/ccode
+#VALA040+=--vapidir=$(VALASRC)/codegen --pkg codegen -X -I$(VALASRC)/codegen
 VALA040=--pkg $(VALAPKG)
-VALA040+=--vapidir=$(VALASRC)/ccode --pkg ccode -X -I$(VALASRC)/ccode
-VALA040+=--vapidir=$(VALASRC)/codegen --pkg codegen -X -I$(VALASRC)/codegen
+VALA040+=--vapidir=$(PWD)/private --pkg ccode --pkg codegen -X -I$(PWD)/private
 VALA040+=-X -L/usr/local/lib/$(shell ./getvv) -X -lvalaccodegen
 
 w32:
