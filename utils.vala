@@ -23,16 +23,12 @@ public void error (string msg) {
 
 // TODO: check out if this is really required ?
 public int array_length (Vala.ArrayType array) {
-#if VALA_0_25 || VALA_0_26
-	/* If valac >= 0.25 use this workaround to resolve the array length */
+	/* If valac >= 0.25 use this boilerplate to resolve the array length */
 	if (array.fixed_length && array.length is Vala.IntegerLiteral) {
 		Vala.IntegerLiteral lit = (Vala.IntegerLiteral) array.length;
 		return int.parse (lit.value);
 	}
 	return -1;
-#else
-	return array.length;
-#endif
 }
 
 // TODO: make it reusable for other backends
