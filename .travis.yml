@@ -2,9 +2,12 @@ os: linux
 language: c
 compiler: gcc
 before_install:
-  - sudo add-apt-repository ppa:vala-team/ppa -y
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq libvala-dev valac
+  - wget https://download.gnome.org/sources/vala/0.39/vala-0.39.5.tar.xz
+  - tar xJvf vala-0.39.5.tar.xz
+  - cd vala-0.39.5
+  - ./configure --prefix=/usr
+  - make -j12
+  - sudo make install
 script:
   - make
 
