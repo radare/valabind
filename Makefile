@@ -49,12 +49,9 @@ else
 all: $(BIN)
 endif
 
-#VALASRC=$(HOME)/.config/radare2/r2pm/git/vala-0.39.2
-#VALA040+=--vapidir=$(VALASRC)/ccode --pkg ccode -X -I$(VALASRC)/ccode
-#VALA040+=--vapidir=$(VALASRC)/codegen --pkg codegen -X -I$(VALASRC)/codegen
-VALA040=--pkg $(VALAPKG)
-VALA040+=--vapidir=$(PWD)/private --pkg ccode --pkg codegen -X -I$(PWD)/private
-VALA040+=-X -L/usr/local/lib/$(shell ./getvv) -X -lvalaccodegen
+VALA_PRIVATE_CODEGEN=--pkg $(VALAPKG)
+VALA_PRIVATE_CODEGEN+=--vapidir=$(PWD)/private --pkg codegen -X -I$(PWD)/private
+VALA_PRIVATE_CODEGEN+=-X -L$(shell pkg-config --variable=pkglibdir lib$(shell ./getvv)) -X -lvalaccodegen
 
 w32:
 	$(MAKE) W32=1
@@ -67,11 +64,7 @@ $(BIN).exe: $(SRC) | $(VAPIS)
 
 $(BIN): $(SRC) | $(VAPIS)
 	@echo 'Compiling $(VALA_FILTER) -> $@'
-ifeq ($(VALAPKG),libvala-0.40)
-	$(VALAC) --vapidir=/usr/local/share/vala/vapi -o $@ --pkg posix $(VALA040) --save-temps ${TEMPS}
-else
-	$(VALAC) -o $@ --pkg posix --pkg $(VALAPKG) --pkg valacodegen-0.40 --save-temps ${TEMPS}
-endif
+	$(VALAC) -o $@ --pkg posix $(VALA_PRIVATE_CODEGEN) --save-temps ${TEMPS}
 	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
 
 $(BUILD)/%.vapi: %.vala | $(BUILD)
