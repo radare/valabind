@@ -8,6 +8,7 @@ before_install:
   - ./configure --prefix=/usr
   - make -j12
   - sudo make install
+  - cd ..
 script:
   - make
 
