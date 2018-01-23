@@ -51,7 +51,7 @@ endif
 
 VALA_PRIVATE_CODEGEN=--pkg $(VALAPKG)
 VALA_PRIVATE_CODEGEN+=--vapidir=$(PWD)/private --pkg codegen -X -I$(PWD)/private
-VALA_PRIVATE_CODEGEN+=-X -L$(shell pkg-config --variable=pkglibdir lib$(shell ./getvv)) -X -lvalaccodegen
+VALA_PRIVATE_CODEGEN+=-X -L/usr/local/lib/$(shell ./getvv) -X -lvalaccodegen
 
 w32:
 	$(MAKE) W32=1
