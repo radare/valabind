@@ -50,10 +50,14 @@ all: $(BIN)
 endif
 
 VALA_VERSION=$(shell ./getvv)
+VALA_PKGLIBDIR=$(shell pkg-config --variable=pkglibdir lib${VALA_VERSION})
+ifeq ($(VALA_PKGLIBDIR),)
 VALA_LIBDIR=$(shell pkg-config --variable=libdir lib${VALA_VERSION})
+VALA_PKGLIBDIR=$(VALA_LIBDIR)/$(shell ./getvv)
+endif
 VALA_PRIVATE_CODEGEN=--pkg $(VALAPKG)
 VALA_PRIVATE_CODEGEN+=--vapidir=$(PWD)/private --pkg codegen -X -I$(PWD)/private
-VALA_PRIVATE_CODEGEN+=-X -L$(VALA_LIBDIR)/$(shell ./getvv) -X -lvalaccodegen
+VALA_PRIVATE_CODEGEN+=-X -L$(VALA_PKGLIBDIR) -X -lvalaccodegen
 
 w32:
 	$(MAKE) W32=1
