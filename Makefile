@@ -58,7 +58,9 @@ endif
 VALA_PRIVATE_CODEGEN=--pkg $(VALAPKG)
 VALA_PRIVATE_CODEGEN+=--vapidir=$(PWD)/private --pkg codegen -X -I$(PWD)/private
 VALA_PRIVATE_CODEGEN+=-X -L$(VALA_PKGLIBDIR) -X -lvalaccodegen
+ifneq ($(shell uname),Darwin)
 VALA_PRIVATE_CODEGEN+=-X -Wl,-rpath=$(VALA_PKGLIBDIR)
+endif
 
 w32:
 	$(MAKE) W32=1
