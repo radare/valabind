@@ -1,13 +1,12 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 
-/* Copyright GPLv3 - 2009-2014 - pancake */
+/* Copyright GPLv3 - 2009-2019 - pancake */
 
 using Vala;
 
 private class CtypeCompiler {
-	public GLib.SList<CtypeClass> classes;
+	public GLib.SList<weak CtypeClass> classes;
 	public CtypeClass cur;
-	GLib.SList<CtypeClass> n;
 	private bool sorted = false;
 
 	public string to_string () {
@@ -24,7 +23,7 @@ private class CtypeCompiler {
 	}
 
 	public bool contains (string c) {
-		foreach (var a in n)
+		foreach (var a in this.classes)
 			if (a.name == c)
 				return true;
 		return false;
@@ -32,7 +31,7 @@ private class CtypeCompiler {
 
 	public void sort () {
 		uint count, count2 = 0;
-		n = new GLib.SList<CtypeClass>();
+		var n = new GLib.SList<weak CtypeClass>();
 		do {
 			count = classes.length ();
 			foreach (var c in classes) {
@@ -55,7 +54,7 @@ private class CtypeCompiler {
 				classes.remove (c);
 			}
 		}
-		this.classes = n.copy ();
+		this.classes = n.copy();
 		this.sorted = true;
 	}
 

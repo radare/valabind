@@ -865,7 +865,7 @@ public class GoSrcWriter : ValabindWriter {
 				// TODO: might need to change the prefix
 				GoNamer namer = new GoNamer("");
 
-				GLib.List<DataType> vv = v.copy();
+				GLib.List<weak DataType> vv = v.copy();
 				foreach(var t in c.get_type_parameters()) {
 					debug("%s -> %s".printf(t.name, vv.nth_data(0).to_string()));
 					namer.add_specialization(t, vv.nth_data(0));
