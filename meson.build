@@ -17,14 +17,18 @@ files = [
   'valabindwriter.vala',
   'main.vala',
 ]
-                      
-vala_dep = dependency('libvala-0.36')
+
+valac = meson.get_compiler('vala')
+libvala_version = run_command(valac.cmd_array()[0], '--api-version').stdout().strip()
+libvala_dep = dependency('libvala-@0@'.format(libvala_version))
+
 glib_dep = dependency('glib-2.0')
 gobject_dep = dependency('gobject-2.0')
 
 executable(
   'valabind',
   files,
-  dependencies: [glib_dep, gobject_dep, vala_dep],
-  vala_args: ['--pkg', 'posix']
+  dependencies: [glib_dep, gobject_dep, libvala_dep],
+  vala_args: ['--pkg', 'posix', '--includedir', '../private',
+    '--vapidir', '../private', '--pkg', 'codegen']
 )
