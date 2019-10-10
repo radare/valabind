@@ -1,4 +1,4 @@
-/* Copyright 2011-2015 -- pancake */
+/* Copyright 2011-2019 -- pancake */
 
 using Vala;
 
@@ -18,6 +18,10 @@ public class GirWriter : ValabindWriter {
 
 	public override string get_filename (string base_name) {
 		return base_name+".gir";
+	}
+
+	public override void write(string file) {
+		context.accept (this);
 	}
 
 	string get_alias (string name) {
