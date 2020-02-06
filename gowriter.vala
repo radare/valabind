@@ -214,7 +214,11 @@ public class GoNamer {
 	}
 
 	private string mangle_datatype(DataType d) {
+#if VALA_0_48
+		string ret = d.type_symbol.name;  // i think should unify with get_type_declaration?
+#else
 		string ret = d.data_type.name;  // i think should unify with get_type_declaration?
+#endif
 		if (d.get_type_arguments().size > 0) {
 			foreach(var dd in d.get_type_arguments()) {
 				ret += "_";

@@ -85,8 +85,13 @@ public class NodeFFIWriter : ValabindWriter {
 
 		string _type = type.to_string ();
 		string local_ns_pfx = ns_pfx;
+#if VALA_0_48
+		if (type.type_symbol != null && type.type_symbol.parent_symbol is Namespace) {
+			Namespace local_ns = (Namespace)type.type_symbol.parent_symbol;
+#else
 		if (type.data_type != null && type.data_type.parent_symbol is Namespace) {
 			Namespace local_ns = (Namespace)type.data_type.parent_symbol;
+#endif
 			if (use_namespace(local_ns))
 				local_ns_pfx = local_ns.get_full_name()+".";
 		}
