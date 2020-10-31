@@ -30,10 +30,14 @@ public class ValabindWriter : CodeVisitor {
 		add_package (context, "glib-2.0");
 		add_package (context, "gobject-2.0");
 		/* vala 0.17 only support gobject profile */
-		if (glibmode)
+		if (glibmode) {
 			context.add_define ("GOBJECT");
+		}
+#if VALA_0_50
 		// required to avoid ugly runtime errors
+#else
 		context.profile = Profile.GOBJECT;
+#endif
 	}
 
 	public void parse () {
