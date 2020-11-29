@@ -9,6 +9,7 @@ private static bool camelgetters;
 private static bool cxxmode;
 private static bool dlangoutput;
 private static bool cxxoutput;
+private static bool vlangoutput;
 private static bool nodeoutput;
 private static bool swigoutput;
 private static bool ctypesoutput;
@@ -64,6 +65,8 @@ private const OptionEntry[] options = {
 	  ref dlangoutput, "generate D bindings", null },
 	{ "go", 0, 0, OptionArg.NONE,
 	  ref gooutput, "generate Go bindings", null },
+	{ "vlang", 0, 0, OptionArg.NONE,
+	  ref vlangoutput, "generate bindings for Vlang", null },
 	{ "", 0, 0, OptionArg.FILENAME_ARRAY,
 	  ref files, "vala/vapi input files", "FILE FILE .." },
 	{ null }
@@ -120,6 +123,10 @@ int main (string[] args) {
 	if (cxxoutput && count++ == 0) {
 		writer = new CxxWriter ();
 		writer.add_define ("VALABIND_CXX");
+	}
+	if (vlangoutput && count++ == 0) {
+		writer = new VlangWriter ();
+		writer.add_define ("VALABIND_VLANG");
 	}
 	if (gooutput && count++ == 0) {
 		writer = new GoWriter ();

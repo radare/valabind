@@ -16,6 +16,7 @@ BUILD?=build
 BIN=valabind
 SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala utils.vala
 SRC+=girwriter.vala swigwriter.vala cxxwriter.vala ctypeswriter.vala dlangwriter.vala gowriter.vala
+SRC+=vlangwriter.vala
 VAPIS:=$(SRC:%.vala=$(BUILD)/%.vapi)
 CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
 VALA_FILTER=$(filter %.vala,$?)
