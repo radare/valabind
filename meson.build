@@ -40,3 +40,6 @@ executable(
   install: true,
   install_rpath: libvala_dep.get_pkgconfig_variable('pkglibdir')
 )
+
+install_data('valabind-cc', install_dir: get_option('bindir'))
+install_man('valabind.1', 'valabind-cc.1')
