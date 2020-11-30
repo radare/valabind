@@ -110,12 +110,12 @@ done
 : ${INSTALL_PROGRAM_STRIP:=${INSTALL} -m 755 -s}
 : ${INSTALL_MAN:=${INSTALL} -m 444}
 : ${INSTALL_LIB:=${INSTALL} -m 755 -c}
- PKGNAME='valabind' ; VERSION='1.7.2' ; VERSION_MAJOR=1; VERSION_MINOR=7; VERSION_PATCH=2; VERSION_NUMBER=10702; CONTACT_MAIL="pancake@nopcode.org" ; CONTACT_NAME="pancake" ; CONTACT="pancake <pancake@nopcode.org>" ;
+ PKGNAME='valabind' ; VERSION='1.8.0' ; VERSION_MAJOR=1; VERSION_MINOR=8; VERSION_PATCH=0; VERSION_NUMBER=10800; CONTACT_MAIL="pancake@nopcode.org" ; CONTACT_NAME="pancake" ; CONTACT="pancake <pancake@nopcode.org>" ;
 }
 
 show_usage() {
 cat <<EOF2
-'configure' configures valabind-1.7.2 to adapt to many kinds of systems.
+'configure' configures valabind-1.8.0 to adapt to many kinds of systems.
 
 Usage: ./configure [OPTION]... [VAR=VALUE]...
 
@@ -165,7 +165,6 @@ printf "
 Some influential environment variables:
   CC          C compiler command
   CFLAGS      C compiler flags
-  CPPFLAGS    C preprocessor flags
   LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
               nonstandard directory <lib dir>
   CPPFLAGS    C/C++ preprocessor flags, e.g. -I<include dir> if you have
@@ -199,10 +198,10 @@ ocho() {
 
 show_version() {
 if [ "$QUIET" = 1 ]; then
-	echo "1.7.2"
+	echo "1.8.0"
 	exit 0
 fi
-echo "valabind-1.7.2 configuration script done with acr v1.9.4.
+echo "valabind-1.8.0 configuration script done with acr v1.9.4.
 The 'Free Software Foundation' message is only for autodetection.
 Originally written by pancake <nopcode.org>."
 exit 0
@@ -231,7 +230,7 @@ case $flag in
 	show_version ; ;;
 -r|--r|--report)
 echo "PKGNAME:   valabind"
-echo "VERSION:   1.7.2"
+echo "VERSION:   1.8.0"
 echo "LANGS:     c vala"
 echo "FLAGS:     --with-vala=vala --with-valac=valac"
 	exit 0
