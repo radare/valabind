@@ -1,4 +1,5 @@
-project('valabind', 'c', 'vala')
+project('valabind', 'c', 'vala',
+  version: run_command('./configure', '-qV').stdout().strip())
 
 add_project_arguments([
   '--vapidir', join_paths(meson.current_source_dir(), 'vapi')], 
@@ -9,6 +10,7 @@ files = [
   'ctypeswriter.vala',
   'cxxwriter.vala',
   'dlangwriter.vala',
+  'vlangwriter.vala',
   'girwriter.vala',
   'gowriter.vala',
   'nodeffiwriter.vala',
