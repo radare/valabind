@@ -9,9 +9,10 @@ all:
 cxx:
 	valac -H vstest.h -C --vapi=${VAPI} --library=libvstest vstest.vala
 	valabind-cc python vstest -NFood -x ${VAPI} ${VALBINDCCFLAGS}
+	valabind --cxx -m vstest vstest.vapi
 	# compile vstest.cxx as included in test.cxx
-	gcc -c vstest.c -I. `pkg-config gobject-2.0 --cflags --libs`
-	g++ vstest.o test.cxx -I. `pkg-config gobject-2.0 --cflags --libs`
+	# gcc -c vstest.c -I. `pkg-config gobject-2.0 --cflags --libs`
+	g++ test.cxx -I. `pkg-config gobject-2.0 --cflags --libs`
 	#g++ test.cxx -I. `pkg-config gobject-2.0 --cflags --libs`
 
 test:

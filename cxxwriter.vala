@@ -202,8 +202,11 @@ public class CxxWriter : ValabindWriter {
 			return;
 		defined_classes.insert (classname, true);
 
-		if (context.profile == Profile.GOBJECT) extends += "class %s_%s {\n".printf (modulename, classcname);
-		else extends += "class %s_%s {\n".printf (modulename, classname);
+		if (context.profile == Profile.GOBJECT) {
+			extends += "class %s_%s {\n".printf (modulename, classcname);
+		} else {
+			extends += "class %s_%s {\n".printf (modulename, classname);
+		}
 		//if (has_destructor && has_constructor)
 			extends += " %s *self;\n".printf (classname);
 		extends += " public:\n";

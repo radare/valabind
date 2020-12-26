@@ -1,7 +1,7 @@
 #include "vstest.cxx"
 
 int main () {
-	vstestFoodElement *foo = new vstestFoodElement ();
+	vstest_FoodElement *foo = new vstest_FoodElement ();
 	foo->say ("world");
 	foo->say ("cruel world");
 	delete foo;
