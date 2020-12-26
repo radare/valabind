@@ -196,7 +196,7 @@ public class CxxWriter : ValabindWriter {
 		//	classname, c.is_compact.to_string () );
 
 		if (context.profile == Profile.GOBJECT)
-			classname = "%s_%s".printf (nspace, classname);
+			classname = "%s%s".printf (nspace, classname);
 
 		if (defined_classes.lookup (classname))
 			return;
