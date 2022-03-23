@@ -34,9 +34,9 @@ executable(
   'valabind',
   files,
   dependencies: [glib_dep, gobject_dep, libvala_dep, valaccodegen_dep],
-  vala_args: ['--pkg', 'posix', '--includedir', '../private',
-    '--vapidir', '../private', '--pkg', 'codegen'],
-  include_directories: include_directories('../private'),
+  vala_args: ['--pkg', 'posix', '--pkg', 'codegen',
+    '--vapidir', meson.current_source_dir() / 'private'],
+  include_directories: include_directories('private'),
   install: true,
   install_rpath: libvala_dep.get_pkgconfig_variable('pkglibdir')
 )
