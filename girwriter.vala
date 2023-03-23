@@ -20,10 +20,6 @@ public class GirWriter : ValabindWriter {
 		return base_name+".gir";
 	}
 
-	public override void write(string file) {
-		context.accept (this);
-	}
-
 	string get_alias (string name) {
 		string oname = name;
 		switch (name) {
@@ -381,7 +377,7 @@ public class GirWriter : ValabindWriter {
 //externs += "</namespace>\n";
 	}
 
-	public void write_file (string file) {
+	public override void write(string file) {
 		var stream = FileStream.open (file, "w");
 		if (stream == null)
 			error ("Cannot open %s for writing".printf (file));
