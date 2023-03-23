@@ -189,7 +189,7 @@ public class GirWriter : ValabindWriter {
 		var ctype = get_ctype (f.type_reference.to_string ());
 		var gtype = girtype (f.type_reference.to_string ());
 		extends += "<constant name=\""+cname+"\" value=\""+cvalue+"\">\n";
-		extends += "  <type name="+gtype+" c:type=\""+ctype+"\">\n";
+		extends += "  <type name=\""+gtype+"\" c:type=\""+ctype+"\"/>\n";
 		extends += "</constant>\n";
 		//extends += "static const char *"+f.name+" = "+cname+";\n";
 	}
