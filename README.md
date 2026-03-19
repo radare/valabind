@@ -1,5 +1,6 @@
-Valabind [![Build Status](https://travis-ci.org/radare/valabind.svg?branch=master)](https://travis-ci.org/radare/valabind)
-========
+# Valabind
+
+[![CI](https://github.com/radare/valabind/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/radare/valabind/actions/workflows/ci.yml)
 
 Valabind is a tool to parse vala[1] or vapi files to transform
 them into swig[2] interface files, C++, NodeJS-ffi or GIR.
@@ -11,16 +12,21 @@ It can also generate bindings for C++.
 
 Valabind mercurial repository is stored here:
 
-	git clone https://github.com/radare/valabind
+```bash
+git clone https://github.com/radare/valabind
+cd valabind
+./configure
+make
+sudo make install
+```
 
-This software is free, feel free to contribute, modify and
-report patches, ideas, bug reports, etc..
+This is free software, feel free to contribute, modify and report
+patches, ideas, bug reports, etc..
 
+## Contact
 
-Contact
--------
 * e-mail:  pancake@nopcode.org
-* twitter: @trufae
+* fedi: @pancake@infosec.exchange
 
 [1] http://live.gnome.org/Vala  
 [2] http://www.swig.org  
