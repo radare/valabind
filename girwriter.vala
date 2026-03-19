@@ -57,6 +57,10 @@ public class GirWriter : ValabindWriter {
 		string? iter_type = null;
 		if (type == "null")
 			error ("Cannot resolve type");
+		if (type.has_suffix ("[]?"))
+			return get_ctype (type.substring (0, type.length - 3)) + "*";
+		if (type.has_suffix ("[]"))
+			return get_ctype (type.substring (0, type.length - 2)) + "*";
 		if (type.has_prefix (nspace))
 			type = type.substring (nspace.length) + "*";
 		type = type.replace (".", "");
@@ -137,6 +141,111 @@ public class GirWriter : ValabindWriter {
 		return type;
 	}
 
+	string type_name_for_gir (DataType type) {
+		if (type is ArrayType)
+			return ((ArrayType) type).element_type.to_string ();
+		return type.to_string ();
+	}
+
+	string get_array_attrs (CodeNode? node) {
+		string attrs = "";
+		if (node == null)
+			return attrs;
+		if (Vala.get_ccode_array_length (node))
+			attrs += " length=\"%d\"".printf ((int) Vala.get_ccode_array_length_pos (node));
+		if (Vala.get_ccode_array_null_terminated (node))
+			attrs += " zero-terminated=\"1\"";
+		return attrs;
+	}
+
+	string render_type (CodeNode? node, DataType type) {
+		var type_name = type_name_for_gir (type);
+		var ctype = get_type_ctype (type);
+		if (type is ArrayType) {
+			var attrs = get_array_attrs (node);
+			var array = (ArrayType) type;
+			var element = array.element_type;
+			var element_name = girtype (type_name_for_gir (element));
+			var element_ctype = get_type_ctype (element);
+			return "      <array%s c:type=\"%s\">\n        <type name=\"%s\" c:type=\"%s\"/>\n      </array>\n".printf (
+				attrs, ctype, element_name, element_ctype);
+		}
+		return "      <type name=\"%s\" c:type=\"%s\"/>\n".printf (
+			girtype (type_name), ctype);
+	}
+
+	string get_type_ctype (DataType type) {
+		string? type_code = null;
+		if (type.type_symbol != null)
+			type_code = Vala.get_ccode_name (type.type_symbol);
+		if (type_code == null || type_code == "")
+			type_code = Vala.get_ccode_name (type);
+		if (type_code == null || type_code == "")
+			type_code = type.to_string ();
+		if (type is ReferenceType && type_code[type_code.length - 1] != '*')
+			type_code += "*";
+		return get_ctype (type_code);
+	}
+
+	bool allow_none (DataType? type) {
+		return type != null && type.nullable;
+	}
+
+	bool supports_ownership_transfer (DataType type) {
+		if (type.to_string () == "void")
+			return false;
+		if (type is ReferenceType || type is ArrayType || type is PointerType || type is DelegateType || type is GenericType)
+			return true;
+		string name = type.to_string ();
+		return name == "string" || name == "string?";
+	}
+
+	string transfer_ownership_for_return (Method m) {
+		if (m is CreationMethod)
+			return "full";
+		if (!supports_ownership_transfer (m.return_type))
+			return "none";
+		if (m.return_type.floating_reference || m.returns_floating_reference)
+			return "floating";
+		if (m.return_type.value_owned)
+			return "full";
+		return "none";
+	}
+
+	string transfer_ownership_for_param (Vala.Parameter p) {
+		var type = p.variable_type;
+		if (type == null)
+			return "none";
+		if (!supports_ownership_transfer (type))
+			return "none";
+		return (type.value_owned || type.floating_reference) ? "full" : "none";
+	}
+
+	string? enum_value_text (Expression? expr, ref int64 next_value) {
+		if (expr == null) {
+			var value = next_value.to_string ();
+			next_value++;
+			return value;
+		}
+
+		if (expr is IntegerLiteral) {
+			var value = ((IntegerLiteral) expr).value;
+			next_value = int64.parse (value, 0) + 1;
+			return value;
+		}
+
+		if (expr is UnaryExpression) {
+			var unary = (UnaryExpression) expr;
+			if (unary.operator == UnaryOperator.MINUS && unary.inner is IntegerLiteral) {
+				var value = "-" + ((IntegerLiteral) unary.inner).value;
+				next_value = int64.parse (value, 0) + 1;
+				return value;
+			}
+		}
+
+		return null;
+	}
+
 	static string girtype(string ret) {
 		switch (ret) {
 		case "int[]":
@@ -185,7 +294,7 @@ public class GirWriter : ValabindWriter {
 
 	public void walk_constant (Constant f) {
 		var cname = Vala.get_ccode_name (f);
-		var cvalue = "TODO";
+		var cvalue = (f.value != null) ? f.value.to_string () : "0";
 		var ctype = get_ctype (f.type_reference.to_string ());
 		var gtype = girtype (f.type_reference.to_string ());
 		extends += "<constant name=\""+cname+"\" value=\""+cvalue+"\">\n";
@@ -215,22 +324,25 @@ public class GirWriter : ValabindWriter {
 
 	public void walk_field (Field f) {
 		var name = Vala.get_ccode_name (f);
-		var type = f.variable_type.to_string ();
-		type = get_ctype (type);
-		externs += "    <field name=\""+name+"\" allow-none=\"1\">\n";
-		externs += "      <type name=\""+girtype (type)+"\" c:type=\""+type+"\" />\n";
+		var type = f.variable_type;
+		externs += "    <field name=\""+name+"\"";
+		if (allow_none (type))
+			externs += " allow-none=\"1\"";
+		externs += ">\n";
+		externs += render_type (f, type);
 		externs += "    </field>\n";
 	}
 
 	public void walk_struct (string pfx, Struct s) {
 		var name = s.name;
-		externs += "  <struct name=\""+name+"\">\n"; // TODO: parent="" type-name="" get-type=""
+		classcname = Vala.get_ccode_name (s);
+		externs += "  <record name=\""+name+"\" c:type=\""+Vala.get_ccode_name (s)+"\">\n";
 		/* TODO: refactor to walk_struct */
 		foreach (var m in s.get_methods ())
 			walk_method (m);
 		foreach (var f in s.get_fields ())
 			walk_field (f);
-		externs += "  </struct>\n";
+		externs += "  </record>\n";
 	}
 
 	public void walk_class (string pfx, Class c) {
@@ -241,7 +353,7 @@ public class GirWriter : ValabindWriter {
 		process_includes (c);
 		if (context.profile == Profile.GOBJECT)
 			classname = "%s%s".printf (nspace, classname);
-		externs += "  <record name=\""+classname+"\">\n"; // TODO: parent="" type-name="" get-type=""
+		externs += "  <record name=\""+classname+"\" c:type=\""+classcname+"\">\n"; // TODO: parent="" type-name="" get-type=""
 // TODO: print ("PARENT FOR "+classname+" IS: "+c.parent_node.type_name+"\n");
 		// parent=\"\"
 		foreach (var e in c.get_enums ())
@@ -266,21 +378,39 @@ public class GirWriter : ValabindWriter {
 	}
 
 	public void walk_enum (Vala.Enum e) {
-#if NOT_YET_IMPLEMENTED
-		var enumname = classname + e.name;
-		var tmp = "  <enum name=\""+enumname+"\">\n"; // type-name=\""+e.name+"\" get-type=\"\">\n";
-		//enums += "/* enum: %s (%s) */\n".printf ( e.name, e.get_cname ());
-		//enums += "enum %s {\n".printf (enumname);
-		//tmp += "#define %s long int\n".printf (enumname); // XXX: Use cname?
+		var enumname = (classname != "") ? classname + e.name : e.name;
+		int64 next_value = 0;
+		bool ok = true;
+		bool has_values = false;
+		var tag = e.is_flags ? "bitfield" : "enumeration";
+		var tmp = "  <%s name=\"%s\" c:type=\"%s\">\n".printf (tag, enumname, Vala.get_ccode_name (e));
+
 		foreach (var v in e.get_values ()) {
-                        tmp += "    <member name=\""+e.name+"\" value=\""+
-				Vala.get_ccode_name (v)+"\"/>\n";
-			//enums += "  %s_%s,\n".printf (e.name, v.name);
-			//tmp += "#define %s_%s %s\n".printf (e.name, v.name, v.get_cname ());
+			has_values = true;
+			var value = enum_value_text (v.value, ref next_value);
+			if (value == null) {
+				ok = false;
+				break;
+			}
+			var nick = v.nick;
+			if (nick == null || nick == "")
+				nick = v.name.down ();
+			tmp += "    <member name=\"%s\" value=\"%s\" c:identifier=\"%s\" glib:nick=\"%s\" glib:name=\"%s\"/>\n".printf (
+				nick, value, Vala.get_ccode_name (v), nick, Vala.get_ccode_name (v));
 		}
-		tmp += "  </enum>\n";
+
+		if (!ok) {
+			warning ("Skipping enum %s because its values are not simple literals".printf (e.get_full_name ()));
+			return;
+		}
+
+		if (!has_values) {
+			warning ("Skipping enum %s because it has no members".printf (e.get_full_name ()));
+			return;
+		}
+
+		tmp += "  </%s>\n".printf (tag);
 		enums = tmp + "\n" + enums;
-#endif
 	}
 
 	inline bool is_generic(string type) {
@@ -322,25 +452,40 @@ public class GirWriter : ValabindWriter {
 		//externs += "<"+type+" name=\""+alias+"\" c:identifier=\""+cname+"\">\n";
 		externs += "<"+type+" name=\""+alias+"\" c:identifier=\""+cname+"\">\n";
 			//externs += "  <return-type type=\"void\"/>\n";
-		externs += "  <return-value transfer-ownership=\"full\">\n";
+		externs += "  <return-value transfer-ownership=\""+transfer_ownership_for_return (m)+"\"";
+		if (allow_none (m.return_type))
+			externs += " allow-none=\"1\"";
+		externs += ">\n";
 		if (!void_return) {
-			var rtype = get_ctype (ret);
-			externs += "    <type name=\""+girtype (ret)+"\" c:type=\""+rtype+"\"/>\n";
+			if (is_constructor)
+				externs += "    <type name=\""+classname+"\" c:type=\""+classcname+"*\"/>\n";
+			else
+				externs += render_type (m, m.return_type);
 		} else externs += "    <type name=\"none\"/>\n";
 		externs += "  </return-value>\n";
 
 		var parameters = m.get_parameters ();
-		if (parameters.size>0) {
+		if (parameters.size>0 || (!is_static && !is_constructor && m.this_parameter != null)) {
 			externs += "  <parameters>\n";
+			if (!is_static && !is_constructor && m.this_parameter != null) {
+				externs += "    <instance-parameter name=\""+m.this_parameter.name+"\" transfer-ownership=\"none\"";
+				if (allow_none (m.this_parameter.variable_type))
+					externs += " allow-none=\"1\"";
+				externs += ">\n";
+				externs += "      <type name=\"%s\" c:type=\"%s*\"/>\n".printf (
+					type_name_for_gir (m.this_parameter.variable_type), classcname);
+				externs += "    </instance-parameter>\n";
+			}
 			foreach (var foo in parameters) {
 				string arg_name = foo.name;
 				DataType? bar = foo.variable_type;
 				if (bar == null)
 					continue;
-				string? arg_type = girtype (bar.to_string ());
-				string? arg_ctype = get_ctype (Vala.get_ccode_name (bar));
-				externs += "    <parameter name=\""+arg_name+"\" transfer-ownership=\"none\">\n";
-				externs += "      <type name=\""+arg_type+"\" c:type=\""+arg_ctype+"\"/>\n";
+				externs += "    <parameter name=\""+arg_name+"\" transfer-ownership=\""+transfer_ownership_for_param (foo)+"\"";
+				if (allow_none (bar))
+					externs += " allow-none=\"1\"";
+				externs += ">\n";
+				externs += render_type (foo, bar);
 				externs += "    </parameter>\n";
 			}
 			externs += "  </parameters>\n";
