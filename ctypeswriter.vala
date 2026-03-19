@@ -22,39 +22,38 @@ private class CtypeCompiler {
 		this.cur = null;
 	}
 
-	public bool contains (string c) {
-		foreach (var a in this.classes)
-			if (a.name == c)
-				return true;
-		return false;
-	}
-
 	public void sort () {
-		uint count, count2 = 0;
-		var n = new GLib.SList<weak CtypeClass>();
-		do {
-			count = classes.length ();
-			foreach (var c in classes) {
-				if (c.is_satisfied (this)) {
-					n.append (c);
-					classes.remove (c);
+		var pending = new GLib.SList<weak CtypeClass> ();
+		foreach (var c in classes)
+			pending.append (c);
+
+		var ordered = new GLib.SList<weak CtypeClass> ();
+		var resolved = new GLib.List<string> ();
+
+		while (pending.length () > 0) {
+			bool progress = false;
+			var next = new GLib.SList<weak CtypeClass> ();
+
+			foreach (var c in pending) {
+				if (c.is_satisfied (resolved)) {
+					ordered.append (c);
+					resolved.append (c.name);
+					progress = true;
 				} else {
-					warning ("UNSATISFIED "+c.name);
+					next.append (c);
 				}
 			}
-			count2 = classes.length ();
-			if (count2 > 0 && count == count2) { // detect infinite loop
-				error ("Cannot compile, infinite loop dependency detected\n");
+
+			if (!progress) {
+				foreach (var c in next)
+					warning ("UNSATISFIED "+c.name);
+				error ("Cannot compile, unresolved ctypes dependency detected");
 			}
-		} while (count2 > 0);
-		/* refill */
-		foreach (var c in classes) {
-			if (c.is_satisfied (this)) {
-				n.prepend (c);
-				classes.remove (c);
-			}
+
+			pending = next.copy ();
 		}
-		this.classes = n.copy();
+
+		this.classes = ordered.copy ();
 		this.sorted = true;
 	}
 
@@ -72,18 +71,21 @@ private class CtypeClass {
 	public string text;
 	public GLib.SList<string> deps;
 
-	public bool is_satisfied (CtypeCompiler c) {
+	public bool is_satisfied (GLib.List<string> resolved) {
 		foreach (var d in deps) {
-			if (d == this.name) {
-				stderr.printf ("==> "+d+"\n");
-		//		break;
+			if (d == this.name)
+				error ("Classes with self dependencies are not supported");
+			bool found = false;
+			foreach (var name in resolved) {
+				if (name == d) {
+					found = true;
+					break;
+				}
 			}
-			stderr.printf ("--> "+d+"\n");
-			if (!c.contains (d)) {
+			if (!found) {
 				return false;
 			}
 		}
-		stderr.printf ("    *** Yep. "+name+" is satisfied\n");
 		return true;
 	}
 
@@ -132,6 +134,7 @@ public class CtypesWriter : ValabindWriter {
 	public GLib.List<string> includefiles = new GLib.List<string> ();
 	CtypeCompiler ctc = new CtypeCompiler ();
 	string ?ns_pfx;
+	string enumstr = "";
 	string delegatestr = "";
 
 	public CtypesWriter () {
@@ -195,7 +198,7 @@ public class CtypesWriter : ValabindWriter {
 
 		// HACK is this required?
 		if (type is EnumValueType)
-			return "c_long";
+			return "c_int";
 
 		// HACK needs proper generic support
 		if (type is GenericType)
@@ -314,17 +317,61 @@ public class CtypesWriter : ValabindWriter {
 
 	public override void visit_enum (Vala.Enum e) {
 		add_includes (e);
-		// TODO: copy from node
+		int64 next_value = 0;
+		bool ok = true;
+		bool has_values = false;
+		string indent = (ctc.cur != null) ? "\t" : "";
+		string enum_text = indent + "class " + e.name + "(IntEnum):\n";
+
+		foreach (var v in e.get_values ()) {
+			has_values = true;
+			string value_text;
+			var expr = v.value;
+			if (expr == null) {
+				value_text = next_value.to_string ();
+				next_value++;
+			} else if (expr is IntegerLiteral) {
+				value_text = ((IntegerLiteral) expr).value;
+				next_value = int64.parse (value_text, 0) + 1;
+			} else if (expr is UnaryExpression) {
+				var unary = (UnaryExpression) expr;
+				if (unary.operator == UnaryOperator.MINUS && unary.inner is IntegerLiteral) {
+					value_text = "-" + ((IntegerLiteral) unary.inner).value;
+					next_value = int64.parse (value_text, 0) + 1;
+				} else {
+					ok = false;
+					break;
+				}
+			} else {
+				ok = false;
+				break;
+			}
+			enum_text += indent + "\t" + v.name + " = " + value_text + "\n";
+		}
+
+		if (!ok) {
+			warning ("Skipping enum %s because its values are not simple literals".printf (e.get_full_name ()));
+			return;
+		}
+
+		if (!has_values)
+			enum_text += indent + "\tpass\n";
+
+		enum_text += "\n";
+		if (ctc.cur != null)
+			ctc.cur.append (enum_text);
+		else
+			enumstr += enum_text;
 	}
 
 	public override void visit_struct (Struct s) {
 		string name = s.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		visit_struct_or_class (s, name, s.get_fields (), s.get_methods (), null);
+		visit_struct_or_class (s, name, s.get_fields (), s.get_methods (), null, null);
 	}
 
 	public override void visit_class (Class c) {
 		string name = c.get_full_name ().replace (ns_pfx, "").replace (".", "");
-		visit_struct_or_class (c, name, c.get_fields (), c.get_methods (), c.get_delegates ());
+		visit_struct_or_class (c, name, c.get_fields (), c.get_methods (), c.get_delegates (), c.get_enums ());
 
 		/* walk nested structs and classes */
 		foreach (Struct s in c.get_structs ()) {
@@ -364,12 +411,16 @@ int n = 0;
 
 	private void visit_struct_or_class (Symbol s, string name,
 			Vala.List<Field> fields, Vala.List<Method> methods,
-			Vala.List<Delegate>? delegates) {
+			Vala.List<Delegate>? delegates,
+			Vala.List<Vala.Enum>? enums) {
 		//string cname = Vala.get_ccode_name (s);
 		add_includes (s);
 		ctc.add_class (name, "class "+name+"(Structure): #"+n.to_string()+"\n");
-stderr.printf ("--> "+name+" ("+n.to_string()+")\n");
 n++;
+		if (enums != null) {
+			foreach (Vala.Enum e in enums)
+				e.accept (this);
+		}
 		if (fields.size > 0) {
 			ctc.cur.append ("\t_fields_ = [\n");
 			foreach (Field f in fields)
@@ -605,6 +656,7 @@ n++;
 		stream.printf (
 			"# this file has been automatically generated by valabind\n"+
 			"import sys\n"+
+			"from enum import IntEnum\n"+
 			"from ctypes import *\n"+
 			"from ctypes.util import find_library\n"+
 			"if sys.platform.startswith('win'):\n"+
@@ -681,11 +733,12 @@ n++;
 			"			last = 'value'\n"+
 			"			ret2 = ret\n"+
 			"			\n"+
-			"	method = WrappedRMethod(cname, args, ret)\n"+
-			"	wrapped_method = WrappedApiMethod(method, ret2, last)\n"+
-			"	return wrapped_method, method\n\n");
-		context.root.accept (this);
-		stream.printf (ctc.to_string ());
-		stream.puts (delegatestr);
+				"	method = WrappedRMethod(cname, args, ret)\n"+
+				"	wrapped_method = WrappedApiMethod(method, ret2, last)\n"+
+				"	return wrapped_method, method\n\n");
+			context.root.accept (this);
+			stream.printf (enumstr);
+			stream.printf (ctc.to_string ());
+			stream.puts (delegatestr);
+		}
 	}
-}
