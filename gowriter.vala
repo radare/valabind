@@ -589,62 +589,47 @@ public class GoSrcWriter : ValabindWriter {
 	// arg_name: the C symbol parameter name
 	// maybe_pointer_sym: might contain a '*' if needed for the Go symbol. Useful for `out` parameters.
 	// arg_type: the parameter type in all its glory
-	delegate string parameter_visitor(bool is_string, string maybe_pointer_sym, Vala.Parameter p);
-
-	private string get_function_parameters(GoNamer namer, Method f, parameter_visitor v) {
-		string args = "";
-
-		bool first = true;
-		foreach (var p in f.get_parameters ()) {
-			string maybe_pointer_sym = "";
-			if (p.direction != ParameterDirection.IN) {
-				// TODO: exploit multiple return values?
-				if (p.direction == ParameterDirection.OUT) {
-					if (! is_string(p)) {
-						maybe_pointer_sym = "*";
-					}
-				} else if (p.direction == ParameterDirection.REF) {
-					if (! is_string(p)) {
-						maybe_pointer_sym = "*";
-					}
-				}
-			}
-
-			if (first) {
-				first = false;
-			} else {
-				args += ", ";
-			}
-
-			// TODO: consider special handling of `uint8  *buf, int len`?
-			args += v(is_string(p), maybe_pointer_sym, p);
+	private string get_parameter_pointer_symbol(Vala.Parameter p) {
+		if (p.direction != ParameterDirection.IN && !is_string(p)) {
+			return "*";
 		}
-
-		return args;
+		return "";
 	}
 
 	// BUG: doesn't support '...' parameters
 	private string get_function_declaration_parameters(GoNamer namer, Method f) {
-		parameter_visitor formatter = (is_string, maybe_pointer_sym, p) => {
+		string args = "";
+		bool first = true;
+		foreach (var p in f.get_parameters ()) {
+			if (!first) {
+				args += ", ";
+			}
+			first = false;
 			// what about array of char *?  I think we have to let the caller deal with it
 			// hopefully overflows don't happen here?
-			return "%s %s%s".printf (namer.get_parameter_name(p), maybe_pointer_sym, namer.get_parameter_type_declaration(p));
-		};
-		return get_function_parameters(namer, f, formatter);
+			args += "%s %s%s".printf (namer.get_parameter_name(p), get_parameter_pointer_symbol(p), namer.get_parameter_type_declaration(p));
+		}
+		return args;
 	}
 
 	// BUG: doesn't support '...' parameters
 	private string get_function_call_parameters(GoNamer namer, Method f) {
-		parameter_visitor formatter = (is_string, maybe_pointer_sym, p) => {
-			if (is_string) {
+		string args = "";
+		bool first = true;
+		foreach (var p in f.get_parameters ()) {
+			if (!first) {
+				args += ", ";
+			}
+			first = false;
+			if (is_string(p)) {
 				// what about array of char *?  I think we have to let the caller deal with it
 				// hopefully overflows don't happen here?
-				return "C.CString(%s)".printf (namer.get_parameter_name(p));
+				args += "C.CString(%s)".printf (namer.get_parameter_name(p));
 			} else {
-				return "%s".printf (namer.get_parameter_name(p));
+				args += "%s".printf (namer.get_parameter_name(p));
 			}
-		};
-		return get_function_parameters(namer, f, formatter);
+		}
+		return args;
 	}
 
 	private bool is_void_function(Method f) {
@@ -1030,5 +1015,4 @@ public class GoWriter : ValabindWriter {
 		g.write(file);
 	}
 }
-
 

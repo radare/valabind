@@ -19,58 +19,6 @@ public class VlangNamer {
 		ordered_specializations.append(d);
 	}
 
-	// converts symbol names with underscores to camelCase.
-	// this function should not be called directly. See `camelcase`.
-	// allows trailing '_' characters.
-	private static string cleanup_underscores(string name) {
-		if (name.length == 0) {
-			return "";
-		} else if (name.length == 1) {
-			// accept trailing '_'
-			return name;
-		} else if (name.index_of("_") == -1) {
-			return name;
-		} else {  // there is a '_' here somewhere
-			int i = name.index_of("_");
-			if (i == name.length - 1) {
-				// accept trailing '_'
-				return name;
-			}
-			// there must be at least one more character
-
-			// everything before the '_'
-			string before = "";
-			if (i != 0) {
-				before = name.substring(0, i);
-			}
-
-			// find next non-'_' character uppercase, or all '_' if thats all thats left
-			// j will be the index of this character
-			string next;
-			int j = i + 1;
-			while (true) {
-				before = name.substring(0, i);
-				if (name[j] != '_') {
-					next = name.substring(j, 1); // .up();
-					break;
-				}
-				j++;
-				if (j == name.length) {  // only '_' remain
-					next = name.substring(i, j - i);  // so catch them all
-					break;
-				}
-			}
-
-			if (j >= name.length - 1) {
-				return before + next;
-			} else {
-				// do rest of string
-				return before + next + cleanup_underscores(name.substring(j + 1));
-			}
-		}
-	}
-
-
 	public string get_field_name(Field f) {
 		return f.name;
 	}
@@ -499,63 +447,48 @@ public class VSrcWriter : ValabindWriter {
 	// arg_name: the C symbol parameter name
 	// maybe_pointer_sym: might contain a '*' if needed for the V symbol. Useful for `out` parameters.
 	// arg_type: the parameter type in all its glory
-	delegate string parameter_visitor(bool is_string, string maybe_pointer_sym, Vala.Parameter p);
-
-	private string get_function_parameters(VlangNamer namer, Method f, parameter_visitor v) {
-		string args = "";
-
-		bool first = true;
-		foreach (var p in f.get_parameters ()) {
-			string maybe_pointer_sym = "";
-			if (p.direction != ParameterDirection.IN) {
-				// TODO: exploit multiple return values?
-				if (p.direction == ParameterDirection.OUT) {
-					if (! is_string(p)) {
-						maybe_pointer_sym = "*";
-					}
-				} else if (p.direction == ParameterDirection.REF) {
-					if (! is_string(p)) {
-						maybe_pointer_sym = "*";
-					}
-				}
-			}
-
-			if (first) {
-				first = false;
-			} else {
-				args += ", ";
-			}
-
-			// TODO: consider special handling of `uint8  *buf, int len`?
-			args += v(is_string(p), maybe_pointer_sym, p);
+	private string get_parameter_pointer_symbol(Vala.Parameter p) {
+		if (p.direction != ParameterDirection.IN && !is_string(p)) {
+			return "*";
 		}
-
-		return args;
+		return "";
 	}
 
 	// BUG: doesn't support '...' parameters
 	private string get_function_declaration_parameters(VlangNamer namer, Method f) {
-		parameter_visitor formatter = (is_string, maybe_pointer_sym, p) => {
+		string args = "";
+		bool first = true;
+		foreach (var p in f.get_parameters ()) {
+			if (!first) {
+				args += ", ";
+			}
+			first = false;
 			// what about array of char *?  I think we have to let the caller deal with it
 			// hopefully overflows don't happen here?
-			return "%s %s%s".printf (namer.get_parameter_name(p), maybe_pointer_sym, namer.get_parameter_type_declaration(p));
-		};
-		return get_function_parameters(namer, f, formatter);
+			args += "%s %s%s".printf (namer.get_parameter_name(p), get_parameter_pointer_symbol(p), namer.get_parameter_type_declaration(p));
+		}
+		return args;
 	}
 
 	// BUG: doesn't support '...' parameters
 	private string get_function_call_parameters(VlangNamer namer, Method f) {
-		parameter_visitor formatter = (is_string, maybe_pointer_sym, p) => {
-			if (is_string) {
+		string args = "";
+		bool first = true;
+		foreach (var p in f.get_parameters ()) {
+			if (!first) {
+				args += ", ";
+			}
+			first = false;
+			if (is_string(p)) {
 				// what about array of char *?  I think we have to let the caller deal with it
 				// hopefully overflows don't happen here?
 				// return "C.CString(%s)".printf (namer.get_parameter_name(p));
-				return "%s.str".printf (namer.get_parameter_name(p));
+				args += "%s.str".printf (namer.get_parameter_name(p));
 			} else {
-				return "%s".printf (namer.get_parameter_name(p));
+				args += "%s".printf (namer.get_parameter_name(p));
 			}
-		};
-		return get_function_parameters(namer, f, formatter);
+		}
+		return args;
 	}
 
 	private bool is_void_function(Method f) {
@@ -943,5 +876,4 @@ public class VlangWriter : ValabindWriter {
 		g.write(file);
 	}
 }
-
 

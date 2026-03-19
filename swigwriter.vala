@@ -94,7 +94,8 @@ public class SwigWriter : ValabindWriter {
 		}
 
 		if (type is PointerType) {
-			return type_name ((type as PointerType).base_type, retType, true)+"*";
+			PointerType pointer = (PointerType) type;
+			return type_name (pointer.base_type, retType, true)+"*";
 		}
 
 		if (type is ArrayType) {
@@ -496,4 +497,3 @@ public class SwigWriter : ValabindWriter {
 		stream.printf ("%s\n", extends);
 	}
 }
-

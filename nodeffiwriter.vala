@@ -59,8 +59,10 @@ public class NodeFFIWriter : ValabindWriter {
 			return "_.delegate(%s, [%s])".printf (ret, args);
 		}
 
-		if (type is PointerType)
-			return "_.ptr("+type_name ((type as PointerType).base_type, true)+")";
+		if (type is PointerType) {
+			PointerType pointer = (PointerType) type;
+			return "_.ptr("+type_name (pointer.base_type, true)+")";
+		}
 
 		if (type is ArrayType) {
 			ArrayType array = type as ArrayType;

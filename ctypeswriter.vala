@@ -203,7 +203,8 @@ public class CtypesWriter : ValabindWriter {
 			//return type.to_qualified_string ();
 
 		if (type is PointerType) {
-			var tn = type_name ((type as PointerType).base_type, retType, true);
+			PointerType pointer = (PointerType) type;
+			var tn = type_name (pointer.base_type, retType, true);
 			if (tn == "void")
 				return "c_void_p";
 			return "POINTER("+tn+")";
