@@ -1,12 +1,9 @@
 project('valabind', 'c', 'vala',
-  version: run_command('./configure', '-qV').stdout().strip())
+  version: run_command(
+    'grep', '^VERSION ', meson.current_source_dir() / 'configure.acr', check: true,
+  ).stdout().strip().split(' ')[1])
 
-add_project_arguments([
-  '--vapidir', join_paths(meson.current_source_dir(), 'vapi')], 
-  language: 'vala')
-
-files = [
-  'config.vala',
+sources = files(
   'ctypeswriter.vala',
   'cxxwriter.vala',
   'dlangwriter.vala',
@@ -18,27 +15,55 @@ files = [
   'utils.vala',
   'valabindwriter.vala',
   'main.vala',
-]
+)
 
 cc = meson.get_compiler('c')
 valac = meson.get_compiler('vala')
-libvala_version = run_command(valac.cmd_array()[0], '--api-version').stdout().strip()
+libvala_version = run_command(valac.cmd_array()[0], '--api-version', check: true).stdout().strip()
 libvala_dep = dependency('libvala-@0@'.format(libvala_version))
 
 glib_dep = dependency('glib-2.0')
 gobject_dep = dependency('gobject-2.0')
 
-valaccodegen_dep = cc.find_library('valaccodegen', dirs : [libvala_dep.get_pkgconfig_variable('pkglibdir')])
+libvala_pkglibdir = libvala_dep.get_variable(pkgconfig: 'pkglibdir')
+libvala_vapidir = libvala_dep.get_variable(pkgconfig: 'vapidir', default_value: '')
+libvala_share_vapidir = join_paths(
+  libvala_dep.get_variable(pkgconfig: 'datadir'),
+  'vala',
+  'vapi',
+)
+
+vala_args = [
+  '--pkg', 'posix',
+  '--pkg', 'codegen',
+  '--vapidir', meson.current_source_dir() / 'private',
+]
+
+foreach vapidir : [libvala_vapidir, libvala_share_vapidir]
+  if vapidir != ''
+    vala_args += ['--vapidir', vapidir]
+  endif
+endforeach
+
+valaccodegen_dep = cc.find_library('valaccodegen', dirs: [libvala_pkglibdir])
+
+config_data = configuration_data()
+config_data.set_quoted('VERSION_STRING', meson.project_version())
+
+config_vala = configure_file(
+  input: 'config.vala.in',
+  output: 'config.vala',
+  configuration: config_data,
+)
 
 executable(
   'valabind',
-  files,
+  [config_vala] + sources,
   dependencies: [glib_dep, gobject_dep, libvala_dep, valaccodegen_dep],
-  vala_args: ['--pkg', 'posix', '--pkg', 'codegen',
-    '--vapidir', meson.current_source_dir() / 'private'],
+  vala_args: vala_args,
   include_directories: include_directories('private'),
   install: true,
-  install_rpath: libvala_dep.get_pkgconfig_variable('pkglibdir')
+  install_rpath: libvala_pkglibdir,
 )
 
 install_data('valabind-cc', install_dir: get_option('bindir'))

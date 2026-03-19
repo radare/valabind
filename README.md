@@ -20,6 +20,16 @@ make
 sudo make install
 ```
 
+Meson builds are also supported:
+
+```bash
+git clone https://github.com/radare/valabind
+cd valabind
+meson setup build-meson
+meson compile -C build-meson
+sudo meson install -C build-meson
+```
+
 This is free software, feel free to contribute, modify and report
 patches, ideas, bug reports, etc..
 
