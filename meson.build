@@ -4,17 +4,17 @@ project('valabind', 'c', 'vala',
   ).stdout().strip().split(' ')[1])
 
 sources = files(
-  'ctypeswriter.vala',
-  'cxxwriter.vala',
-  'dlangwriter.vala',
-  'vlangwriter.vala',
-  'girwriter.vala',
-  'gowriter.vala',
-  'nodeffiwriter.vala',
-  'swigwriter.vala',
-  'utils.vala',
-  'valabindwriter.vala',
-  'main.vala',
+  'src/ctypeswriter.vala',
+  'src/cxxwriter.vala',
+  'src/dlangwriter.vala',
+  'src/vlangwriter.vala',
+  'src/girwriter.vala',
+  'src/gowriter.vala',
+  'src/nodeffiwriter.vala',
+  'src/swigwriter.vala',
+  'src/utils.vala',
+  'src/valabindwriter.vala',
+  'src/main.vala',
 )
 
 cc = meson.get_compiler('c')
@@ -51,7 +51,7 @@ config_data = configuration_data()
 config_data.set_quoted('VERSION_STRING', meson.project_version())
 
 config_vala = configure_file(
-  input: 'config.vala.in',
+  input: 'src/config.vala.in',
   output: 'config.vala',
   configuration: config_data,
 )

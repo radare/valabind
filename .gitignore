@@ -1,3 +1,13 @@
-build
-build-*
-valabind
+/build/
+/build-*/
+/config.mk
+/Test.gir
+/valabind
+/valabind.exe
+/valabind.dSYM/
+/vstest.py
+/t/gir/Test.gir
+/t/vala/vstest.c
+/t/vala/vstest.h
+/t/vala/vstest.py
+/t/vala/vstest.vapi

@@ -35,8 +35,8 @@ patches, ideas, bug reports, etc..
 
 ## Contact
 
-* e-mail:  pancake@nopcode.org
-* fedi: @pancake@infosec.exchange
+* mail: [pancake@nopcode.org](mailto:pancake@nopcode.org)
+* fedi: [@pancake@infosec.exchange](https://infosec.exchange/@pancake)
 
 [1] http://live.gnome.org/Vala  
 [2] http://www.swig.org  

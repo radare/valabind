@@ -25,7 +25,9 @@ jobs:
             valac
 
       - name: Build
-        run: make
+        run: |
+          make clean
+          make
 
   build-meson:
     runs-on: ubuntu-24.04
@@ -50,5 +52,6 @@ jobs:
 
       - name: Build with Meson
         run: |
+          rm -rf build-meson
           meson setup build-meson
           meson compile -C build-meson

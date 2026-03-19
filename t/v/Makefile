@@ -1,5 +1,5 @@
 all:
-	make -C ../..
+	$(MAKE) -C ../..
 	../../valabind -m system --vlang system.vapi
 	rm -rf system
 	mkdir -p system

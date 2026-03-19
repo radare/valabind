@@ -2,6 +2,7 @@ _VERSION=?
 -include config.mk
 
 PWD:=$(shell pwd)
+SRCDIR?=src
 #GIT_TIP=$(shell [ -d .git ] && git log HEAD^..HEAD 2>/dev/null |head -n1|cut -d ' ' -f2)
 GIT_TIP=$(shell git describe --tags)
 DESTDIR?=
@@ -14,14 +15,12 @@ RTLIBS=gobject-2.0 glib-2.0
 VALAPKG:=lib$(shell ./getvv)
 BUILD?=build
 BIN=valabind
-SRC=config.vala main.vala valabindwriter.vala nodeffiwriter.vala utils.vala
-SRC+=girwriter.vala swigwriter.vala cxxwriter.vala ctypeswriter.vala dlangwriter.vala gowriter.vala
-SRC+=vlangwriter.vala
-VAPIS:=$(SRC:%.vala=$(BUILD)/%.vapi)
-CSRC:=$(SRC:%.vala=$(BUILD)/%.c)
-VALA_FILTER=$(filter %.vala,$?)
-TEMPS=$(addprefix --use-fast-vapi=,$(filter-out $(VALA_FILTER:%.vala=$(BUILD)/%.vapi),$(VAPIS)))
-TEMPS+=$(VALA_FILTER) $(patsubst %.vala,$(BUILD)/%.c,$(filter-out $?,$^))
+GENERATED_SRC=$(BUILD)/config.vala
+VALA_SRCS=main.vala valabindwriter.vala nodeffiwriter.vala utils.vala
+VALA_SRCS+=girwriter.vala swigwriter.vala cxxwriter.vala ctypeswriter.vala dlangwriter.vala gowriter.vala
+VALA_SRCS+=vlangwriter.vala
+SRC:=$(GENERATED_SRC) $(addprefix $(SRCDIR)/,$(VALA_SRCS))
+CSRC:=$(VALA_SRCS:%.vala=%.c)
 
 ifneq ($(GIT_TIP),)
 SGIT_TIP=$(shell echo ${GIT_TIP} | sed -e s,${_VERSION},,)
@@ -77,23 +76,15 @@ endif
 w32:
 	$(MAKE) W32=1
 
-.PRECIOUS: $(BUILD)/%.c $(BUILD)/%.vapi
-$(BIN).exe: $(SRC) | $(VAPIS)
-	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) --vapidir=. -D W32 -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg $(VALAPKG) --save-temps ${TEMPS} windows.c --pkg windows
-	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
+$(BIN).exe: $(SRC) $(SRCDIR)/windows.c $(SRCDIR)/windows.vapi
+	@echo 'Compiling $@'
+	$(VALAC) --vapidir=$(SRCDIR) -D W32 -X "${CFLAGS}" -X "${LDFLAGS}" -o $@ --pkg $(VALAPKG) $(SRC) $(SRCDIR)/windows.c --pkg windows
 
-$(BIN): $(SRC) | $(VAPIS)
-	@echo 'Compiling $(VALA_FILTER) -> $@'
-	$(VALAC) -o $@ --pkg posix $(VALA_PRIVATE_CODEGEN) --save-temps ${TEMPS}
-	@mv $(VALA_FILTER:%.vala=%.c) $(BUILD)
+$(BIN): $(SRC)
+	@echo 'Compiling $@'
+	$(VALAC) -o $@ --pkg posix $(VALA_PRIVATE_CODEGEN) $(SRC)
 
-$(BUILD)/%.vapi: %.vala | $(BUILD)
-	@echo 'Generating $< -> $@'
-	@$(VALAC) $(VALAFLAGS) --fast-vapi=$@ $<
-	@${MAKE} config.vala
-
-config.vala: Makefile
+$(GENERATED_SRC): Makefile | $(BUILD)
 	@echo 'Generating $@'
 	@echo 'const string version_string = "$(VERSION)";' > $@
 
@@ -123,13 +114,11 @@ dist:
 shot:
 	rm -rf valabind-$(VERSION)
 	git clone . valabind-$(VERSION)
-	cd valabind-$(VERSION) && $(MAKE) config.vala
 	rm -rf valabind-$(VERSION)/.git
 	tar czvf valabind-$(VERSION).tar.gz valabind-$(VERSION)
 
 mrproper clean:
-	rm -f config.vala
-	rm -rf $(BUILD) $(BIN)
+	rm -rf $(BUILD) $(BIN) $(BIN).exe
 	rm -rf $(CSRC)
 
 deinstall: uninstall
