@@ -52,13 +52,23 @@ endif
 
 VALA_VERSION=$(shell ./getvv)
 VALA_PKGLIBDIR=$(shell pkg-config --variable=pkglibdir lib${VALA_VERSION})
+VALA_VAPIDIR=$(shell pkg-config --variable=vapidir lib${VALA_VERSION})
+VALA_SHARE_VAPIDIR=$(shell pkg-config --variable=datadir lib${VALA_VERSION})/vala/vapi
 ifeq ($(VALA_PKGLIBDIR),)
 VALA_LIBDIR=$(shell pkg-config --variable=libdir lib${VALA_VERSION})
 VALA_PKGLIBDIR=$(VALA_LIBDIR)/$(shell ./getvv)
 endif
 VALA_PRIVATE_CODEGEN=--pkg $(VALAPKG)
 VALA_PRIVATE_CODEGEN+=--vapidir=$(PWD)/private --pkg codegen -X -I$(PWD)/private
+ifneq ($(VALA_VAPIDIR),)
+VALA_PRIVATE_CODEGEN+=--vapidir=$(VALA_VAPIDIR)
+endif
+ifneq ($(wildcard $(VALA_SHARE_VAPIDIR)),)
+VALA_PRIVATE_CODEGEN+=--vapidir=$(VALA_SHARE_VAPIDIR)
+endif
+ifneq ($(R2PM_PREFIX),)
 VALA_PRIVATE_CODEGEN+=--vapidir=${R2PM_PREFIX}/share/vala/vapi/
+endif
 VALA_PRIVATE_CODEGEN+=-X -L$(VALA_PKGLIBDIR) -X -lvalaccodegen
 ifneq ($(shell uname),Darwin)
 VALA_PRIVATE_CODEGEN+=-X -Wl,-rpath=$(VALA_PKGLIBDIR)
