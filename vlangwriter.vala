@@ -245,12 +245,10 @@ public class VlangNamer {
 		if (type is PointerType) {
 			// I suspect we don't support pointer-to-pointer
 			if (typename == "void") {
-				typename = "unsafe.Pointer";  // go specific hack type for void *
-				// TODO: need to re-enable this somehow
-				// this.needs_unsafe = true;
+				typename = "voidptr";
 				maybe_pointer_sym = "";
 			} else {
-				maybe_pointer_sym = "*";
+				maybe_pointer_sym = "&";
 			}
 		}
 
@@ -359,6 +357,10 @@ public class VSrcWriter : ValabindWriter {
 		}
 	}
 
+	private string wrap_string_expression(string expr) {
+		return "unsafe { cstring_to_vstring(%s) }".printf(expr);
+	}
+
 	// here, we use explicit accessors and mutators to fixup accessibility.
 	private string walk_field (VlangNamer namer, string owner_name, Field f) {
 		string ret = "";
@@ -376,11 +378,11 @@ public class VSrcWriter : ValabindWriter {
 		// TODO: make this a function `is_string`
 		if (is_string(f)) {
 			ret += "fn (s %s) Get%s() %s {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
-			ret += "    return C.VString(s.%s)\n".printf(namer.get_field_cname(f));
+			ret += "    return %s\n".printf(wrap_string_expression("s.%s".printf(namer.get_field_cname(f))));
 			ret += "}\n";
 
-			ret += "fn (s *%s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
-			ret += "    s.%s = C.CString(a)\n".printf(namer.get_field_cname(f));
+			ret += "fn (s &%s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "    s.%s = a.str\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
 		} else {
@@ -388,7 +390,7 @@ public class VSrcWriter : ValabindWriter {
 			ret += "    return s.%s\n".printf(namer.get_field_cname(f));
 			ret += "}\n";
 
-			ret += "fn (s *%s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
+			ret += "fn (s &%s) Set%s(a %s) {\n".printf(owner_name, namer.get_field_name(f), namer.get_field_type_declaration(f));
 			ret += "    s.%s = a\n".printf(namer.get_field_cname(f));
 			ret += "    return\n";
 			ret += "}\n";
@@ -449,7 +451,7 @@ public class VSrcWriter : ValabindWriter {
 	// arg_type: the parameter type in all its glory
 	private string get_parameter_pointer_symbol(Vala.Parameter p) {
 		if (p.direction != ParameterDirection.IN && !is_string(p)) {
-			return "*";
+			return "&";
 		}
 		return "";
 	}
@@ -517,19 +519,14 @@ public class VSrcWriter : ValabindWriter {
 		string call_args = get_function_call_parameters(namer, f);
 		if ( ! is_void_function(f)) {
 			ret += "pub fn %s(%s) %s {\n".printf (namer.get_method_name(f), def_args, namer.get_method_return_type_declaration(f));
-			// ret += "fn (_ Vns%s) %s(%s) %s {\n".printf (nsname, namer.get_method_name(f), def_args, namer.get_method_return_type_declaration(f));
 			if (is_string(f.return_type)) {
-				// we have to let the caller deal with array of char *
-				// what happens if there are embedded nulls?
-				// ret += "    return C.VString(%s(%s))\n".printf (cname, call_args);
-				ret += "    return string(%s(%s))\n".printf (cname, call_args);
+				ret += "    return %s\n".printf(wrap_string_expression("C.%s(%s)".printf(cname, call_args)));
 			} else {
-				// TODO: what about void*?
-				ret += "    unsafe {return C.%s(%s)}\n".printf (cname, call_args);
+				ret += "    return C.%s(%s)\n".printf (cname, call_args);
 			}
 		} else {
 			ret += "fn (_ Vns%s) %s(%s) {\n".printf (nsname, namer.get_method_name(f), def_args);
-			ret += "    %s(%s)\n".printf (cname, call_args);
+			ret += "    C.%s(%s)\n".printf (cname, call_args);
 		}
 		ret += "}\n";
 
@@ -557,7 +554,7 @@ public class VSrcWriter : ValabindWriter {
 		string def_args = get_function_declaration_parameters(namer, m);
 		string call_args = get_function_call_parameters(namer, m);
 
-		ret += "fn (this *%s) %s(".printf(classname, namer.get_method_name(m));
+		ret += "fn (this &%s) %s(".printf(classname, namer.get_method_name(m));
 		if (def_args != "") {
 			ret += "%s".printf(def_args);
 		}
@@ -570,22 +567,26 @@ public class VSrcWriter : ValabindWriter {
 		if ( ! is_void_function(m)) {
 			ret += "return ";
 			if (is_string(m.return_type)) {
-				// TODO: use wrap_type function
-				ret += "C.VString(";
+				string expr = "C.%s(this".printf(cname);
+				if (call_args != "") {
+					expr += ", %s".printf(call_args);
+				}
+				expr += ")";
+				ret += wrap_string_expression(expr);
+				ret += "\n";
+				ret += "}\n";
+				dedent();
+				return ret;
 			}
 
-			ret += "%s(this".printf(cname);
+			ret += "C.%s(this".printf(cname);
 			if (call_args != "") {
 				ret += ", %s".printf(call_args);
 			}
 			ret += ")";
-
-			if (is_string(m.return_type)) {
-				ret += ")";
-			}
 			ret += "\n";
 		} else {
-			ret += "%s(this".printf(cname);
+			ret += "C.%s(this".printf(cname);
 			if (call_args != "") {
 				ret += ", %s".printf(call_args);
 			}
@@ -613,18 +614,10 @@ public class VSrcWriter : ValabindWriter {
 
 		ret += "fn %s(".printf(namer.get_constructor_name(c, m));
 		ret += "%s".printf(get_function_declaration_parameters(namer, m));
-		ret += ") *%s {\n".printf(classname);
-
-		ret += "    var ret *%s\n".printf(classname);
-		ret += "    ret = C.%s(".printf(cname);
+		ret += ") &%s {\n".printf(classname);
+		ret += "    return C.%s(".printf(cname);
 		ret += "%s".printf(get_function_call_parameters(namer, m));
 		ret += ")\n";
-		if (free_function != "") {
-			ret += "    SetFinalizer(ret, func(r *%s) {\n".printf(classname);
-			ret += "        C.%s(r)\n".printf(free_function);
-			ret += "    })\n";
-		}
-		ret += "    return ret\n";
 		ret += "}\n";
 
 		dedent();
@@ -876,4 +869,3 @@ public class VlangWriter : ValabindWriter {
 		g.write(file);
 	}
 }
-
