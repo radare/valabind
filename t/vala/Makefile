@@ -1,5 +1,6 @@
 VAPI=vstest.vapi
 VALBINDCCFLAGS=-I. `pkg-config --cflags --libs gobject-2.0` -I/usr/include -L. -lvstest
+VB=../../valabind
 
 all:
 	valac -H vstest.h -C --vapi=${VAPI} --library=libvstest vstest.vala
@@ -20,6 +21,11 @@ test:
 
 foo:
 	valabind-cc python vstest -NFood ${VAPI} -I. `pkg-config --cflags --libs gobject-2.0`
+
+check-generated:
+	$(VB) --ctypes --module=vstest -N Food vstest.vapi
+	grep -q 'class Counter(IntEnum):' vstest.py
+	grep -q 'START = 0' vstest.py
 
 clean:
 	rm -f vstest.vapi vstest.h *.so vstest.cxx *.o *.i a.out vstest.c vstest.py* vstest_wrap.c*
