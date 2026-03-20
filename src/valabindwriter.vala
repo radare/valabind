@@ -18,6 +18,30 @@ public class ValabindWriter : CodeVisitor {
 	protected GLib.List<string> packages = new GLib.List<string> ();
 	protected GLib.List<string> defines = new GLib.List<string> ();
 	protected bool glibmode;
+	public GLib.List<string> includefiles = new GLib.List<string> ();
+
+	protected void add_includes (Symbol s) {
+		foreach (string i in Vala.get_ccode_header_filenames (s).split (",")) {
+			bool found = false;
+			foreach (string j in includefiles) {
+				if (i == j) {
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				includefiles.prepend (i);
+		}
+	}
+
+	protected string sep (string str, string separator) {
+		if (str.length == 0)
+			return str;
+		char last = str[str.length - 1];
+		if (last != '(' && last != '[' && last != '{')
+			return str + separator;
+		return str;
+	}
 
 	public ValabindWriter () {
 	}

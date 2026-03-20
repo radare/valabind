@@ -13,6 +13,7 @@ private static bool vlangoutput;
 private static bool nodeoutput;
 private static bool swigoutput;
 private static bool ctypesoutput;
+private static bool pythonoutput;
 private static bool giroutput;
 private static bool gooutput;
 private static string modulename;
@@ -57,6 +58,8 @@ private const OptionEntry[] options = {
 	  ref library, "library to link", null },
 	{ "ctypes", 0, 0, OptionArg.NONE,
 	  ref ctypesoutput, "generate python ctypes interface", null },
+	{ "python", 0, 0, OptionArg.NONE,
+	  ref pythonoutput, "generate native Python bindings (ctypes)", null },
 	{ "gir", 0, 0, OptionArg.NONE,
 	  ref giroutput, "generate GIR (GObject-Introspection-Runtime)", null },
 	{ "cxx", 0, 0, OptionArg.NONE,
@@ -108,6 +111,8 @@ int main (string[] args) {
 		writer = new NodeFFIWriter ();
 		writer.add_define ("VALABIND_NODEJS");
 	}
+	if (pythonoutput)
+		ctypesoutput = true;
 	if (ctypesoutput && count++ == 0) {
 		writer = new CtypesWriter ();
 		writer.add_define ("VALABIND_CTYPES");

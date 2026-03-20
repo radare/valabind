@@ -3,7 +3,6 @@
 using Vala;
 
 public class SwigWriter : ValabindWriter {
-	public GLib.List<string> includefiles = new GLib.List<string> ();
 	bool cxx_mode;
 	string statics = "";
 	string structs = "";
@@ -18,31 +17,6 @@ public class SwigWriter : ValabindWriter {
 
 	public override string get_filename (string base_name) {
 		return base_name+".i";
-	}
-
-	// FIXME duplicate from NodeFFIWriter and ctypeswriter
-	void add_includes (Symbol s) {
-		foreach (string i in Vala.get_ccode_header_filenames (s).split (",")) {
-			bool include = true;
-			foreach (string j in includefiles) {
-				if (i == j) {
-					include = false;
-					break;
-				}
-			}
-			if (include)
-				includefiles.prepend (i);
-		}
-	}
-
-	// FIXME duplicate from NodeFFIWriter
-	string sep (string str, string separator) {
-		if (str.length == 0)
-			return str;
-		char last = str[str.length-1];
-		if (last != '(' && last != '[' && last != '{')
-			return str+separator;
-		return str;
 	}
 
 	string get_alias (string oname) {

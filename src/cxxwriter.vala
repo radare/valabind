@@ -3,7 +3,6 @@
 using Vala;
 
 public class CxxWriter : ValabindWriter {
-	public GLib.List<string> includefiles = new GLib.List<string> ();
 	public GLib.List<Method> methods;
 	string classname = "";
 	string classcname;

@@ -5,7 +5,7 @@
 using Vala;
 
 private class CtypeCompiler {
-	public GLib.SList<weak CtypeClass> classes;
+	public GLib.SList<CtypeClass> classes;
 	public CtypeClass cur;
 	private bool sorted = false;
 
@@ -23,16 +23,16 @@ private class CtypeCompiler {
 	}
 
 	public void sort () {
-		var pending = new GLib.SList<weak CtypeClass> ();
+		var pending = new GLib.SList<CtypeClass> ();
 		foreach (var c in classes)
 			pending.append (c);
 
-		var ordered = new GLib.SList<weak CtypeClass> ();
+		var ordered = new GLib.SList<CtypeClass> ();
 		var resolved = new GLib.List<string> ();
 
 		while (pending.length () > 0) {
 			bool progress = false;
-			var next = new GLib.SList<weak CtypeClass> ();
+			var next = new GLib.SList<CtypeClass> ();
 
 			foreach (var c in pending) {
 				if (c.is_satisfied (resolved)) {
@@ -50,10 +50,10 @@ private class CtypeCompiler {
 				error ("Cannot compile, unresolved ctypes dependency detected");
 			}
 
-			pending = next.copy ();
+			pending = (owned) next;
 		}
 
-		this.classes = ordered.copy ();
+		this.classes = (owned) ordered;
 		this.sorted = true;
 	}
 
@@ -112,15 +112,6 @@ private class CtypeClass {
 			deps.append (d);
 	}
 
-/*
-	public bool depends_on(string d) {
-		foreach (var s in deps)
-			if (s == d)
-				return true;
-		return false;
-	}
-*/
-
 	public string to_string() {
 		return this.text;
 	}
@@ -131,44 +122,17 @@ private class CtypeClass {
 }
 
 public class CtypesWriter : ValabindWriter {
-	public GLib.List<string> includefiles = new GLib.List<string> ();
 	CtypeCompiler ctc = new CtypeCompiler ();
 	string ?ns_pfx;
 	string enumstr = "";
 	string delegatestr = "";
+	string freestr = "";
 
 	public CtypesWriter () {
 	}
 
 	public override string get_filename (string base_name) {
 		return base_name + ".py";
-	}
-
-	// FIXME duplicate from NodeFFIWriter
-	void add_includes (Symbol s) {
-		foreach (string i in Vala.get_ccode_header_filenames (s).split (",")) {
-			bool include = true;
-			foreach (string j in includefiles) {
-				if (i == j) {
-					include = false;
-					break;
-				}
-			}
-			if (include) {
-				includefiles.prepend (i);
-			}
-		}
-	}
-
-	// FIXME duplicate from NodeFFIWriter
-	string sep (string str, string separator) {
-		if (str.length != 0) {
-			char last = str[str.length-1];
-			if (last != '(' && last != '[' && last != '{') {
-				return str + separator;
-			}
-		}
-		return str;
 	}
 
 	string get_alias (string oname) {
@@ -310,9 +274,28 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	public override void visit_constant (Constant c) {
-		warning ("Constants not yet supported on ctypes ("+c.name+")");
-		//var cname = Vala.get_ccode_name (c);
-		//classes += c.name+" = "+cname+";\n";
+		var expr = c.value;
+		if (expr == null) {
+			warning ("Constant %s has no value expression, skipping".printf (c.name));
+			return;
+		}
+		string val;
+		if (expr is IntegerLiteral) {
+			val = ((IntegerLiteral) expr).value;
+		} else if (expr is StringLiteral) {
+			val = ((StringLiteral) expr).value;
+		} else if (expr is RealLiteral) {
+			val = ((RealLiteral) expr).value;
+		} else if (expr is BooleanLiteral) {
+			val = ((BooleanLiteral) expr).value ? "True" : "False";
+		} else {
+			warning ("Constant %s has unsupported expression type, skipping".printf (c.name));
+			return;
+		}
+		if (ctc.cur != null)
+			ctc.cur.append ("\t%s = %s\n".printf (c.name, val));
+		else
+			enumstr += "%s = %s\n".printf (c.name, val);
 	}
 
 	public override void visit_enum (Vala.Enum e) {
@@ -374,22 +357,27 @@ public class CtypesWriter : ValabindWriter {
 		visit_struct_or_class (c, name, c.get_fields (), c.get_methods (), c.get_delegates (), c.get_enums ());
 
 		/* walk nested structs and classes */
-		foreach (Struct s in c.get_structs ()) {
+		foreach (Struct s in c.get_structs ())
 			s.accept (this);
-		}
-		foreach (Class k in c.get_classes ()) {
+		foreach (Class k in c.get_classes ())
 			k.accept (this);
-		}
-		/* TODO: add support for freefun in destructor 
+
+		/* destructor / free function */
 		string? freefun = null;
 		if (Vala.is_reference_counting (c))
 			freefun = Vala.get_ccode_unref_function (c);
 		else
 			freefun = Vala.get_ccode_free_function (c);
-		if (freefun == "")
-			freefun = null;
-		var methods = c.get_methods ();
-		if (freefun != null || methods.size > 0) { ...  */
+		if (freefun != null && freefun != "") {
+			ctc.cur.append (
+				"\tdef __del__(self):\n" +
+				"\t\tif self._o:\n" +
+				"\t\t\t_%s = lib.%s\n".printf (freefun, freefun) +
+				"\t\t\t_%s.argtypes = [c_void_p]\n".printf (freefun) +
+				"\t\t\t_%s.restype = None\n".printf (freefun) +
+				"\t\t\t_%s(self._o)\n".printf (freefun) +
+				"\t\t\tself._o = None\n\n");
+		}
 	}
 
 	private string get_constructor_args(Vala.List<Method> methods) {
@@ -407,16 +395,13 @@ public class CtypesWriter : ValabindWriter {
 	}
 
 	string wrappers;
-int n = 0;
 
 	private void visit_struct_or_class (Symbol s, string name,
 			Vala.List<Field> fields, Vala.List<Method> methods,
 			Vala.List<Delegate>? delegates,
 			Vala.List<Vala.Enum>? enums) {
-		//string cname = Vala.get_ccode_name (s);
 		add_includes (s);
-		ctc.add_class (name, "class "+name+"(Structure): #"+n.to_string()+"\n");
-n++;
+		ctc.add_class (name, "class "+name+"(Structure):\n");
 		if (enums != null) {
 			foreach (Vala.Enum e in enums)
 				e.accept (this);
@@ -507,10 +492,9 @@ n++;
 			field = "\"%s\", %s".printf (f.name, stype);
 		}
 		ctc.cur.append ("\t\t(" + field + "),\n");
-		if (stype[0].isupper () && 
+		if (stype[0].isupper () &&
 				!stype.has_prefix ("POINTER") &&
 				stype.index_of (".") == -1) {
-//stderr.printf ("ADD DEP : "+field+"  "+stype+"\n");
 			ctc.cur.add_dependency (stype);
 		}
 	}
@@ -626,6 +610,41 @@ n++;
 		}
 	}
 
+	private void visit_free_method (Method m) {
+		if (m.is_private_symbol ())
+			return;
+		add_includes (m);
+		string cname = Vala.get_ccode_name (m);
+		string ret = type_name (m.return_type, true);
+		string pyc_args = "";
+		string def_args = "";
+		string call_args = "";
+
+		foreach (var foo in m.get_parameters ()) {
+			DataType? bar = foo.variable_type;
+			if (bar == null) {
+				warning ("Unknown datatype "+foo.name+"\n");
+				continue;
+			}
+			string arg_name = get_alias (foo.name);
+			string? arg_type = type_name (bar);
+			if (foo.direction != ParameterDirection.IN) {
+				if (arg_type.index_of ("*") == -1)
+					arg_type = "POINTER("+arg_type+")";
+			}
+			call_args = sep (call_args, ", ") + arg_name;
+			def_args = sep (def_args, ", ") + arg_name;
+			pyc_args = sep (pyc_args, ", ") + arg_type;
+		}
+		ret = (ret == "void") ? "None" : ret;
+		freestr += "def %s(%s):\n".printf (get_alias (m.name), def_args);
+		freestr += "\t_%s = lib.%s\n".printf (cname, cname);
+		if (pyc_args != "")
+			freestr += "\t_%s.argtypes = [%s]\n".printf (cname, pyc_args);
+		freestr += "\t_%s.restype = %s\n".printf (cname, ret);
+		freestr += "\treturn _%s(%s)\n\n".printf (cname, call_args);
+	}
+
 	public override void visit_namespace (Namespace ns) {
 		string name = ns.get_full_name ();
 		bool use = use_namespace (ns);
@@ -640,6 +659,8 @@ n++;
 				c.accept (this);
 			foreach (Vala.Enum e in ns.get_enums ())
 				e.accept (this);
+			foreach (Method m in ns.get_methods ())
+				visit_free_method (m);
 			foreach (Struct s in ns.get_structs ())
 				s.accept (this);
 			foreach (Class c in ns.get_classes ())
@@ -740,5 +761,6 @@ n++;
 			stream.printf (enumstr);
 			stream.printf (ctc.to_string ());
 			stream.puts (delegatestr);
+			stream.puts (freestr);
 		}
 	}

@@ -7,7 +7,7 @@ MOD=$2
 show_help () {
   echo "Usage: valabind-cc [lang] [module-name] [-flags] vapifile .."
   echo "Example: valabind-cc python r_bp -I/usr/include/r_bp r_bp.vapi"
-  echo "  lang: ctypes, python, dlang, nodejs, ocaml, guile, go, ruby,"
+  echo "  lang: python, ctypes, dlang, nodejs, ocaml, guile, go, ruby,"
   echo "        perl, lua, java, csharp, ..."
   echo "  --help,-h      show this help message"
   echo "  --version      show version of valabind"
@@ -27,7 +27,7 @@ show_help () {
   echo "  --nolibpython  do not include libpython in Python flags"
   echo " Environment:"
   echo "  VALABIND_DEBUG if not empty show stderr of commands"
-  echo "  PYTHON_CONFIG  path to python-config program (select py2 or py3)"
+  echo "  PYTHON_CONFIG  path to python3-config program"
   echo "  SWIGFLAGS      extra flags to be passed to swig"
   echo "  SOEXT          force extension for shared library (so, dll, dylib)"
   echo "  SWIG           path to swig program"
@@ -86,8 +86,8 @@ esac
 
 SWIG="${SWIG} -small"
 case "${LANG}" in
-ctypes)
-  python2 --version >/dev/null 2>&1 || \
+ctypes|python)
+  python3 --version >/dev/null 2>&1 || \
   python --version > /dev/null 2>&1 || \
   exit 1
   ;;
@@ -116,11 +116,11 @@ python)
   use_cxx
   LDFLAGS="${LDFLAGS} -L/usr/local/lib -L/usr/pkg/lib"
   if [ -n "`echo ${CXX} | grep mingw`" ]; then
-    CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python27/include"
-    LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python27/libs -lpython27"
+    CFLAGS="${CFLAGS} -I${HOME}/.wine/drive_c/Python3/include"
+    LDFLAGS="${LDFLAGS} -L${HOME}/.wine/drive_c/Python3/libs -lpython3"
   else
     PYCFG=""
-    for a in ${PYTHON_CONFIG} python-config python2-config python3-config ; do
+    for a in ${PYTHON_CONFIG} python3-config ; do
       $a --help >/dev/null 2>&1
       if [ $? = 0 ]; then
         PYCFG=$a
@@ -254,8 +254,8 @@ if [ "$CXXOUT" = 1 ]; then
 #  ${CXX} ${MOD}.cxx $@ -fPIC -shared ${MOD}.cxx ${CXXFLAGS} ${CFLAGS} -o ${OMOD}.${SOEXT} ${LDFLAGS} > /dev/null 2>&1
 elif [ "$TEST" = 1 ]; then
   case "${LANG}" in
-  ctypes)
-    python2 --version > /dev/null 2>&1 || \
+  ctypes|python)
+    python3 --version > /dev/null 2>&1 || \
     python --version > /dev/null 2>&1 || \
     exit 1
     ;;
@@ -290,7 +290,7 @@ elif [ "$TEST" = 1 ]; then
   esac
 else
   case "${LANG}" in
-  "ctypes")
+  "ctypes"|"python")
     eval echo valabind --ctypes ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.py -m ${MOD} ${FILES}
     eval valabind --ctypes ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.py -m ${MOD} ${FILES} ${NULLPIPE}
     exit $?

@@ -423,7 +423,6 @@ public class GoNamer {
 
 
 public class GoSrcWriter : ValabindWriter {
-	public GLib.List<string> includefiles = new GLib.List<string> ();
 	HashTable<string,bool> defined_classes = new HashTable<string,bool> (str_hash, str_equal);
 	GLib.HashTable<string, GLib.HashTable<string, GLib.List<DataType>>> generic_classes = new GLib.HashTable<string, GLib.HashTable<string, GLib.List<DataType>>> (GLib.str_hash, GLib.str_equal);
 	string classname = "";
