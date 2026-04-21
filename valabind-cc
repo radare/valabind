@@ -296,8 +296,10 @@ else
     exit $?
     ;;
   "nodejs"|node|"node-ffi")
-    eval echo valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
-    eval valabind --node-ffi ${VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
+    # node-ffi writer does not consume -x (cxx-swig); strip it from VALABINDFLAGS
+    NODEFFI_VALABINDFLAGS="`echo ${VALABINDFLAGS} | sed -e 's,^-x ,,' -e 's, -x , ,g' -e 's, -x$,,'`"
+    eval echo valabind --node-ffi ${NODEFFI_VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES}
+    eval valabind --node-ffi ${NODEFFI_VALABINDFLAGS} ${ARG_VAPIDIR} -o ${MOD}.js -m ${MOD} ${FILES} ${NULLPIPE}
     exit $?
     ;;
   *)
