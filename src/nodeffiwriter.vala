@@ -152,11 +152,21 @@ public class NodeFFIWriter : ValabindWriter {
 		foreach (Field f in s.get_fields ())
 			f.accept (this);
 
-		bind = sep (bind, "\n\t")+"}, {";
+		// Match the filter in visit_method so we only emit the methods tuple
+		// when at least one method will actually be written. Avoids a trailing
+		// empty `{}` for [Compact] structs with no visible methods.
+		int visible_methods = 0;
+		foreach (Method m in s.get_methods ()) {
+			if (!m.is_private_symbol () && m.name != "cast")
+				visible_methods++;
+		}
 
-		// NOTE if m.accept (this) is used, it might try other functions than visit_method
-		foreach (Method m in s.get_methods ())
-			m.accept (this);
+		if (visible_methods > 0) {
+			bind = sep (bind, "\n\t")+"}, {";
+			// NOTE if m.accept (this) is used, it might try other functions than visit_method
+			foreach (Method m in s.get_methods ())
+				m.accept (this);
+		}
 
 		bind = sep (bind, "\n\t")+"}];}";
 	}
@@ -514,7 +524,7 @@ function bindings(s) {
 		if(Array.isArray(s[i])) {
 			for(var j in s[i][0])
 				types[i].defineProperty(j, s[i][0][j]);
-			s[i] = s[i][1];
+			s[i] = s[i][1] || {};
 		}
 	}
 	for(var i in s) {
