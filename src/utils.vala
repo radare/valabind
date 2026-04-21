@@ -1,4 +1,4 @@
-/* Copyright 2009-2015 -- pancake, ritesh */
+/* Copyright 2009-2026 -- pancake, ritesh */
 
 #if W32
 using Windows;
@@ -31,13 +31,15 @@ public int array_length (Vala.ArrayType array) {
 	return -1;
 }
 
-// TODO: make it reusable for other backends
+// Returns the stdout of the enum probe on success. On any failure returns a
+// best-effort string containing a // FIXME comment describing the failure
 public string get_enums_for (string str, GLib.List<string> includefiles) {
 	string enums_exec, enums_out = "";
 	try {
 		FileUtils.close (FileUtils.open_tmp ("vbeXXXXXX", out enums_exec));
 	} catch (FileError e) {
-		error (e.message);
+		warning ("enum probe: " + e.message);
+		return "// FIXME: enum probe skipped: %s\n".printf (e.message);
 	}
 	string[] gcc_args = {"gcc", "-x", "c", "-o", enums_exec, "-"};
 	foreach (var i in include_dirs)
@@ -70,7 +72,8 @@ public string get_enums_for (string str, GLib.List<string> includefiles) {
 			throw new SpawnError.FAILED ("enums helper exited with status %d", status);
 	} catch (SpawnError e) {
 		FileUtils.unlink (enums_exec);
-		error (e.message);
+		warning ("enum probe: " + e.message);
+		return "// FIXME: enum probe failed: %s\n".printf (e.message);
 	}
 	FileUtils.unlink (enums_exec);
 	return enums_out;
