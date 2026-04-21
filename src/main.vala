@@ -41,7 +41,7 @@ private const OptionEntry[] options = {
 	{ "output", 'o', 0, OptionArg.STRING,
 	  ref output, "specify output file name", "OUTPUT" },
 	{ "module", 'm', 0, OptionArg.STRING,
-	  ref modulename, "specify module name", "NAME" },
+	  ref modulename, "module to emit (only this one; deps via --vapidir/.deps)", "NAME" },
 	{ "namespace", 'N', 0, OptionArg.STRING_ARRAY,
 	  ref namespaces, "include namespace in the output", "NSPACE" },
 	{ "cxx-swig", 'x', 0, OptionArg.NONE,

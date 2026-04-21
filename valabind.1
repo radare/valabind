@@ -47,6 +47,29 @@ show version information
 .It Fl V Ar PATH
 specify an alternative vapidir path
 .El
+.Sh NOTES
+.Pp
+Valabind processes a single module at a time: the module named with
+.Fl m
+is the only one whose classes, structs, enums and methods are emitted in
+the output. Any additional
+.Ar vapifile
+arguments passed on the command line are not processed as independent
+modules \(em only the first class of the first file ends up being walked.
+.Pp
+To resolve types that come from other modules (e.g. a
+.Pa r_core.vapi
+that references symbols declared in
+.Pa r_asm.vapi ) ,
+drop the extra vapis and their sibling
+.Pa .deps
+files under the directory passed to
+.Fl V Ar VAPIDIR
+and invoke valabind with just the single positional vapi you want emitted.
+Reproducing the pipeline by hand with every
+.Pa .vapi
+on the command line is a common mistake and will silently produce a nearly
+empty binding.
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It XDG_DATA_DIRS
