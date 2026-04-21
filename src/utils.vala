@@ -39,32 +39,35 @@ public string get_enums_for (string str, GLib.List<string> includefiles) {
 	} catch (FileError e) {
 		error (e.message);
 	}
-	string[] gcc_args = {"gcc", "-x", "c", "-o", enums_exec, "-"};
+	string cc = Environment.get_variable ("CC");
+	if (cc == null || cc == "")
+		cc = "cc";
+	string[] cc_args = {cc, "-x", "c", "-o", enums_exec, "-"};
 	foreach (var i in include_dirs)
-		gcc_args += "-I"+i;
+		cc_args += "-I"+i;
 	try {
-		Pid gcc_pid;
-		int gcc_stdinfd;
-		Process.spawn_async_with_pipes (null, gcc_args, null,
+		Pid cc_pid;
+		int cc_stdinfd;
+		Process.spawn_async_with_pipes (null, cc_args, null,
 				SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
-				null, out gcc_pid, out gcc_stdinfd);
-		var gcc_stdin = FileStream.fdopen (gcc_stdinfd, "w");
-		if (gcc_stdin == null)
-			throw new SpawnError.IO ("Cannot open gcc's stdin");
+				null, out cc_pid, out cc_stdinfd);
+		var cc_stdin = FileStream.fdopen (cc_stdinfd, "w");
+		if (cc_stdin == null)
+			throw new SpawnError.IO ("Cannot open %s's stdin".printf (cc));
 		foreach (string i in includefiles)
-			gcc_stdin.printf ("#include <%s>\n", i);
-		gcc_stdin.printf ("int main(){%s;return 0;}\n", str);
-		gcc_stdin = null;
+			cc_stdin.printf ("#include <%s>\n", i);
+		cc_stdin.printf ("int main(){%s;return 0;}\n", str);
+		cc_stdin = null;
 		int status;
 #if W32
-		status = Windows.waitpid (gcc_pid);
+		status = Windows.waitpid (cc_pid);
 #else
-		Posix.waitpid (gcc_pid, out status, 0);
+		Posix.waitpid (cc_pid, out status, 0);
 #endif
 
-		Process.close_pid (gcc_pid);
+		Process.close_pid (cc_pid);
 		if (status != 0)
-			throw new SpawnError.FAILED ("gcc exited with status %d", status);
+			throw new SpawnError.FAILED ("%s exited with status %d", cc, status);
 		Process.spawn_sync (null, {enums_exec}, null, 0, null, out enums_out, null, out status);
 		if (status != 0)
 			throw new SpawnError.FAILED ("enums helper exited with status %d", status);
